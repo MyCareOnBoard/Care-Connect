@@ -22,7 +22,7 @@ const teams = [
 
 export default function AgencyDashboardPage() {
   return (
-    <div className="px-[30px] pb-10 pt-4">
+    <div className="px-7.5 pb-10 pt-4">
       <section className="rounded-[28px] border border-[#d6d6d6] bg-white p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -34,7 +34,7 @@ export default function AgencyDashboardPage() {
           <Button className="h-11 bg-[#087fff] px-6">Post a job</Button>
         </div>
 
-        <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 mt-7 md:grid-cols-2 xl:grid-cols-4">
           {metrics.map((metric) => {
             const Icon = metric.icon
 

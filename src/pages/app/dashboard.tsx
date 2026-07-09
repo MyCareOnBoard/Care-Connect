@@ -53,7 +53,7 @@ function JobCard({ job }: { job: (typeof jobs)[number] }) {
       <p className="mt-4 text-sm text-[#20242c]">{job.company}</p>
       <p className="mt-2 text-sm leading-6 text-[#20242c]">{job.location}</p>
       {job.tags && (
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 mt-2">
           {job.tags.map((tag) => (
             <span key={tag} className="rounded-full bg-[#dddddd] px-3 py-1 text-sm font-semibold text-[#20242c]">
               {tag}
@@ -84,8 +84,8 @@ function Avatar({ className = "", initials = "" }: { className?: string; initial
 
 export default function DashboardPage() {
   return (
-    <div className="grid min-h-[calc(100vh-72px)] items-start gap-5 px-[30px] pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,680px)_326px]">
-      <aside className="space-y-10 xl:sticky xl:top-[88px] xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
+    <div className="grid min-h-[calc(100vh-72px)] items-start gap-5 px-7.5 pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,680px)_326px]">
+      <aside className="space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
         <section className="rounded-lg border border-[#d6d6d6] bg-white px-4 py-3">
           <div className="space-y-5">
             <StatRow label="Profile views" value="17" />
@@ -104,7 +104,7 @@ export default function DashboardPage() {
         </section>
 
         <section className="overflow-hidden rounded-lg bg-[#e9e1ff] p-2">
-          <div className="rounded-md border border-[#d5cafa] bg-[linear-gradient(55deg,rgba(92,72,215,0.08)_25%,transparent_25%,transparent_50%,rgba(92,72,215,0.08)_50%,rgba(92,72,215,0.08)_75%,transparent_75%)] bg-[length:36px_36px] px-2 py-3">
+          <div className="rounded-md border border-[#d5cafa] bg-[linear-gradient(55deg,rgba(92,72,215,0.08)_25%,transparent_25%,transparent_50%,rgba(92,72,215,0.08)_50%,rgba(92,72,215,0.08)_75%,transparent_75%)] bg-size-[36px_36px] px-2 py-3">
             <h2 className="text-2xl font-bold leading-tight text-[#2a0c4a]">Turn your equipment into opportunity</h2>
             <p className="mt-3 text-sm leading-5 text-[#321c47]">
               Have medical equipment or supplies to sell? List them and connect with the right people
@@ -118,11 +118,11 @@ export default function DashboardPage() {
         <section className="rounded-[30px] border border-[#d6d6d6] bg-white px-4 py-4">
           <div className="flex items-center gap-4">
             <Avatar className="border border-[#d8d8d8] bg-white" />
-            <div className="flex h-[54px] min-w-0 flex-1 items-center rounded-2xl border border-[#d6d6d6] px-4 text-sm text-[#20242c]">
+            <div className="flex h-13.5 min-w-0 flex-1 items-center rounded-2xl border border-[#d6d6d6] px-4 text-sm text-[#20242c]">
               Share some highlights
             </div>
           </div>
-          <div className="mt-4 flex items-center justify-between pl-[68px]">
+          <div className="flex items-center justify-between mt-4 pl-17">
             <div className="flex gap-2">
               <button type="button" className="flex h-8 items-center gap-1 rounded-lg bg-[#ffdfe8] px-2 text-sm text-[#ff3e66]">
                 <Image className="size-5" />
@@ -142,7 +142,7 @@ export default function DashboardPage() {
         <article>
           <div className="flex items-start gap-3">
             <Avatar className="bg-[linear-gradient(135deg,#ffd08a,#67a6d9)]" initials="SM" />
-            <div className="min-w-0 flex-1">
+            <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-bold">Dr. Sarah Mitchell</h2>
@@ -153,7 +153,7 @@ export default function DashboardPage() {
                 </Button>
               </div>
 
-              <div className="mt-5 max-w-[650px] text-sm leading-5">
+              <div className="mt-5 max-w-162.5 text-sm leading-5">
                 <p>Nobody talks about the weight nurses carry home.</p>
                 <p>Not the medical charts. Not the missed lunch breaks.</p>
                 <p>The weight of the patient who didn&apos;t make it through the night.</p>
@@ -167,8 +167,8 @@ export default function DashboardPage() {
                 #NurseLife #HealthcareWorkers #MentalHealth #BurnoutAwareness
               </p>
 
-              <div className="mt-4 flex min-h-[456px] items-center rounded-t-xl bg-black px-11 py-12 text-white">
-                <p className="max-w-[580px] text-[clamp(54px,6vw,96px)] font-black uppercase leading-[0.98] tracking-normal">
+              <div className="flex items-center py-12 mt-4 text-white bg-black min-h-114 rounded-t-xl px-11">
+                <p className="max-w-145 text-[clamp(54px,6vw,96px)] font-black uppercase leading-[0.98] tracking-normal">
                   Burnout<br />is not a badge<br />of honor
                 </p>
               </div>
@@ -177,7 +177,7 @@ export default function DashboardPage() {
         </article>
       </main>
 
-      <aside className="space-y-10 xl:sticky xl:top-[88px] xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
+      <aside className="space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
         <section>
           <h2 className="mb-5 text-sm font-semibold">Top agencies around you</h2>
           <div className="space-y-4">
@@ -195,8 +195,8 @@ export default function DashboardPage() {
                   }
                   initials={initials}
                 />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold">{name}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold truncate">{name}</p>
                   <p className="mt-1 text-sm text-[#383d45]">{location}</p>
                 </div>
                 <Button variant="outline" className="h-10 rounded-full border-[#087fff] px-5 text-[#087fff]">
@@ -214,8 +214,8 @@ export default function DashboardPage() {
             {professionals.map(([name, role, color]) => (
               <div key={name} className="flex items-center gap-3">
                 <Avatar className={color} initials={name.slice(0, 2).toUpperCase()} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold">{name}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold truncate">{name}</p>
                   <p className="mt-1 truncate text-sm text-[#383d45]">{role}</p>
                 </div>
                 <Button variant="outline" className="h-10 rounded-full border-[#087fff] px-5 text-[#087fff]">

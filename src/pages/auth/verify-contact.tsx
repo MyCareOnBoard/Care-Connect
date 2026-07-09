@@ -25,7 +25,7 @@ export default function VerifyContactPage() {
 
   return (
     <AuthOnboardingLayout>
-      <div className="mx-auto flex w-full max-w-[492px] flex-1 flex-col justify-center px-5 py-10 sm:px-0">
+      <div className="flex flex-col justify-center flex-1 w-full px-5 py-10 mx-auto max-w-123 sm:px-0">
         <h1 className="mb-10 text-[34px] font-normal leading-none">Verify your contact details</h1>
 
         <form onSubmit={handleSubmit}>
@@ -39,7 +39,7 @@ export default function VerifyContactPage() {
                 }}
                 value={digit}
                 onChange={(event) => updateDigit(index, event.target.value)}
-                className="h-[62px] rounded-xl border border-[#d7d7d8] text-center text-3xl font-bold outline-none focus:border-[#087fff] focus:ring-2 focus:ring-[#087fff]/20"
+                className="h-15.5 rounded-xl border border-[#d7d7d8] text-center text-3xl font-bold outline-none focus:border-[#087fff] focus:ring-2 focus:ring-[#087fff]/20"
                 inputMode="numeric"
                 aria-label={`Verification digit ${index + 1}`}
                 required
