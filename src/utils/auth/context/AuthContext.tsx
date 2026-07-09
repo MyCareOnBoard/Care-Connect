@@ -15,7 +15,7 @@ import {
 import { logoutUser } from "../store/authSlice"
 import type { LoginResult } from "../types/login.types"
 import { PageLoader } from "@/components/ui/loader"
-import { auth } from "@/lib/firebase";
+import { auth, isFirebaseConfigured } from "@/lib/firebase";
 import { clearAuthCache } from "@/lib/axios";
 import type { User } from "../types/user.types"
 
@@ -50,6 +50,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initAuth = async () => {
+      if (!isFirebaseConfigured) {
+        setUserState(null)
+        dispatch(setUser(null))
+        setIsInitialized(true)
+        setLoading(false)
+        return
+      }
+
       const currentFirebaseUser = await new Promise<import('firebase/auth').User | null>(
         (resolve) => {
           const unsub = auth.onAuthStateChanged((u) => { unsub(); resolve(u); });

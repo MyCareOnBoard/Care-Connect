@@ -55,7 +55,7 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ["system-ui", "sans-serif"],
+        sans: ["Urbanist", "sans-serif"],
       },
       borderRadius: {
         lg: "var(--radius-lg)",
