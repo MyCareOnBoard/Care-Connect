@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { ButtonLoader, PageLoader } from "@/components/ui/loader"
 import { Routes } from "@/routes/constants"
 import { verifyResetCode, confirmReset } from "@/utils/auth/services/authService"
+import { LegacyAuthCard } from "@/components/auth/LegacyAuthCard"
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams()
@@ -56,6 +57,7 @@ export default function ResetPasswordPage() {
 
   if (!valid) {
     return (
+      <LegacyAuthCard>
       <div className="space-y-4 text-center">
         <h2 className="text-2xl font-semibold tracking-tight">Invalid link</h2>
         <p className="text-sm text-muted-foreground">This reset link is invalid or has expired.</p>
@@ -63,10 +65,12 @@ export default function ResetPasswordPage() {
           Request a new link
         </Link>
       </div>
+      </LegacyAuthCard>
     )
   }
 
   return (
+    <LegacyAuthCard>
     <div className="space-y-8">
       <div className="space-y-2">
         <h2 className="text-3xl font-semibold tracking-tight">Set a new password</h2>
@@ -90,5 +94,6 @@ export default function ResetPasswordPage() {
         </Button>
       </form>
     </div>
+    </LegacyAuthCard>
   )
 }

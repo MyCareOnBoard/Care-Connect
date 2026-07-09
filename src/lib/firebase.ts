@@ -9,8 +9,16 @@ import { initializeApp, getApps, getApp } from "firebase/app"
 import { getAuth, connectAuthEmulator } from "firebase/auth"
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore"
 
-// Firebase configuration from environment variables
-const firebaseConfig = {
+export const isFirebaseConfigured = Boolean(
+  import.meta.env.VITE_FIREBASE_API_KEY &&
+    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN &&
+    import.meta.env.VITE_FIREBASE_PROJECT_ID &&
+    import.meta.env.VITE_FIREBASE_APP_ID
+)
+
+// Firebase configuration from environment variables, with a demo fallback so visual routes render locally.
+const firebaseConfig = isFirebaseConfigured
+  ? {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
@@ -18,11 +26,14 @@ const firebaseConfig = {
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
-
-// Add validation
-if (!firebaseConfig.apiKey || !firebaseConfig.authDomain) {
-  throw new Error("Firebase config is missing. Check your .env file.")
-}
+  : {
+      apiKey: "demo-api-key",
+      authDomain: "demo-careconnect.firebaseapp.com",
+      projectId: "demo-careconnect",
+      storageBucket: "demo-careconnect.appspot.com",
+      messagingSenderId: "000000000000",
+      appId: "1:000000000000:web:demo",
+    }
 
 // Initialize Firebase (singleton pattern)
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()
@@ -50,7 +61,7 @@ export const db = resolvedDatabaseId
   : getFirestore(app)
 
 // Connect to Firebase Emulators in development mode
-if (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') {
+if (isFirebaseConfigured && import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') {
   console.log('🔥 Firebase Emulators enabled')
   try {
     connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
