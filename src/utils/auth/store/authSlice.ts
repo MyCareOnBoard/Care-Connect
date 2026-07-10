@@ -36,6 +36,9 @@ export const loginUser = createAsyncThunk(
     if (result.status === 'success') {
       return result.user
     }
+    if (result.status === 'mfa_required') {
+      return rejectWithValue('MFA verification required')
+    }
     return rejectWithValue(result.error || 'Login failed')
   }
 )

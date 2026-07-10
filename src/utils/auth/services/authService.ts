@@ -5,6 +5,7 @@
  */
 
 import { auth } from '@/lib/firebase'
+import axiosClient from '@/lib/axios'
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -13,11 +14,36 @@ import {
   updateProfile,
   verifyPasswordResetCode,
   confirmPasswordReset,
+  deleteUser,
   type User as FirebaseUser,
 } from 'firebase/auth'
-import type { User } from '../types/user.types'
+import type { User, UserType } from '../types/user.types'
 import type { LoginResponse } from '../types/login.types'
 import { getAuthErrorMessage } from '../helpers/errorMessages'
+import { storeMfaResolver } from './mfaService'
+
+/**
+ * Shape of the backend's GET /users/profile response, merged onto the Firebase-derived User.
+ */
+export interface BackendUserProfile {
+  uid: string
+  email: string
+  fullName: string
+  userType: UserType
+  onboardingCompleted?: boolean
+  otpVerified?: boolean
+  agencyId?: string
+  profile?: Record<string, unknown> | null
+  agency?: Record<string, unknown> | null
+}
+
+export interface CareConnectProfileFields {
+  organizationName?: string
+  organizationType?: string
+  organizationInterests?: string[]
+  profession?: string
+  certifications?: string[]
+}
 
 export interface AuthResponse {
   success: boolean
@@ -58,6 +84,11 @@ export async function loginWithEmail(
 
     return { status: 'success', user }
   } catch (error: unknown) {
+    const mfaRequired = await storeMfaResolver(error, email)
+    if (mfaRequired) {
+      return { status: 'mfa_required' }
+    }
+
     console.error('Login error:', error)
 
     return {
@@ -160,6 +191,97 @@ export async function confirmReset(code: string, newPassword: string): Promise<{
       success: false,
       error: getAuthErrorMessage(error) || 'Failed to reset password',
     }
+  }
+}
+
+/**
+ * Create the backend profile doc for a freshly-created Firebase account.
+ * userType is restricted server-side to applicant/careconnect_individual/careconnect_company.
+ */
+export async function createBackendUserProfile(
+  fullName: string,
+  userType: 'careconnect_individual' | 'careconnect_company'
+): Promise<BackendUserProfile> {
+  const { data } = await axiosClient.post('/users', { fullName, userType })
+  return data.user
+}
+
+/**
+ * Fetch the backend profile for the signed-in Firebase user.
+ */
+export async function getUserProfile(): Promise<BackendUserProfile> {
+  const { data } = await axiosClient.get('/users/profile')
+  return data.user
+}
+
+/**
+ * Progressively save CareConnect-specific wizard fields (organization info, profession, etc.)
+ */
+export async function updateCareConnectProfile(
+  fields: CareConnectProfileFields
+): Promise<void> {
+  await axiosClient.put('/users/careconnect-profile', fields)
+}
+
+/**
+ * Upload a resume/cover-letter/certification document for a CareConnect account.
+ */
+export async function uploadCareConnectDocument(
+  file: File,
+  documentType: 'resume' | 'coverLetter' | 'certification'
+): Promise<{ url: string; fileName: string }> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('documentType', documentType)
+
+  // Let the browser set Content-Type (with multipart boundary) automatically for FormData.
+  const { data } = await axiosClient.post('/careconnectDocumentUpload', formData)
+  return data.data
+}
+
+/**
+ * Mark the backend profile's onboarding as complete (final step of the signup wizard).
+ */
+export async function completeOnboarding(): Promise<void> {
+  await axiosClient.put('/users/profile', { onboardingCompleted: true })
+}
+
+/**
+ * Send a 6-digit email OTP to the signed-in user (verify-contact step).
+ */
+export async function sendOtp(): Promise<void> {
+  await axiosClient.post('/otp/send')
+}
+
+/**
+ * Verify the 6-digit email OTP. Marks the backend profile otpVerified: true on success.
+ */
+export async function verifyOtp(otp: string): Promise<void> {
+  await axiosClient.post('/otp/verify', { otp })
+}
+
+/**
+ * Invalidate the existing OTP and send a new one.
+ */
+export async function resendOtp(): Promise<void> {
+  await axiosClient.post('/otp/resend')
+}
+
+/**
+ * Check whether the signed-in user has already completed email OTP verification.
+ */
+export async function getOtpStatus(): Promise<boolean> {
+  const { data } = await axiosClient.get('/otp/status')
+  return Boolean(data.otpVerified)
+}
+
+/**
+ * Roll back a just-created Firebase account (used when backend profile creation fails
+ * right after signup, keeping Firebase Auth and the backend profile in sync).
+ */
+export async function deleteCurrentFirebaseUser(): Promise<void> {
+  if (auth.currentUser) {
+    await deleteUser(auth.currentUser)
   }
 }
 

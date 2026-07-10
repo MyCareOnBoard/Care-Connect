@@ -1,6 +1,8 @@
 import type { User } from './user.types'
 
-export type LoginResult = { status: 'success'; user: User }
+export type LoginResult =
+  | { status: 'success'; user: User }
+  | { status: 'mfa_required' }
 
 export type LoginErrorResult = {
   status: 'error'

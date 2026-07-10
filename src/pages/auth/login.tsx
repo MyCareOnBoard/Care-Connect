@@ -1,5 +1,6 @@
 import React, { useState } from "react"
 import { useNavigate, Link } from "react-router"
+import { useDispatch } from "react-redux"
 import { Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -9,6 +10,9 @@ import { useAuth } from "@/utils/auth"
 import { ButtonLoader } from "@/components/ui/loader"
 import { Routes } from "@/routes/constants"
 import { getAuthErrorMessage, getValidationMessage } from "@/utils/auth/helpers/errorMessages"
+import { completePostLogin } from "@/utils/auth/helpers/postLogin"
+import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
+import type { AppDispatch } from "@/store/redux/store"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -19,6 +23,7 @@ export default function LoginPage() {
 
   const { login } = useAuth()
   const navigate = useNavigate()
+  const dispatch = useDispatch<AppDispatch>()
 
   const validateEmail = (value: string) => {
     if (!value) return getValidationMessage('email', 'required')
@@ -46,8 +51,14 @@ export default function LoginPage() {
 
     setLoading(true)
     try {
-      await login(email, password)
-      navigate(Routes.app.dashboard, { replace: true })
+      const result = await login(email, password)
+
+      if (result.status === 'mfa_required') {
+        navigate(Routes.auth.mfaChallenge)
+        return
+      }
+
+      await completePostLogin(dispatch, navigate)
     } catch (error: unknown) {
       toast.error(getAuthErrorMessage(error))
     } finally {
@@ -56,78 +67,84 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
-        <h2 className="text-3xl font-semibold tracking-tight">Login to your account</h2>
-        <p className="text-sm text-muted-foreground">Please enter your information to access your account</p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="email">Email address</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="Enter email address"
-            value={email}
-            onChange={(e) => { setEmail(e.target.value); setErrors((p) => ({ ...p, email: "" })) }}
-            onBlur={() => setErrors((p) => ({ ...p, email: validateEmail(email) }))}
-            aria-invalid={!!errors.email}
-            required
-          />
-          {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+    <AuthOnboardingLayout>
+      <div className="flex flex-col justify-center flex-1 w-full px-5 py-10 mx-auto max-w-123 sm:px-0">
+        <div className="text-center mb-9">
+          <h1 className="text-[34px] font-normal leading-none">Login to your account</h1>
+          <p className="mt-4 text-sm text-[#565656]">Please enter your information to access your account</p>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <div className="relative">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="email" className="font-semibold">
+              Email address
+            </Label>
             <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="Enter password"
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setErrors((p) => ({ ...p, password: "" })) }}
-              onBlur={() => setErrors((p) => ({ ...p, password: validatePassword(password) }))}
-              aria-invalid={!!errors.password}
+              id="email"
+              type="email"
+              placeholder="Enter email address"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setErrors((p) => ({ ...p, email: "" })) }}
+              onBlur={() => setErrors((p) => ({ ...p, email: validateEmail(email) }))}
+              aria-invalid={!!errors.email}
               required
-              className="pr-12"
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-            </button>
+            {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
           </div>
-          {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-        </div>
 
-        <div className="flex justify-end">
-          <Link to={Routes.auth.forgotPassword} className="text-sm text-primary font-semibold hover:underline">
-            Forgot password?
+          <div className="space-y-2">
+            <Label htmlFor="password" className="font-semibold">
+              Password
+            </Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter password"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setErrors((p) => ({ ...p, password: "" })) }}
+                onBlur={() => setErrors((p) => ({ ...p, password: validatePassword(password) }))}
+                aria-invalid={!!errors.password}
+                required
+                className="pr-12"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[#737780] hover:text-[#151922]"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+            {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+          </div>
+
+          <div className="flex justify-end">
+            <Link to={Routes.auth.forgotPassword} className="text-sm font-semibold text-[#087fff] hover:underline">
+              Forgot password?
+            </Link>
+          </div>
+
+          <Button type="submit" disabled={loading} className="h-11 w-full bg-[#087fff]">
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <ButtonLoader />
+                Logging in...
+              </span>
+            ) : (
+              "Login"
+            )}
+          </Button>
+        </form>
+
+        <p className="mt-7 text-center text-sm text-[#087fff]">
+          Don&apos;t have an account?{" "}
+          <Link to={Routes.auth.signup} className="font-semibold hover:underline">
+            Sign up
           </Link>
-        </div>
-
-        <Button type="submit" disabled={loading} className="w-full">
-          {loading ? (
-            <span className="flex items-center justify-center gap-2">
-              <ButtonLoader />
-              Logging in...
-            </span>
-          ) : (
-            "Login"
-          )}
-        </Button>
-      </form>
-
-      <p className="text-sm text-center text-muted-foreground">
-        Don't have an account?{" "}
-        <Link to={Routes.auth.signup} className="text-primary font-semibold hover:underline">
-          Sign up
-        </Link>
-      </p>
-    </div>
+        </p>
+      </div>
+    </AuthOnboardingLayout>
   )
 }

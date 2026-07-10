@@ -1,12 +1,10 @@
 import { Outlet } from "react-router";
+import { AppShell } from "@/components/app/AppShell";
 
-/**
- * Shell for authenticated pages. Add a header/sidebar here as the app grows.
- */
 export default function AppLayout() {
   return (
-    <div className="min-h-screen">
+    <AppShell>
       <Outlet />
-    </div>
+    </AppShell>
   )
 }
