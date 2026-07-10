@@ -10,15 +10,21 @@ const LoginPage = lazy(() => import("@/pages/auth/login"));
 const SignUpPage = lazy(() => import("@/pages/auth/signup"));
 const VerifyContactPage = lazy(() => import("@/pages/auth/verify-contact"));
 const JoinTypePage = lazy(() => import("@/pages/auth/join-type"));
+const OrganizationNamePage = lazy(() => import("@/pages/auth/organization-name"));
+const OrganizationTypePage = lazy(() => import("@/pages/auth/organization-type"));
+const OrganizationInterestsPage = lazy(() => import("@/pages/auth/organization-interests"));
 const ProfessionPage = lazy(() => import("@/pages/auth/profession"));
 const CertificationsPage = lazy(() => import("@/pages/auth/certifications"));
+const DocumentsPage = lazy(() => import("@/pages/auth/documents"));
+const WelcomePage = lazy(() => import("@/pages/auth/welcome"));
 const ForgotPasswordPage = lazy(() => import("@/pages/auth/forgot-password"));
 const ResetPasswordPage = lazy(() => import("@/pages/auth/reset-password"));
 
-const DashboardPage = lazy(() => import("@/pages/app/dashboard"));
-const AgencyDashboardPage = lazy(() => import("@/pages/app/agency-dashboard"));
+const DashboardPage = lazy(() => import("@/pages/app/user/dashboard"));
+const AgencyDashboardPage = lazy(() => import("@/pages/app/agency/dashboard"));
+const UserJobsPage = lazy(() => import("@/pages/app/user/jobs"));
+const AgencyJobsPage = lazy(() => import("@/pages/app/agency/jobs"));
 const MessagesPage = lazy(() => import("@/pages/app/messages"));
-const JobsPage = lazy(() => import("@/pages/app/jobs"));
 const ApplicationsPage = lazy(() => import("@/pages/app/applications"));
 const MarketplacePage = lazy(() => import("@/pages/app/marketplace"));
 const TelehealthPage = lazy(() => import("@/pages/app/telehealth"));
@@ -44,8 +50,13 @@ export const router = createBrowserRouter([
           { path: Routes.auth.signup, Component: SignUpPage },
           { path: Routes.auth.verifyContact, Component: VerifyContactPage },
           { path: Routes.auth.joinType, Component: JoinTypePage },
+          { path: Routes.auth.organizationName, Component: OrganizationNamePage },
+          { path: Routes.auth.organizationType, Component: OrganizationTypePage },
+          { path: Routes.auth.organizationInterests, Component: OrganizationInterestsPage },
           { path: Routes.auth.profession, Component: ProfessionPage },
           { path: Routes.auth.certifications, Component: CertificationsPage },
+          { path: Routes.auth.documents, Component: DocumentsPage },
+          { path: Routes.auth.welcome, Component: WelcomePage },
           { path: Routes.auth.forgotPassword, Component: ForgotPasswordPage },
           { path: Routes.auth.resetPassword, Component: ResetPasswordPage },
         ],
@@ -55,7 +66,7 @@ export const router = createBrowserRouter([
         children: [
           { path: Routes.app.user.dashboard, Component: DashboardPage },
           { path: Routes.app.user.messages, Component: MessagesPage },
-          { path: Routes.app.user.jobs, Component: JobsPage },
+          { path: Routes.app.user.jobs, Component: UserJobsPage },
           { path: Routes.app.user.applications, Component: ApplicationsPage },
           { path: Routes.app.user.marketplace, Component: MarketplacePage },
           { path: Routes.app.user.telehealth, Component: TelehealthPage },
@@ -63,7 +74,7 @@ export const router = createBrowserRouter([
           { path: Routes.app.user.settings, Component: SettingsPage },
           { path: Routes.app.agency.dashboard, Component: AgencyDashboardPage },
           { path: Routes.app.agency.messages, Component: MessagesPage },
-          { path: Routes.app.agency.jobs, Component: JobsPage },
+          { path: Routes.app.agency.jobs, Component: AgencyJobsPage },
           { path: Routes.app.agency.applications, Component: ApplicationsPage },
           { path: Routes.app.agency.marketplace, Component: MarketplacePage },
           { path: Routes.app.agency.telehealth, Component: TelehealthPage },

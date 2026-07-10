@@ -39,7 +39,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
           <button
             type="button"
             aria-label="Notifications"
-            className={`relative flex ${notificationButtonSize} items-center justify-center rounded-full bg-white text-[#151922] outline-none transition hover:bg-[#f2f6f8]`}
+            className={`relative flex ${notificationButtonSize} items-center justify-center rounded-full bg-white text-[#151922] outline-none transition hover:bg-[#f2f6f8] cursor-pointer`}
           >
             <Bell className="size-5 fill-[#151922]" />
             <span className="absolute right-3 top-2 size-2 rounded-full bg-[#ed2f20]" />
@@ -63,27 +63,27 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="flex h-9 items-center gap-3 rounded-full pl-2 pr-3 outline-none transition hover:bg-[#edf3f5]"
+            className="flex h-6 items-center gap-3 rounded-full pl-2 pr-3 outline-none transition hover:bg-[#edf3f5] cursor-pointer"
           >
-            <span className="text-sm font-medium">Joseph Eshun</span>
+            <span className="hidden text-sm font-medium sm:inline">Joseph Eshun</span>
             <ChevronDown className="size-4" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48 rounded-xl border-[#dce2e6] bg-white p-1">
-          <DropdownMenuItem asChild className="cursor-pointer rounded-lg">
+          <DropdownMenuItem asChild className="rounded-lg hover:bg-[#edf3f5] cursor-pointer">
             <Link to={profilePath}>
               <UserRound className="size-4" />
               Profile
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem asChild className="cursor-pointer rounded-lg">
+          <DropdownMenuItem asChild className="rounded-lg hover:bg-[#edf3f5] cursor-pointer">
             <Link to={settingsPath}>
               <Settings className="size-4" />
               Settings
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={handleLogout} variant="destructive" className="cursor-pointer rounded-lg">
+          <DropdownMenuItem onSelect={handleLogout} variant="destructive" className="rounded-lg hover:bg-[#ff313157] cursor-pointer">
             <LogOut className="size-4" />
             Logout
           </DropdownMenuItem>

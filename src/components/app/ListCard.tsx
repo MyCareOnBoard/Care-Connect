@@ -9,7 +9,7 @@ type ListCardProps = {
 
 export function ListCard({ title, meta, children, action }: ListCardProps) {
   return (
-    <article className="rounded-lg border border-[#dfe4ea] bg-white p-5">
+    <article className="rounded-lg border border-white/60 bg-white/80 p-5 shadow-[0_4px_20px_rgba(16,20,26,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(16,20,26,0.1)]">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold text-[#141922]">{title}</h2>

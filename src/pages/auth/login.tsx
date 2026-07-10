@@ -58,8 +58,8 @@ export default function LoginPage() {
 
   return (
     <AuthOnboardingLayout>
-      <div className="mx-auto flex w-full max-w-[492px] flex-1 flex-col justify-center px-5 py-10 sm:px-0">
-        <div className="mb-9 text-center">
+      <div className="flex flex-col justify-center flex-1 w-full px-5 py-10 mx-auto max-w-123 sm:px-0">
+        <div className="text-center mb-9">
           <h1 className="text-[34px] font-normal leading-none">Login to your account</h1>
           <p className="mt-4 text-sm text-[#565656]">Please enter your information to access your account</p>
         </div>
