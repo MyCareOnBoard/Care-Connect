@@ -1,13 +1,58 @@
-import { FormEvent, useRef, useState } from "react"
+import { FormEvent, useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { ButtonLoader } from "@/components/ui/loader"
 import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
 import { Routes } from "@/routes/constants"
+import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
+import { getOtpStatus, resendOtp, sendOtp, verifyOtp } from "@/utils/auth/services/authService"
+import { getAuthErrorMessage } from "@/utils/auth/helpers/errorMessages"
+
+const CODE_LENGTH = 6
+const RESEND_COOLDOWN_SEC = 30
 
 export default function VerifyContactPage() {
   const navigate = useNavigate()
-  const [digits, setDigits] = useState(["2", "0", "9", "9", "9"])
+  const { joinType } = useSignupWizard()
+  const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(""))
+  const [verifying, setVerifying] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [resendSeconds, setResendSeconds] = useState(RESEND_COOLDOWN_SEC)
   const inputRefs = useRef<Array<HTMLInputElement | null>>([])
+  const initialSendStarted = useRef(false)
+
+  const goToNextStep = () => {
+    navigate(joinType === "company" ? Routes.auth.organizationName : Routes.auth.profession)
+  }
+
+  useEffect(() => {
+    if (initialSendStarted.current) return
+    initialSendStarted.current = true
+
+    const init = async () => {
+      try {
+        const alreadyVerified = await getOtpStatus()
+        if (alreadyVerified) {
+          goToNextStep()
+          return
+        }
+        await sendOtp()
+      } catch (error: unknown) {
+        toast.error(getAuthErrorMessage(error))
+      }
+    }
+    void init()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (resendSeconds <= 0) return
+    const timer = window.setInterval(() => {
+      setResendSeconds((seconds) => Math.max(0, seconds - 1))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [resendSeconds])
 
   const updateDigit = (index: number, value: string) => {
     const nextValue = value.replace(/\D/g, "").slice(-1)
@@ -18,9 +63,35 @@ export default function VerifyContactPage() {
     }
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    navigate(Routes.auth.joinType)
+    const otp = digits.join("")
+    if (otp.length < CODE_LENGTH) return
+
+    setVerifying(true)
+    try {
+      await verifyOtp(otp)
+      goToNextStep()
+    } catch (error: unknown) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  const handleResend = async () => {
+    if (resendSeconds > 0 || sending) return
+    setSending(true)
+    try {
+      await resendOtp()
+      setResendSeconds(RESEND_COOLDOWN_SEC)
+      setDigits(Array(CODE_LENGTH).fill(""))
+      inputRefs.current[0]?.focus()
+    } catch (error: unknown) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -29,8 +100,8 @@ export default function VerifyContactPage() {
         <h1 className="mb-10 text-[34px] font-normal leading-none">Verify your contact details</h1>
 
         <form onSubmit={handleSubmit}>
-          <p className="mb-4 text-sm font-semibold">Check your email/ phone number for the one time PIN</p>
-          <div className="grid grid-cols-5 gap-4 sm:gap-11">
+          <p className="mb-4 text-sm font-semibold">Check your email for the one time PIN</p>
+          <div className="grid grid-cols-6 gap-2 sm:gap-4">
             {digits.map((digit, index) => (
               <input
                 key={index}
@@ -46,13 +117,29 @@ export default function VerifyContactPage() {
               />
             ))}
           </div>
-          <Button type="submit" className="mt-6 h-11 w-full bg-[#087fff]">
-            Verify and continue
+          <Button type="submit" disabled={verifying} className="mt-6 h-11 w-full bg-[#087fff]">
+            {verifying ? (
+              <span className="flex items-center justify-center gap-2">
+                <ButtonLoader />
+                Verifying...
+              </span>
+            ) : (
+              "Verify and continue"
+            )}
           </Button>
         </form>
 
-        <button type="button" className="mt-5 text-center text-sm font-medium text-[#087fff]">
-          Resend code in 00:30
+        <button
+          type="button"
+          disabled={resendSeconds > 0 || sending}
+          onClick={() => void handleResend()}
+          className="mt-5 text-center text-sm font-medium text-[#087fff] disabled:text-[#a3c9f0]"
+        >
+          {sending
+            ? "Resending..."
+            : resendSeconds > 0
+              ? `Resend code in 00:${resendSeconds.toString().padStart(2, "0")}`
+              : "Resend code"}
         </button>
       </div>
     </AuthOnboardingLayout>

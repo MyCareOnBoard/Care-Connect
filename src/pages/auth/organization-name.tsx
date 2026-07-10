@@ -1,18 +1,33 @@
 import { FormEvent, useState } from "react"
 import { useNavigate } from "react-router"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
 import { AuthStepHeader } from "@/components/auth/AuthStepHeader"
 import { Routes } from "@/routes/constants"
+import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
+import { updateCareConnectProfile } from "@/utils/auth/services/authService"
+import { getAuthErrorMessage } from "@/utils/auth/helpers/errorMessages"
 
 export default function OrganizationNamePage() {
   const navigate = useNavigate()
+  const { setOrganizationName: setWizardOrganizationName } = useSignupWizard()
   const [name, setName] = useState("")
+  const [saving, setSaving] = useState(false)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    navigate(Routes.auth.organizationType)
+    setSaving(true)
+    try {
+      await updateCareConnectProfile({ organizationName: name })
+      setWizardOrganizationName(name)
+      navigate(Routes.auth.organizationType)
+    } catch (error: unknown) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -33,8 +48,8 @@ export default function OrganizationNamePage() {
           <Button type="button" variant="outline" onClick={() => navigate(Routes.auth.joinType)} className="h-11 rounded-md border-[#d9d9d9] hover:bg-[#2937ff4b] cursor-pointer">
             Go back
           </Button>
-          <Button type="submit" disabled={!name.trim()} className="h-11 rounded-md bg-[#087fff] px-6 hover:bg-[#2937ff4b] cursor-pointer">
-            Continue
+          <Button type="submit" disabled={!name.trim() || saving} className="h-11 rounded-md bg-[#087fff] px-6 hover:bg-[#2937ff4b] cursor-pointer">
+            {saving ? "Saving..." : "Continue"}
           </Button>
         </div>
       </form>

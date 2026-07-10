@@ -1,24 +1,33 @@
 import { useState } from "react"
 import { useNavigate } from "react-router"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { ButtonLoader } from "@/components/ui/loader"
 import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
 import { JoinTypeCard } from "@/components/auth/JoinTypeCard"
 import { Routes } from "@/routes/constants"
-
-type JoinType = "individual" | "company" | ""
+import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
+import { createBackendUserProfile, deleteCurrentFirebaseUser } from "@/utils/auth/services/authService"
+import { getAuthErrorMessage } from "@/utils/auth/helpers/errorMessages"
 
 export default function JoinTypePage() {
   const navigate = useNavigate()
-  const [joinType, setJoinType] = useState<JoinType>("")
+  const { fullName, joinType, setJoinType } = useSignupWizard()
+  const [submitting, setSubmitting] = useState(false)
 
-  const continueFlow = () => {
-    if (joinType === "individual") {
-      navigate(Routes.auth.profession)
-      return
-    }
-
-    if (joinType === "company") {
-      navigate(Routes.auth.organizationName)
+  const continueFlow = async () => {
+    if (!joinType) return
+    setSubmitting(true)
+    try {
+      const userType = joinType === "company" ? "careconnect_company" : "careconnect_individual"
+      await createBackendUserProfile(fullName, userType)
+      navigate(Routes.auth.verifyContact)
+    } catch (error: unknown) {
+      await deleteCurrentFirebaseUser().catch(() => undefined)
+      toast.error(getAuthErrorMessage(error))
+      navigate(Routes.auth.signup)
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -45,11 +54,18 @@ export default function JoinTypePage() {
 
         <Button
           type="button"
-          disabled={!joinType}
-          onClick={continueFlow}
+          disabled={!joinType || submitting}
+          onClick={() => void continueFlow()}
           className="mt-6 h-11 w-full bg-[#087fff] disabled:bg-[#e7eef0] disabled:text-white"
         >
-          Continue
+          {submitting ? (
+            <span className="flex items-center justify-center gap-2">
+              <ButtonLoader />
+              Continuing...
+            </span>
+          ) : (
+            "Continue"
+          )}
         </Button>
       </div>
     </AuthOnboardingLayout>

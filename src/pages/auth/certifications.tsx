@@ -1,10 +1,15 @@
 import { useState } from "react"
 import { useNavigate } from "react-router"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { ButtonLoader } from "@/components/ui/loader"
 import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
 import { AuthStepHeader } from "@/components/auth/AuthStepHeader"
 import { CertificationChip } from "@/components/auth/CertificationChip"
 import { Routes } from "@/routes/constants"
+import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
+import { updateCareConnectProfile } from "@/utils/auth/services/authService"
+import { getAuthErrorMessage } from "@/utils/auth/helpers/errorMessages"
 
 const certificationGroups = [
   {
@@ -48,12 +53,27 @@ const certificationGroups = [
 
 export default function CertificationsPage() {
   const navigate = useNavigate()
+  const { setCertifications: setWizardCertifications } = useSignupWizard()
   const [selected, setSelected] = useState<string[]>(["CPR", "Wound Care Certification"])
+  const [saving, setSaving] = useState(false)
 
   const toggleCertification = (label: string) => {
     setSelected((current) =>
       current.includes(label) ? current.filter((item) => item !== label) : [...current, label]
     )
+  }
+
+  const continueFlow = async () => {
+    setSaving(true)
+    try {
+      await updateCareConnectProfile({ certifications: selected })
+      setWizardCertifications(selected)
+      navigate(Routes.auth.documents)
+    } catch (error: unknown) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -86,8 +106,15 @@ export default function CertificationsPage() {
           <Button type="button" variant="outline" onClick={() => navigate(Routes.auth.profession)} className="h-11 rounded-md border-[#d9d9d9] hover:bg-[#2937ff4b] cursor-pointer">
             Go back
           </Button>
-          <Button type="button" onClick={() => navigate(Routes.auth.documents)} className="h-11 rounded-md bg-[#087fff] px-6">
-            Continue
+          <Button type="button" disabled={saving} onClick={() => void continueFlow()} className="h-11 rounded-md bg-[#087fff] px-6">
+            {saving ? (
+              <span className="flex items-center justify-center gap-2">
+                <ButtonLoader />
+                Saving...
+              </span>
+            ) : (
+              "Continue"
+            )}
           </Button>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { Outlet } from "react-router";
 import { useEffect } from "react";
+import { SignupWizardProvider } from "@/utils/auth/context/SignupWizardContext";
 
 export default function AuthLayout() {
   useEffect(() => {
@@ -8,6 +9,8 @@ export default function AuthLayout() {
   }, [])
 
   return (
-    <Outlet />
+    <SignupWizardProvider>
+      <Outlet />
+    </SignupWizardProvider>
   )
 }

@@ -1,5 +1,6 @@
 import React, { useState } from "react"
 import { useNavigate, Link } from "react-router"
+import { useDispatch } from "react-redux"
 import { Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -9,7 +10,9 @@ import { useAuth } from "@/utils/auth"
 import { ButtonLoader } from "@/components/ui/loader"
 import { Routes } from "@/routes/constants"
 import { getAuthErrorMessage, getValidationMessage } from "@/utils/auth/helpers/errorMessages"
+import { completePostLogin } from "@/utils/auth/helpers/postLogin"
 import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
+import type { AppDispatch } from "@/store/redux/store"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -20,6 +23,7 @@ export default function LoginPage() {
 
   const { login } = useAuth()
   const navigate = useNavigate()
+  const dispatch = useDispatch<AppDispatch>()
 
   const validateEmail = (value: string) => {
     if (!value) return getValidationMessage('email', 'required')
@@ -47,8 +51,14 @@ export default function LoginPage() {
 
     setLoading(true)
     try {
-      await login(email, password)
-      navigate(Routes.app.user.dashboard, { replace: true })
+      const result = await login(email, password)
+
+      if (result.status === 'mfa_required') {
+        navigate(Routes.auth.mfaChallenge)
+        return
+      }
+
+      await completePostLogin(dispatch, navigate)
     } catch (error: unknown) {
       toast.error(getAuthErrorMessage(error))
     } finally {

@@ -1,10 +1,15 @@
 import { useState } from "react"
 import { useNavigate } from "react-router"
 import { Check, Plus } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { ButtonLoader } from "@/components/ui/loader"
 import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
 import { AuthStepHeader } from "@/components/auth/AuthStepHeader"
 import { Routes } from "@/routes/constants"
+import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
+import { completeOnboarding, updateCareConnectProfile } from "@/utils/auth/services/authService"
+import { getAuthErrorMessage } from "@/utils/auth/helpers/errorMessages"
 
 const interestOptions = [
   "Hire healthcare professionals",
@@ -34,10 +39,26 @@ function InterestTag({ label, selected, onClick }: { label: string; selected: bo
 
 export default function OrganizationInterestsPage() {
   const navigate = useNavigate()
+  const { setOrganizationInterests: setWizardOrganizationInterests } = useSignupWizard()
   const [selected, setSelected] = useState<string[]>([])
+  const [finishing, setFinishing] = useState(false)
 
   const toggleInterest = (label: string) => {
     setSelected((current) => (current.includes(label) ? current.filter((item) => item !== label) : [...current, label]))
+  }
+
+  const finishSignup = async () => {
+    setFinishing(true)
+    try {
+      await updateCareConnectProfile({ organizationInterests: selected })
+      setWizardOrganizationInterests(selected)
+      await completeOnboarding()
+      navigate(Routes.app.agency.dashboard)
+    } catch (error: unknown) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setFinishing(false)
+    }
   }
 
   return (
@@ -63,11 +84,18 @@ export default function OrganizationInterestsPage() {
           </Button>
           <Button
             type="button"
-            disabled={selected.length === 0}
-            onClick={() => navigate(Routes.app.agency.dashboard)}
+            disabled={selected.length === 0 || finishing}
+            onClick={() => void finishSignup()}
             className="h-11 rounded-md bg-[#087fff] px-6 hover:bg-[#2937ff4b] cursor-pointer"
           >
-            Continue
+            {finishing ? (
+              <span className="flex items-center justify-center gap-2">
+                <ButtonLoader />
+                Finishing up...
+              </span>
+            ) : (
+              "Continue"
+            )}
           </Button>
         </div>
       </div>

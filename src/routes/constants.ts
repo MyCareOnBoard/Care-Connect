@@ -25,6 +25,7 @@ export const Routes = {
     auth: {
         login: "/auth/login",
         signup: "/auth/signup",
+        mfaChallenge: "/auth/mfa-challenge",
         verifyContact: "/auth/verify-contact",
         joinType: "/auth/join-type",
         profession: "/auth/profession",

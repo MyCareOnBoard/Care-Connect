@@ -1,26 +1,44 @@
 import { FormEvent, useState } from "react"
 import { Link, useNavigate } from "react-router"
 import { Eye, EyeOff } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ButtonLoader } from "@/components/ui/loader"
 import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
 import { PhoneNumberField } from "@/components/auth/PhoneNumberField"
 import { Routes } from "@/routes/constants"
 import { getPasswordStrength } from "@/utils/passwordStrength"
+import { useAuth } from "@/utils/auth"
+import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
+import { getAuthErrorMessage } from "@/utils/auth/helpers/errorMessages"
 
 export default function SignUpPage() {
   const navigate = useNavigate()
+  const { signup } = useAuth()
+  const { setFullName: setWizardFullName, setEmail: setWizardEmail } = useSignupWizard()
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
   const passwordStrength = getPasswordStrength(password)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    navigate(Routes.auth.verifyContact)
+    setLoading(true)
+    try {
+      await signup(email, password, fullName)
+      setWizardFullName(fullName)
+      setWizardEmail(email)
+      navigate(Routes.auth.joinType)
+    } catch (error: unknown) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -103,8 +121,15 @@ export default function SignUpPage() {
             </div>
           </div>
 
-          <Button type="submit" className="mt-2 h-11 w-full text-white bg-[#087fff]">
-            Continue
+          <Button type="submit" disabled={loading} className="mt-2 h-11 w-full text-white bg-[#087fff]">
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <ButtonLoader />
+                Creating account...
+              </span>
+            ) : (
+              "Continue"
+            )}
           </Button>
         </form>
 

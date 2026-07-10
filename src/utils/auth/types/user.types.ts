@@ -1,4 +1,19 @@
 /**
+ * Backend userType values. CareConnect issues the two `careconnect_*` types itself;
+ * the rest belong to accounts created via Care-On-Board that share this Firebase project
+ * and can log into CareConnect with the same credentials.
+ */
+export type UserType =
+  | 'careconnect_individual'
+  | 'careconnect_company'
+  | 'applicant'
+  | 'employee'
+  | 'agency'
+  | 'agency_staff'
+  | 'super_admin'
+  | 'family_member'
+
+/**
  * User Profile data shape matching backend API response
  */
 export interface User {
@@ -10,6 +25,8 @@ export interface User {
   updatedAt: Date
   photoURL?: string
   phoneNumber?: string
+  userType?: UserType
+  onboardingCompleted?: boolean
 }
 
 /**

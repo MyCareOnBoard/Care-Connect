@@ -5,9 +5,12 @@ import { useNavigate } from "react-router"
 import { Button } from "@/components/ui/button"
 import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
 import { Routes } from "@/routes/constants"
+import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
 
 export default function WelcomePage() {
   const navigate = useNavigate()
+  const { fullName } = useSignupWizard()
+  const firstName = fullName.trim().split(" ")[0] || "there"
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -34,7 +37,7 @@ export default function WelcomePage() {
           <span className="absolute size-16 rounded-full bg-[#087fff] animate-check-ring" />
           <CheckCircle2 className="relative size-16 text-[#087fff] animate-check-pop" />
         </div>
-        <h1 className="mt-6 text-[26px] font-medium leading-none">You&apos;re all set, Joseph!</h1>
+        <h1 className="mt-6 text-[26px] font-medium leading-none">You&apos;re all set, {firstName}!</h1>
         <p className="mt-3 max-w-md text-sm text-[#565656]">
           Your profile is ready to go. Head over to your dashboard to explore jobs, connect with agencies, and
           grow your career.

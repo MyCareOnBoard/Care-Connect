@@ -1,15 +1,34 @@
 import { useState } from "react"
 import { useNavigate } from "react-router"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { ButtonLoader } from "@/components/ui/loader"
 import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
 import { AuthStepHeader } from "@/components/auth/AuthStepHeader"
 import { FileDropzone } from "@/components/auth/FileDropzone"
 import { Routes } from "@/routes/constants"
+import { completeOnboarding, uploadCareConnectDocument } from "@/utils/auth/services/authService"
+import { getAuthErrorMessage } from "@/utils/auth/helpers/errorMessages"
 
 export default function DocumentsPage() {
   const navigate = useNavigate()
   const [cv, setCv] = useState<File | null>(null)
   const [coverLetter, setCoverLetter] = useState<File | null>(null)
+  const [finishing, setFinishing] = useState(false)
+
+  const finishSetup = async () => {
+    setFinishing(true)
+    try {
+      if (cv) await uploadCareConnectDocument(cv, "resume")
+      if (coverLetter) await uploadCareConnectDocument(coverLetter, "coverLetter")
+      await completeOnboarding()
+      navigate(Routes.auth.welcome)
+    } catch (error: unknown) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setFinishing(false)
+    }
+  }
 
   return (
     <AuthOnboardingLayout showLogo={false} showFooter={false} className="min-h-0" header={<AuthStepHeader />}>
@@ -34,8 +53,15 @@ export default function DocumentsPage() {
           <Button type="button" variant="outline" onClick={() => navigate(Routes.auth.certifications)} className="h-11 rounded-md border-[#d9d9d9] hover:bg-[#2937ff4b] cursor-pointer">
             Go back
           </Button>
-          <Button type="button" onClick={() => navigate(Routes.auth.welcome)} className="h-11 rounded-md bg-[#087fff] px-6">
-            Finish set up
+          <Button type="button" disabled={finishing} onClick={() => void finishSetup()} className="h-11 rounded-md bg-[#087fff] px-6">
+            {finishing ? (
+              <span className="flex items-center justify-center gap-2">
+                <ButtonLoader />
+                Finishing up...
+              </span>
+            ) : (
+              "Finish set up"
+            )}
           </Button>
         </div>
       </div>

@@ -1,9 +1,13 @@
 import { FormEvent, useState } from "react"
 import { useNavigate } from "react-router"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
 import { AuthStepHeader } from "@/components/auth/AuthStepHeader"
 import { Routes } from "@/routes/constants"
+import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
+import { updateCareConnectProfile } from "@/utils/auth/services/authService"
+import { getAuthErrorMessage } from "@/utils/auth/helpers/errorMessages"
 
 const professions = [
   "Registered Nurse",
@@ -16,11 +20,22 @@ const professions = [
 
 export default function ProfessionPage() {
   const navigate = useNavigate()
+  const { setProfession: setWizardProfession } = useSignupWizard()
   const [profession, setProfession] = useState("")
+  const [saving, setSaving] = useState(false)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    navigate(Routes.auth.certifications)
+    setSaving(true)
+    try {
+      await updateCareConnectProfile({ profession })
+      setWizardProfession(profession)
+      navigate(Routes.auth.certifications)
+    } catch (error: unknown) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -45,10 +60,10 @@ export default function ProfessionPage() {
 
         <Button
           type="submit"
-          disabled={!profession}
+          disabled={!profession || saving}
           className="mx-auto mt-8 h-11 w-[92%] bg-[#087fff] disabled:bg-[#d5d5d5] disabled:text-white"
         >
-          Continue
+          {saving ? "Saving..." : "Continue"}
         </Button>
       </form>
 

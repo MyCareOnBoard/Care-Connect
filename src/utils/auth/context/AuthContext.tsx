@@ -111,6 +111,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error(response.error || "Login failed")
     }
 
+    if (response.status === 'mfa_required') {
+      return response
+    }
+
     setUserState(response.user)
     dispatch(setUser(response.user))
 

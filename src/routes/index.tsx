@@ -7,6 +7,7 @@ const AuthLayout = lazy(() => import("@/layouts/AuthLayout"));
 const AppLayout = lazy(() => import("@/layouts/AppLayout"));
 
 const LoginPage = lazy(() => import("@/pages/auth/login"));
+const MfaChallengePage = lazy(() => import("@/pages/auth/mfa-challenge"));
 const SignUpPage = lazy(() => import("@/pages/auth/signup"));
 const VerifyContactPage = lazy(() => import("@/pages/auth/verify-contact"));
 const JoinTypePage = lazy(() => import("@/pages/auth/join-type"));
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
         Component: AuthLayout,
         children: [
           { path: Routes.auth.login, Component: LoginPage },
+          { path: Routes.auth.mfaChallenge, Component: MfaChallengePage },
           { path: Routes.auth.signup, Component: SignUpPage },
           { path: Routes.auth.verifyContact, Component: VerifyContactPage },
           { path: Routes.auth.joinType, Component: JoinTypePage },
