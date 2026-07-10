@@ -57,15 +57,14 @@ export default function CertificationsPage() {
   }
 
   return (
-    <AuthOnboardingLayout showLogo={false} showFooter={false} className="min-h-0">
-      <AuthStepHeader />
-      <div className="flex flex-1 flex-col px-5 py-7 sm:px-10">
-        <div className="mb-5 flex items-center justify-between gap-4">
+    <AuthOnboardingLayout showLogo={false} showFooter={false} className="min-h-0" header={<AuthStepHeader />}>
+      <div className="flex min-h-0 flex-1 flex-col px-5 py-7 sm:px-10">
+        <div className="flex items-center justify-between gap-4 mb-5">
           <h1 className="text-[22px] font-normal leading-none">Which certifications do you currently hold?</h1>
           <span className="rounded-full border border-[#087fff] px-3 py-1 text-sm font-medium text-[#151922]">2 of 3</span>
         </div>
 
-        <div className="space-y-8 overflow-y-auto pr-1">
+        <div className="min-h-0 flex-1 space-y-8 overflow-y-auto pr-1">
           {certificationGroups.map((group) => (
             <section key={group.title}>
               <h2 className="mb-4 text-sm font-semibold text-[#353941]">{group.title}</h2>
@@ -83,11 +82,11 @@ export default function CertificationsPage() {
           ))}
         </div>
 
-        <div className="mt-auto flex justify-end gap-2 pt-6">
-          <Button type="button" variant="outline" onClick={() => navigate(Routes.auth.profession)} className="h-11 rounded-lg border-[#d9d9d9]">
+        <div className="flex justify-end gap-2 pt-6 mt-auto">
+          <Button type="button" variant="outline" onClick={() => navigate(Routes.auth.profession)} className="h-11 rounded-md border-[#d9d9d9] hover:bg-[#2937ff4b] cursor-pointer">
             Go back
           </Button>
-          <Button type="button" onClick={() => navigate(Routes.app.user.dashboard)} className="h-11 rounded-lg bg-[#087fff] px-6">
+          <Button type="button" onClick={() => navigate(Routes.auth.documents)} className="h-11 rounded-md bg-[#087fff] px-6">
             Continue
           </Button>
         </div>

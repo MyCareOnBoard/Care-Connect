@@ -33,7 +33,7 @@ export default function ForgotPasswordPage() {
   if (sent) {
     return (
       <AuthOnboardingLayout>
-        <div className="mx-auto flex w-full max-w-[492px] flex-1 flex-col justify-center px-5 py-10 text-center sm:px-0">
+        <div className="flex flex-col justify-center flex-1 w-full px-5 py-10 mx-auto text-center max-w-123 sm:px-0">
           <h1 className="text-[34px] font-normal leading-none">Check your email</h1>
           <p className="mt-4 text-sm text-[#565656]">
             We&apos;ve sent password reset instructions to {email}.
@@ -48,8 +48,8 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthOnboardingLayout>
-      <div className="mx-auto flex w-full max-w-[492px] flex-1 flex-col justify-center px-5 py-10 sm:px-0">
-        <div className="mb-9 text-center">
+      <div className="flex flex-col justify-center flex-1 w-full px-5 py-10 mx-auto max-w-123 sm:px-0">
+        <div className="text-center mb-9">
           <h1 className="text-[34px] font-normal leading-none">Forgot password?</h1>
           <p className="mt-4 text-sm text-[#565656]">Enter your email and we&apos;ll send you a reset link</p>
         </div>
@@ -81,7 +81,7 @@ export default function ForgotPasswordPage() {
           </Button>
         </form>
 
-        <p className="mt-7 text-center text-sm">
+        <p className="text-sm text-center mt-7">
           <Link to={Routes.auth.login} className="font-semibold text-[#087fff] hover:underline">
             Back to login
           </Link>

@@ -18,17 +18,16 @@ export default function JoinTypePage() {
     }
 
     if (joinType === "company") {
-      navigate(Routes.app.agency.dashboard)
+      navigate(Routes.auth.organizationName)
     }
   }
 
   return (
     <AuthOnboardingLayout showFooter={false}>
-      <div className="mx-auto flex w-full max-w-[388px] flex-1 flex-col justify-center px-5 py-10 sm:px-0">
-        <h1 className="mb-7 text-center text-[22px] font-normal leading-none">
+      <div className="flex flex-col justify-center flex-1 w-full px-5 py-10 mx-auto max-w-97 sm:px-0">
+        <h1 className="mb-7 text-center text-[20px] font-medium leading-none text-[#151922]">
           How would you like to join CareConnect?
         </h1>
-
         <div className="space-y-3.5">
           <JoinTypeCard
             title="Individual"
