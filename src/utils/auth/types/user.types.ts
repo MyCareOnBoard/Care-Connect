@@ -27,6 +27,7 @@ export interface User {
   phoneNumber?: string
   userType?: UserType
   onboardingCompleted?: boolean
+  careConnectOnboardingCompleted?: boolean
 }
 
 /**
