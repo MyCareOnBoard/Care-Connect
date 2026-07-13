@@ -7,13 +7,17 @@ import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
 import { AuthStepHeader } from "@/components/auth/AuthStepHeader"
 import { Routes } from "@/routes/constants"
 import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
+import { useAuthUser } from "@/utils/auth"
 import { updateCareConnectProfile } from "@/utils/auth/services/authService"
 import { getAuthErrorMessage } from "@/utils/auth/helpers/errorMessages"
 
 export default function OrganizationNamePage() {
   const navigate = useNavigate()
-  const { setOrganizationName: setWizardOrganizationName } = useSignupWizard()
-  const [name, setName] = useState("")
+  const { organizationName, setOrganizationName: setWizardOrganizationName } = useSignupWizard()
+  const { user } = useAuthUser()
+  // Pre-fill for existing Care-On-Board agencies logging into CareConnect: their agency
+  // record already has a name. Prefer any name captured earlier in this wizard session.
+  const [name, setName] = useState(organizationName || user?.profile?.name || "")
   const [saving, setSaving] = useState(false)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {

@@ -6,8 +6,10 @@ import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
 import { AuthStepHeader } from "@/components/auth/AuthStepHeader"
 import { Routes } from "@/routes/constants"
 import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
+import { useAuthUser } from "@/utils/auth"
 import { updateCareConnectProfile } from "@/utils/auth/services/authService"
 import { getAuthErrorMessage } from "@/utils/auth/helpers/errorMessages"
+import type { UserProfile } from "@/utils/auth/types/user.types"
 
 const organizationTypes = [
   "Hospital",
@@ -19,10 +21,27 @@ const organizationTypes = [
   "Other",
 ]
 
+/**
+ * Best-guess organization type for an existing Care-On-Board agency logging into CareConnect.
+ * `agencyType` is free-text so it rarely matches the dropdown; fall back to the enforced
+ * `supportedClientTypes` classification. Every Care-On-Board agency is a home-care/DDD
+ * provider, so a known agency defaults to "Home Care Agency". Returns "" when there's no
+ * agency data (e.g. a native CareConnect company signup), leaving the field for the user.
+ */
+function deriveOrganizationType(profile: UserProfile | null | undefined): string {
+  if (profile?.agencyType && organizationTypes.includes(profile.agencyType)) {
+    return profile.agencyType
+  }
+  return profile?.supportedClientTypes?.length ? "Home Care Agency" : ""
+}
+
 export default function OrganizationTypePage() {
   const navigate = useNavigate()
-  const { setOrganizationType: setWizardOrganizationType } = useSignupWizard()
-  const [organizationType, setOrganizationType] = useState("")
+  const { organizationType: wizardOrganizationType, setOrganizationType: setWizardOrganizationType } = useSignupWizard()
+  const { user } = useAuthUser()
+  const [organizationType, setOrganizationType] = useState(
+    wizardOrganizationType || deriveOrganizationType(user?.profile)
+  )
   const [saving, setSaving] = useState(false)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {

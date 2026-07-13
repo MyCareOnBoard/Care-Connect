@@ -14,6 +14,19 @@ export type UserType =
   | 'family_member'
 
 /**
+ * Role-specific profile sub-document returned in `user.profile` by GET /users/profile.
+ * Its shape varies by userType; the named fields below are the ones present on an
+ * `agency` record (from the `agencies` collection) that CareConnect onboarding reads to
+ * pre-fill the organization steps. The index signature keeps other roles' fields accessible.
+ */
+export interface UserProfile {
+  name?: string
+  agencyType?: string
+  supportedClientTypes?: string[]
+  [key: string]: unknown
+}
+
+/**
  * User Profile data shape matching backend API response
  */
 export interface User {
@@ -28,6 +41,8 @@ export interface User {
   userType?: UserType
   onboardingCompleted?: boolean
   careConnectOnboardingCompleted?: boolean
+  /** Role-specific profile sub-document (e.g. the agency record for `agency` accounts). */
+  profile?: UserProfile | null
 }
 
 /**
