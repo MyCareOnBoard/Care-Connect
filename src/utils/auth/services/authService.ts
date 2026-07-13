@@ -17,7 +17,7 @@ import {
   deleteUser,
   type User as FirebaseUser,
 } from 'firebase/auth'
-import type { User, UserType } from '../types/user.types'
+import type { User, UserType, UserProfile } from '../types/user.types'
 import type { LoginResponse } from '../types/login.types'
 import { getAuthErrorMessage } from '../helpers/errorMessages'
 import { storeMfaResolver } from './mfaService'
@@ -39,7 +39,7 @@ export interface BackendUserProfile {
   careConnectOnboardingCompleted?: boolean
   otpVerified?: boolean
   agencyId?: string
-  profile?: Record<string, unknown> | null
+  profile?: UserProfile | null
   agency?: Record<string, unknown> | null
 }
 
