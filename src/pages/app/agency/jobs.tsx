@@ -9,6 +9,17 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SidePanel } from "@/components/app/SidePanel"
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog"
 import { StatTile } from "@/components/app/StatTile"
 import { StatusBadge } from "@/components/app/StatusBadge"
 import { useDelayedLoading } from "@/hooks/useDelayedLoading"
@@ -172,6 +183,8 @@ function ScreeningQuestionSetupPanel({ open, onClose }: { open: boolean; onClose
       open={open}
       onClose={onClose}
       title="Screening question setup"
+      centered
+      widthClassName="max-w-[560px]"
       footer={
         <div className="flex justify-end gap-2">
           <Button
@@ -243,8 +256,10 @@ function UploadJobPanel({ open, onClose }: { open: boolean; onClose: () => void 
   const [description, setDescription] = useState("")
   const [contractTypes, setContractTypes] = useState<Set<string>>(new Set(["Part time"]))
   const [benefits, setBenefits] = useState<Set<string>>(new Set())
-  const [wantsScreening, setWantsScreening] = useState(false)
-  const [isScreeningOpen, setIsScreeningOpen] = useState(false)
+    const [wantsScreening, setWantsScreening] = useState(false)
+    const [isScreeningOpen, setIsScreeningOpen] = useState(false)
+  const [currency, setCurrency] = useState("USD")
+  const [salary, setSalary] = useState("")
 
   const toggleSet = (set: Set<string>, setSet: (next: Set<string>) => void, value: string) => {
     const next = new Set(set)
@@ -262,7 +277,7 @@ function UploadJobPanel({ open, onClose }: { open: boolean; onClose: () => void 
         open={open}
         onClose={onClose}
         title="Upload Job"
-        widthClassName="max-w-[560px]"
+        widthClassName="max-w-[520px]"
         footer={
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
@@ -272,8 +287,14 @@ function UploadJobPanel({ open, onClose }: { open: boolean; onClose: () => void 
               type="button"
               className="bg-[#087fff]"
               onClick={() => {
-                toast.success("Job posted!")
-                onClose()
+                  if (wantsScreening) {
+                    // Open screening setup after clicking upload
+                    setIsScreeningOpen(true)
+                    return
+                  }
+
+                  toast.success("Job posted!")
+                  onClose()
               }}
             >
               Upload job
@@ -328,7 +349,7 @@ function UploadJobPanel({ open, onClose }: { open: boolean; onClose: () => void 
           <div className="space-y-2">
             <label className="text-sm font-semibold">Salary, provide salary if you want it visible.</label>
             <div className="flex gap-3">
-              <Select defaultValue="USD">
+              <Select value={currency} onValueChange={(val) => setCurrency(val)}>
                 <SelectTrigger className="w-28 shrink-0">
                   <SelectValue />
                 </SelectTrigger>
@@ -338,19 +359,13 @@ function UploadJobPanel({ open, onClose }: { open: boolean; onClose: () => void 
                   <SelectItem value="EUR">EUR</SelectItem>
                 </SelectContent>
               </Select>
-              <Input type="number" placeholder="0.00" />
+              <Input type="number" value={salary} onChange={(e) => setSalary(e.target.value)} placeholder="0.00" />
             </div>
           </div>
 
           <div className="flex items-center justify-between border-t border-[#eef1f3] pt-5">
             <span className="text-sm font-semibold">Want to add screening questions?</span>
-            <Switch
-              checked={wantsScreening}
-              onCheckedChange={(checked) => {
-                setWantsScreening(checked)
-                if (checked) setIsScreeningOpen(true)
-              }}
-            />
+            <Switch checked={wantsScreening} onCheckedChange={(checked) => setWantsScreening(checked)} />
           </div>
         </div>
       </SidePanel>
@@ -370,7 +385,7 @@ function ApplicantDetailsPanel({
   if (!applicant) return null
 
   return (
-    <SidePanel open onClose={onClose} title="Applicant details" widthClassName="max-w-[560px]">
+    <SidePanel open={true} onClose={onClose} title="Applicant details" widthClassName="max-w-[520px]">
       <div className="space-y-6">
         <div className="flex items-center gap-3">
           <span className="flex size-12 items-center justify-center rounded-full bg-[#e8f1f7] text-sm font-bold text-[#087fff]">
@@ -441,9 +456,33 @@ function ApplicantDetailsPanel({
         <Button type="button" variant="outline" onClick={() => { toast("Candidate passed"); onClose() }}>
           No I&apos;d pass
         </Button>
-        <Button type="button" className="bg-[#087fff]" onClick={() => { toast.success("Candidate liked!"); onClose() }}>
-          Yes I like this candidate
-        </Button>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button type="button" className="bg-[#087fff]">
+              Yes I like this candidate
+            </Button>
+          </AlertDialogTrigger>
+
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm action</AlertDialogTitle>
+              <AlertDialogDescription>Are you sure you want to mark this candidate as liked? This action can be reverted from the applicants list.</AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  toast.success("Candidate liked!")
+                  onClose()
+                }}
+              >
+                Confirm
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </SidePanel>
   )
@@ -569,22 +608,41 @@ export default function AgencyJobsPage() {
             tabIndex={0}
             onClick={() => setSelectedPostingId(posting.id)}
             onKeyDown={(event) => event.key === "Enter" && setSelectedPostingId(posting.id)}
-            className="cursor-pointer rounded-xl border border-white/60 bg-white/80 p-5 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(16,20,26,0.1)]"
+            className="cursor-pointer transition-all duration-300 hover:-translate-y-0.5"
           >
-            <h3 className="font-bold">{posting.title}</h3>
-            <p className="mt-2 text-sm text-[#565656]">{posting.description}</p>
-            <div className="mt-6 grid grid-cols-3 gap-2 border-t border-[#eef1f3] pt-4 text-center">
-              <div>
-                <p className="font-bold">{posting.views}</p>
-                <p className="text-xs text-[#8a8f98]">Views</p>
-              </div>
-              <div className="border-x border-[#eef1f3]">
-                <p className="font-bold">{posting.applications}</p>
-                <p className="text-xs text-[#8a8f98]">Applications</p>
-              </div>
-              <div>
-                <p className="font-bold">{posting.saved}</p>
-                <p className="text-xs text-[#8a8f98]">Saved</p>
+            <div className="relative h-56 w-80 rounded-[24px] border border-[#D9D9D9] bg-white p-5 shadow-[0_8px_32px_rgba(16,20,26,0.06)]">
+              <div
+                className="
+                  absolute
+                  -top-px
+                  right-0
+                  h-8
+                  w-24
+                  rounded-t-[20px]
+                  rounded-bl-[20px]
+                  border
+                  border-[#D9D9D9]
+                  border-b-0
+                  bg-white
+                "
+              />
+
+              <h3 className="font-bold">{posting.title}</h3>
+              <p className="mt-2 text-sm text-[#565656]">{posting.description}</p>
+
+              <div className="absolute left-0 right-0 bottom-0 grid grid-cols-3 gap-2 border-t border-[#eef1f3] p-4 text-center">
+                <div>
+                  <p className="font-bold">{posting.views}</p>
+                  <p className="text-xs text-[#8a8f98]">Views</p>
+                </div>
+                <div className="border-x border-[#eef1f3]">
+                  <p className="font-bold">{posting.applications}</p>
+                  <p className="text-xs text-[#8a8f98]">Applications</p>
+                </div>
+                <div>
+                  <p className="font-bold">{posting.saved}</p>
+                  <p className="text-xs text-[#8a8f98]">Saved</p>
+                </div>
               </div>
             </div>
           </article>

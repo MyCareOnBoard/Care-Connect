@@ -20,7 +20,6 @@ const agencyNavItems = [
   { label: "Home", href: Routes.app.agency.dashboard },
   { label: "Messages", href: Routes.app.agency.messages },
   { label: "Jobs", href: Routes.app.agency.jobs },
-  { label: "Applications", href: Routes.app.agency.applications },
   { label: "Market place", href: Routes.app.agency.marketplace },
   { label: "Tele health", href: Routes.app.agency.telehealth },
 ]

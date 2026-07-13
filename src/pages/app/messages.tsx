@@ -170,8 +170,8 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="animate-fade-in-up flex h-[calc(100vh-72px)]">
-      <aside className="w-full max-w-sm shrink-0 space-y-1 overflow-y-auto border-r border-[#eef1f3] p-4">
+    <div className="animate-fade-in-up flex h-[calc(100vh-72px)] flex-col lg:flex-row">
+      <aside className="w-full lg:max-w-sm shrink-0 space-y-1 overflow-y-auto border-b border-[#eef1f3] p-4 lg:border-b-0 lg:border-r">
         <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
           <Input placeholder="Search here" className="pl-9" />
@@ -206,7 +206,7 @@ export default function MessagesPage() {
         ))}
       </aside>
 
-      <main className="flex-1">
+      <main className="flex-1 min-h-0">
         <ChatThread
           messages={selected.messages}
           onSend={sendMessage}
