@@ -129,7 +129,7 @@ function QuickScreeningPanel({ open, onClose, onApply }: { open: boolean; onClos
 
 function JobsSkeleton() {
   return (
-    <div className="space-y-6 p-5 sm:p-8">
+    <div className="p-5 space-y-6 sm:p-8">
       <Skeleton className="h-10 w-60" />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Skeleton className="h-40 rounded-xl" />
@@ -201,7 +201,7 @@ export default function UserJobsPage() {
               <p className="mt-2 text-sm text-[#565656]">{job.company}</p>
               <p className="mt-1 text-sm text-[#565656]">{job.location}</p>
               {job.tags && (
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 mt-2">
                   {job.tags.map((tag) => (
                     <span key={tag} className="rounded-full bg-[#dddddd] px-3 py-1 text-xs font-semibold text-[#20242c]">
                       {tag}

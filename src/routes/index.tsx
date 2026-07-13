@@ -77,7 +77,6 @@ export const router = createBrowserRouter([
           { path: Routes.app.agency.dashboard, Component: AgencyDashboardPage },
           { path: Routes.app.agency.messages, Component: MessagesPage },
           { path: Routes.app.agency.jobs, Component: AgencyJobsPage },
-          { path: Routes.app.agency.applications, Component: ApplicationsPage },
           { path: Routes.app.agency.marketplace, Component: MarketplacePage },
           { path: Routes.app.agency.telehealth, Component: TelehealthPage },
           { path: Routes.app.agency.profile, Component: ProfilePage },
