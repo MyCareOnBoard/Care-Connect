@@ -2,7 +2,7 @@ import type { NavigateFunction } from "react-router"
 import type { AppDispatch } from "@/store/redux/store"
 import { setUser, logoutUser } from "@/utils/auth/store/authSlice"
 import { getUserProfile, transformFirebaseUser, removeUserData } from "@/utils/auth/services/authService"
-import { getDashboardRouteForUserType } from "@/utils/auth/helpers/roleDashboard"
+import { getDashboardRouteForUserType, getOnboardingRouteForUserType } from "@/utils/auth/helpers/roleDashboard"
 import { auth } from "@/lib/firebase"
 import { clearAuthCache } from "@/lib/axios"
 import { Routes } from "@/routes/constants"
@@ -40,5 +40,14 @@ export async function completePostLogin(
   }
 
   dispatch(setUser(user))
+
+  // If this account hasn't finished the CareConnect setup wizard — including existing
+  // Care-On-Board users logging in with shared credentials who have never done it — send
+  // them through onboarding before the dashboard.
+  if (!profile.careConnectOnboardingCompleted) {
+    navigate(getOnboardingRouteForUserType(profile.userType), { replace: true })
+    return
+  }
+
   navigate(result.route, { replace: true })
 }

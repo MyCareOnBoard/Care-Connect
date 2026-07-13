@@ -31,6 +31,12 @@ export interface BackendUserProfile {
   fullName: string
   userType: UserType
   onboardingCompleted?: boolean
+  /**
+   * Whether this account has completed the CareConnect setup wizard. Tracked separately
+   * from `onboardingCompleted` (which the legacy Care-On-Board app also writes), so that a
+   * cross-over user is still routed through CareConnect onboarding on login.
+   */
+  careConnectOnboardingCompleted?: boolean
   otpVerified?: boolean
   agencyId?: string
   profile?: Record<string, unknown> | null
@@ -240,10 +246,13 @@ export async function uploadCareConnectDocument(
 }
 
 /**
- * Mark the backend profile's onboarding as complete (final step of the signup wizard).
+ * Mark the CareConnect setup wizard as complete (final step of onboarding).
+ * Writes to the CareConnect profile rather than the shared `users.onboardingCompleted`
+ * flag, so completing CareConnect onboarding never touches a cross-over user's
+ * Care-On-Board onboarding state.
  */
 export async function completeOnboarding(): Promise<void> {
-  await axiosClient.put('/users/profile', { onboardingCompleted: true })
+  await axiosClient.put('/users/careconnect-profile', { onboardingCompleted: true })
 }
 
 /**

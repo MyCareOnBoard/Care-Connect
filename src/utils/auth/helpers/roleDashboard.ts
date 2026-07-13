@@ -24,3 +24,15 @@ export function getDashboardRouteForUserType(userType: UserType | undefined): Da
 
   return { allowed: true, route: Routes.app.user.dashboard }
 }
+
+/**
+ * Entry step of the CareConnect setup wizard for an account that hasn't finished it.
+ * Mirrors the company/individual split of {@link getDashboardRouteForUserType}, so a
+ * returning (or cross-over Care-On-Board) account resumes the right branch — company-type
+ * accounts collect organization details, everyone else collects professional details.
+ * join-type and the email OTP are skipped: these accounts are already authenticated and
+ * their type is known.
+ */
+export function getOnboardingRouteForUserType(userType: UserType): string {
+  return COMPANY_TYPES.includes(userType) ? Routes.auth.organizationName : Routes.auth.profession
+}
