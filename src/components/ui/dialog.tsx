@@ -25,14 +25,21 @@ export const DialogOverlay = React.forwardRef<React.ElementRef<typeof DialogPrim
 )
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
-export const DialogContent = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Content>, DialogContentProps & { showCloseButton?: boolean }>(
-  ({ className, children, showCloseButton = false, ...props }, ref) => (
+type DialogLayout = "center" | "custom"
+
+export const DialogContent = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Content>,
+  DialogContentProps & { showCloseButton?: boolean; layout?: DialogLayout }
+>(
+  ({ className, children, showCloseButton = false, layout = "center", ...props }, ref) => (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "z-50 w-full max-w-130 overflow-hidden rounded-[28px] bg-white shadow-[0_24px_64px_rgba(17,24,39,0.16)] outline-none pointer-events-auto data-[state=open]:animate-fadeIn max-h-[90vh]",
+          "z-50 bg-white outline-none pointer-events-auto",
+          layout === "center" &&
+            "fixed left-1/2 top-1/2 w-full max-w-[92vw] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[28px] shadow-[0_24px_64px_rgba(17,24,39,0.16)] data-[state=open]:animate-fadeIn max-h-[calc(100vh-32px)] overflow-y-auto",
           className
         )}
         {...props}

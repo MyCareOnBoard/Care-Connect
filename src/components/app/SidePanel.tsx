@@ -17,10 +17,12 @@ export function SidePanel({ open, onClose, title, children, footer, widthClassNa
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent
+        layout={centered ? "center" : "custom"}
         className={cn(
+          "flex flex-col",
           centered
-            ? "fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-full -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-3xl bg-white shadow-[0_24px_64px_rgba(17,24,39,0.16)]"
-            : "fixed inset-y-0 right-0 z-50 flex w-full max-w-130 flex-col overflow-hidden bg-white shadow-2xl sm:rounded-l-3xl",
+            ? "max-h-[90vh] rounded-3xl"
+            : "fixed inset-y-0 right-0 h-full w-full max-w-130 overflow-hidden shadow-2xl sm:rounded-l-3xl data-[state=open]:animate-slide-in-right",
           widthClassName
         )}
       >

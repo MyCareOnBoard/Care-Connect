@@ -400,7 +400,7 @@ function ApplicantDetailsPanel({
         <div className="overflow-hidden rounded-xl border border-[#e2e2e2]">
           <iframe
             title="Applicant location"
-            className="h-45 w-full"
+            className="w-full h-45"
             loading="lazy"
             src="https://www.openstreetmap.org/export/embed.html?bbox=-74.03%2C40.68%2C-73.93%2C40.74&layer=mapnik&marker=40.71%2C-73.98"
           />
@@ -415,7 +415,7 @@ function ApplicantDetailsPanel({
           <div className="flex items-center gap-3 rounded-lg border border-[#e2e2e2] p-3">
             <span className="flex size-9 items-center justify-center rounded-lg bg-[#ffeaea] text-[#ff3e66]">PDF</span>
             <div className="flex-1 min-w-0">
-              <p className="truncate text-sm font-medium">{applicant.cvFile}</p>
+              <p className="text-sm font-medium truncate">{applicant.cvFile}</p>
               <p className="text-xs text-[#8a8f98]">10.5Kb</p>
             </div>
             <Button type="button" variant="outline" size="sm" onClick={() => toast("No file available in this demo")}>
@@ -429,7 +429,7 @@ function ApplicantDetailsPanel({
           <div className="flex items-center gap-3 rounded-lg border border-[#e2e2e2] p-3">
             <span className="flex size-9 items-center justify-center rounded-lg bg-[#eaf4ff] text-[#087fff]">DOC</span>
             <div className="flex-1 min-w-0">
-              <p className="truncate text-sm font-medium">{applicant.coverLetterFile}</p>
+              <p className="text-sm font-medium truncate">{applicant.coverLetterFile}</p>
               <p className="text-xs text-[#8a8f98]">10.5Kb</p>
             </div>
             <Button type="button" variant="outline" size="sm" onClick={() => toast("No file available in this demo")}>
@@ -452,7 +452,7 @@ function ApplicantDetailsPanel({
         </div>
       </div>
 
-      <div className="mt-8 flex justify-end gap-2">
+      <div className="flex justify-end gap-2 mt-8">
         <Button type="button" variant="outline" onClick={() => { toast("Candidate passed"); onClose() }}>
           No I&apos;d pass
         </Button>
@@ -490,7 +490,7 @@ function ApplicantDetailsPanel({
 
 function JobsSkeleton() {
   return (
-    <div className="space-y-6 p-5 sm:p-8">
+    <div className="p-5 space-y-6 sm:p-8">
       <Skeleton className="h-10 w-60" />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Skeleton className="h-40 rounded-xl" />
@@ -522,7 +522,7 @@ export default function AgencyJobsPage() {
     ]
 
     return (
-      <div className="animate-fade-in-up space-y-6 p-5 sm:p-8">
+      <div className="p-5 space-y-6 animate-fade-in-up sm:p-8">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -547,7 +547,7 @@ export default function AgencyJobsPage() {
         <section>
           <h2 className="mb-4 text-base font-bold">All applicants</h2>
           <div className="overflow-x-auto rounded-xl border border-[#e2e2e2]">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-sm text-left">
               <thead className="border-b border-[#e2e2e2] text-[#657080]">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Applicant</th>
@@ -588,7 +588,7 @@ export default function AgencyJobsPage() {
   }
 
   return (
-    <div className="animate-fade-in-up space-y-6 p-5 sm:p-8">
+    <div className="p-5 space-y-6 animate-fade-in-up sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-xl font-bold">My jobs posting</h1>
         <div className="relative w-full max-w-sm">
@@ -600,7 +600,7 @@ export default function AgencyJobsPage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 py-8 sm:grid-cols-2 xl:grid-cols-4">
         {postings.map((posting) => (
           <article
             key={posting.id}
@@ -610,27 +610,17 @@ export default function AgencyJobsPage() {
             onKeyDown={(event) => event.key === "Enter" && setSelectedPostingId(posting.id)}
             className="cursor-pointer transition-all duration-300 hover:-translate-y-0.5"
           >
-            <div className="relative h-56 w-80 rounded-[24px] border border-[#D9D9D9] bg-white p-5 shadow-[0_8px_32px_rgba(16,20,26,0.06)]">
-              <div
-                className="
-                  absolute
-                  -top-px
-                  right-0
-                  h-8
-                  w-24
-                  rounded-t-[20px]
-                  rounded-bl-[20px]
-                  border
-                  border-[#D9D9D9]
-                  border-b-0
-                  bg-white
-                "
-              />
+            <div className="relative rounded-3xl p-10 hover:shadow-[0_8px_32px_rgba(16,20,26,0.06)] min-h-55 overflow-hidden">
+              <svg aria-hidden="true" className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 331 225" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+                <path d="M314 0.5C323.113 0.500016 330.5 7.88731 330.5 17V208C330.5 217.113 323.113 224.5 314 224.5H17C7.8873 224.5 0.5 217.113 0.5 208V50.627C0.500016 41.5143 7.88731 34.127 17 34.127H224.948C231.357 34.1269 237.106 30.1824 239.411 24.2021L244.475 11.0654C246.929 4.69946 253.048 0.500175 259.87 0.5H314Z" stroke="#D9D9D9" strokeWidth="1" />
+              </svg>
 
-              <h3 className="font-bold">{posting.title}</h3>
-              <p className="mt-2 text-sm text-[#565656]">{posting.description}</p>
+              <div className="relative z-10">
+                <h3 className="font-bold">{posting.title}</h3>
+                <p className="mt-2 text-sm text-[#565656]">{posting.description}</p>
+              </div>
 
-              <div className="absolute left-0 right-0 bottom-0 grid grid-cols-3 gap-2 border-t border-[#eef1f3] p-4 text-center">
+              <div className="absolute left-0 right-0 bottom-0 grid grid-cols-3 gap-2 border-t border-[#eef1f3] p-4 text-center bg-white/0">
                 <div>
                   <p className="font-bold">{posting.views}</p>
                   <p className="text-xs text-[#8a8f98]">Views</p>
