@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { ChevronLeft, Search, Plus, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -11,9 +11,31 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { SidePanel } from "@/components/app/SidePanel"
 import { StatTile } from "@/components/app/StatTile"
 import { StatusBadge } from "@/components/app/StatusBadge"
-import { useDelayedLoading } from "@/hooks/useDelayedLoading"
+import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
+import {
+  createJob,
+  listMyJobs,
+} from "@/utils/careconnect/services/jobsService"
+import {
+  listMyApplications,
+  updateApplicationStatus,
+} from "@/utils/careconnect/services/applicationsService"
+import {
+  APPLICATION_STATUS_LABELS,
+  AVAILABILITY_LABELS,
+  formatDate,
+  type Application,
+  type CreateJobPayload,
+  type EmploymentType,
+  type Job,
+} from "@/utils/careconnect/types"
 
 const CONTRACT_TYPES = ["Part time", "Contract", "Full time"]
+const CONTRACT_TYPE_MAP: Record<string, EmploymentType> = {
+  "Part time": "part_time",
+  Contract: "contract",
+  "Full time": "full_time",
+}
 const BENEFITS = [
   "Retirement Plan (401k)",
   "Health Insurance",
@@ -24,127 +46,6 @@ const BENEFITS = [
   "Sign-on Bonus",
   "Tuition & Certification Reimbursement",
   "Career Growth & Professional Development",
-]
-
-type JobPosting = {
-  id: string
-  title: string
-  description: string
-  views: string
-  applications: string
-  saved: string
-}
-
-const initialPostings: JobPosting[] = [
-  {
-    id: "job-1",
-    title: "In Home Caregiver",
-    description: "Join our compassionate team as an In Home Caregiver and make a meaningful difference in...",
-    views: "30",
-    applications: "3.5K",
-    saved: "12K",
-  },
-  {
-    id: "job-2",
-    title: "Synergy HomeCare has Caregiver O...",
-    description: "Join our compassionate team as an In Home Caregiver and make a meaningful difference in...",
-    views: "13",
-    applications: "5K",
-    saved: "1K",
-  },
-  {
-    id: "job-3",
-    title: "Direct Support Professional",
-    description: "Join our compassionate team as an In Home Caregiver and make a meaningful difference in...",
-    views: "10K",
-    applications: "2K",
-    saved: "1.2K",
-  },
-]
-
-type Applicant = {
-  id: string
-  name: string
-  profession: string
-  location: string
-  appliedOn: string
-  matchScore: number
-  status: string
-  address: string
-  cvFile: string
-  coverLetterFile: string
-  answers: { question: string; answer: string }[]
-}
-
-const applicants: Applicant[] = [
-  {
-    id: "app-1",
-    name: "Cody Fisher",
-    profession: "Registered Nurse",
-    location: "Brooklyn, NY",
-    appliedOn: "May 18, 2026",
-    matchScore: 92,
-    status: "New application",
-    address: "1901 Thornridge Cir. Shiloh, Hawaii 81063",
-    cvFile: "Cody_Fisher_CV.pdf",
-    coverLetterFile: "Cody_Fisher_CoverLetter.docx",
-    answers: [
-      { question: "Are you willing to relocate for the job", answer: "No" },
-      { question: "Are your required certifications up to date?", answer: "No" },
-      { question: "When are you available to start?", answer: "Immediately" },
-    ],
-  },
-  {
-    id: "app-2",
-    name: "Marvin McKinney",
-    profession: "Physical Therapist",
-    location: "Queens, NY",
-    appliedOn: "May 17, 2026",
-    matchScore: 78,
-    status: "Rejected",
-    address: "4517 Washington Ave. Manchester, Kentucky 39495",
-    cvFile: "Marvin_McKinney_CV.pdf",
-    coverLetterFile: "Marvin_McKinney_CoverLetter.docx",
-    answers: [
-      { question: "Are you willing to relocate for the job", answer: "Yes" },
-      { question: "Are your required certifications up to date?", answer: "Yes" },
-      { question: "When are you available to start?", answer: "Within 2 weeks" },
-    ],
-  },
-  {
-    id: "app-3",
-    name: "Eleanor Pena",
-    profession: "Pharmacist",
-    location: "Bronx, NY",
-    appliedOn: "May 15, 2026",
-    matchScore: 65,
-    status: "Withdrawn",
-    address: "2464 Royal Ln. Mesa, New Jersey 45463",
-    cvFile: "Eleanor_Pena_CV.pdf",
-    coverLetterFile: "Eleanor_Pena_CoverLetter.docx",
-    answers: [
-      { question: "Are you willing to relocate for the job", answer: "No" },
-      { question: "Are your required certifications up to date?", answer: "Yes" },
-      { question: "When are you available to start?", answer: "More than 1 month" },
-    ],
-  },
-  {
-    id: "app-4",
-    name: "Wade Warren",
-    profession: "Dental Hygienist",
-    location: "Manhattan, NY",
-    appliedOn: "May 13, 2026",
-    matchScore: 84,
-    status: "Accepted",
-    address: "3517 W. Gray St. Utica, Pennsylvania 57867",
-    cvFile: "Wade_Warren_CV.pdf",
-    coverLetterFile: "Wade_Warren_CoverLetter.docx",
-    answers: [
-      { question: "Are you willing to relocate for the job", answer: "Yes" },
-      { question: "Are your required certifications up to date?", answer: "Yes" },
-      { question: "When are you available to start?", answer: "Immediately" },
-    ],
-  },
 ]
 
 function BenefitTag({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
@@ -238,22 +139,64 @@ function ScreeningQuestionSetupPanel({ open, onClose }: { open: boolean; onClose
   )
 }
 
-function UploadJobPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+function UploadJobPanel({
+  open,
+  onClose,
+  defaultCompany,
+  onCreated,
+}: {
+  open: boolean
+  onClose: () => void
+  defaultCompany: string
+  onCreated: (job: Job) => void
+}) {
   const [title, setTitle] = useState("")
+  const [company, setCompany] = useState(defaultCompany)
+  const [location, setLocation] = useState("")
   const [description, setDescription] = useState("")
   const [contractTypes, setContractTypes] = useState<Set<string>>(new Set(["Part time"]))
   const [benefits, setBenefits] = useState<Set<string>>(new Set())
   const [wantsScreening, setWantsScreening] = useState(false)
   const [isScreeningOpen, setIsScreeningOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setCompany((current) => current || defaultCompany)
+  }, [defaultCompany])
 
   const toggleSet = (set: Set<string>, setSet: (next: Set<string>) => void, value: string) => {
     const next = new Set(set)
-    if (next.has(value)) {
-      next.delete(value)
-    } else {
-      next.add(value)
-    }
+    if (next.has(value)) next.delete(value)
+    else next.add(value)
     setSet(next)
+  }
+
+  const submit = async (status: "open" | "draft") => {
+    if (!title.trim() || !company.trim() || !location.trim() || !description.trim()) {
+      toast.error("Title, company, location, and description are required")
+      return
+    }
+    const firstContract = Array.from(contractTypes)[0]
+    const payload: CreateJobPayload = {
+      title: title.trim(),
+      company: company.trim(),
+      location: location.trim(),
+      description: description.trim(),
+      employmentType: CONTRACT_TYPE_MAP[firstContract] ?? "full_time",
+      benefits: Array.from(benefits),
+      status,
+    }
+    setSaving(true)
+    try {
+      const job = await createJob(payload)
+      onCreated(job)
+      toast.success(status === "draft" ? "Saved as draft" : "Job posted!")
+      onClose()
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -265,17 +208,10 @@ function UploadJobPanel({ open, onClose }: { open: boolean; onClose: () => void 
         widthClassName="max-w-[560px]"
         footer={
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" disabled={saving} onClick={() => submit("draft")}>
               Save as draft
             </Button>
-            <Button
-              type="button"
-              className="bg-[#087fff]"
-              onClick={() => {
-                toast.success("Job posted!")
-                onClose()
-              }}
-            >
+            <Button type="button" className="bg-[#087fff]" disabled={saving} onClick={() => submit("open")}>
               Upload job
             </Button>
           </div>
@@ -285,6 +221,17 @@ function UploadJobPanel({ open, onClose }: { open: boolean; onClose: () => void 
           <div className="space-y-2">
             <label className="text-sm font-semibold">Job title</label>
             <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Enter Job title here, eg: HHA Registered care giver" />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold">Company</label>
+              <Input value={company} onChange={(event) => setCompany(event.target.value)} placeholder="Company name" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold">Location</label>
+              <Input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="City, State" />
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -361,71 +308,59 @@ function UploadJobPanel({ open, onClose }: { open: boolean; onClose: () => void 
 }
 
 function ApplicantDetailsPanel({
-  applicant,
+  application,
   onClose,
+  onStatusChange,
 }: {
-  applicant: Applicant | null
+  application: Application | null
   onClose: () => void
+  onStatusChange: (id: string, status: "shortlisted" | "not_selected") => void
 }) {
-  if (!applicant) return null
+  if (!application) return null
+
+  const answers = [
+    {
+      question: "Are you willing to relocate for the job",
+      answer: application.screening.willingToRelocate ? "Yes" : "No",
+    },
+    {
+      question: "Are your required certifications up to date?",
+      answer: application.screening.certificationsUpToDate ? "Yes" : "No",
+    },
+    {
+      question: "When are you available to start?",
+      answer: AVAILABILITY_LABELS[application.screening.availability],
+    },
+  ]
 
   return (
     <SidePanel open onClose={onClose} title="Applicant details" widthClassName="max-w-[560px]">
       <div className="space-y-6">
         <div className="flex items-center gap-3">
           <span className="flex size-12 items-center justify-center rounded-full bg-[#e8f1f7] text-sm font-bold text-[#087fff]">
-            {applicant.name.slice(0, 2).toUpperCase()}
+            {(application.applicantName ?? "?").slice(0, 2).toUpperCase()}
           </span>
           <div>
-            <p className="font-bold">{applicant.name}</p>
-            <p className="text-sm text-[#657080]">{applicant.profession}</p>
+            <p className="font-bold">{application.applicantName ?? "Applicant"}</p>
+            <p className="text-sm text-[#657080]">{application.jobTitle}</p>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-[#e2e2e2]">
-          <iframe
-            title="Applicant location"
-            className="h-45 w-full"
-            loading="lazy"
-            src="https://www.openstreetmap.org/export/embed.html?bbox=-74.03%2C40.68%2C-73.93%2C40.74&layer=mapnik&marker=40.71%2C-73.98"
-          />
-          <div className="p-3">
-            <p className="text-sm font-semibold">{applicant.location}</p>
-            <p className="mt-1 text-sm text-[#657080]">{applicant.address}</p>
-          </div>
+        <div className="rounded-xl border border-[#e2e2e2] p-3">
+          <p className="text-sm font-semibold">{application.location}</p>
+          <p className="mt-1 text-sm text-[#657080]">Applied {formatDate(application.createdAt)}</p>
         </div>
 
-        <div className="space-y-2">
-          <p className="text-sm font-semibold">Candidate CV</p>
-          <div className="flex items-center gap-3 rounded-lg border border-[#e2e2e2] p-3">
-            <span className="flex size-9 items-center justify-center rounded-lg bg-[#ffeaea] text-[#ff3e66]">PDF</span>
-            <div className="flex-1 min-w-0">
-              <p className="truncate text-sm font-medium">{applicant.cvFile}</p>
-              <p className="text-xs text-[#8a8f98]">10.5Kb</p>
-            </div>
-            <Button type="button" variant="outline" size="sm" onClick={() => toast("No file available in this demo")}>
-              View file
-            </Button>
+        {application.screening.whyInterested ? (
+          <div className="space-y-1">
+            <p className="text-sm font-semibold">Why they&apos;re interested</p>
+            <p className="text-sm text-[#565656]">{application.screening.whyInterested}</p>
           </div>
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-sm font-semibold">Candidate Cover letter</p>
-          <div className="flex items-center gap-3 rounded-lg border border-[#e2e2e2] p-3">
-            <span className="flex size-9 items-center justify-center rounded-lg bg-[#eaf4ff] text-[#087fff]">DOC</span>
-            <div className="flex-1 min-w-0">
-              <p className="truncate text-sm font-medium">{applicant.coverLetterFile}</p>
-              <p className="text-xs text-[#8a8f98]">10.5Kb</p>
-            </div>
-            <Button type="button" variant="outline" size="sm" onClick={() => toast("No file available in this demo")}>
-              View file
-            </Button>
-          </div>
-        </div>
+        ) : null}
 
         <div className="space-y-4">
           <p className="text-sm font-semibold">Screening questions</p>
-          {applicant.answers.map((entry) => (
+          {answers.map((entry) => (
             <div key={entry.question}>
               <p className="text-sm">{entry.question}</p>
               <p className="mt-1 flex items-center gap-2 text-sm text-[#087fff]">
@@ -438,10 +373,24 @@ function ApplicantDetailsPanel({
       </div>
 
       <div className="mt-8 flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={() => { toast("Candidate passed"); onClose() }}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            onStatusChange(application.id, "not_selected")
+            onClose()
+          }}
+        >
           No I&apos;d pass
         </Button>
-        <Button type="button" className="bg-[#087fff]" onClick={() => { toast.success("Candidate liked!"); onClose() }}>
+        <Button
+          type="button"
+          className="bg-[#087fff]"
+          onClick={() => {
+            onStatusChange(application.id, "shortlisted")
+            onClose()
+          }}
+        >
           Yes I like this candidate
         </Button>
       </div>
@@ -464,22 +413,83 @@ function JobsSkeleton() {
 }
 
 export default function AgencyJobsPage() {
-  const isLoading = useDelayedLoading()
-  const [postings] = useState(initialPostings)
+  const { user } = useAuthUser()
+  const defaultCompany =
+    (user?.profile?.name as string | undefined) || user?.fullName || ""
+
+  const [postings, setPostings] = useState<Job[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
   const [selectedPostingId, setSelectedPostingId] = useState<string | null>(null)
   const [isUploadOpen, setIsUploadOpen] = useState(false)
-  const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null)
 
-  if (isLoading) return <JobsSkeleton />
+  // Applications for the selected posting.
+  const [applications, setApplications] = useState<Application[]>([])
+  const [applicationsLoading, setApplicationsLoading] = useState(false)
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
+
+  useEffect(() => {
+    let active = true
+    ;(async () => {
+      setLoading(true)
+      try {
+        const jobs = await listMyJobs()
+        if (active) setPostings(jobs)
+      } catch (error) {
+        toast.error(getAuthErrorMessage(error))
+      } finally {
+        if (active) setLoading(false)
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const loadApplications = async (jobId: string) => {
+    setApplicationsLoading(true)
+    try {
+      const { applications: list } = await listMyApplications(jobId)
+      setApplications(list)
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setApplicationsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (selectedPostingId) loadApplications(selectedPostingId)
+    else setApplications([])
+  }, [selectedPostingId])
+
+  const handleStatusChange = async (
+    id: string,
+    status: "shortlisted" | "not_selected",
+  ) => {
+    try {
+      const updated = await updateApplicationStatus(id, status)
+      setApplications((current) =>
+        current.map((application) => (application.id === id ? updated : application)),
+      )
+      toast.success("Application updated")
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    }
+  }
+
+  if (loading) return <JobsSkeleton />
 
   const selectedPosting = postings.find((posting) => posting.id === selectedPostingId) ?? null
 
   if (selectedPosting) {
+    const countBy = (predicate: (a: Application) => boolean) =>
+      String(applications.filter(predicate).length)
     const stats = [
-      { label: "Applications", value: selectedPosting.applications },
-      { label: "Under Review", value: "8" },
-      { label: "Rejected", value: "6" },
-      { label: "Accepted", value: "5" },
+      { label: "Applications", value: String(applications.length) },
+      { label: "Under Review", value: countBy((a) => a.status === "under_review") },
+      { label: "Rejected", value: countBy((a) => a.status === "not_selected") },
+      { label: "Shortlisted", value: countBy((a) => a.status === "shortlisted") },
     ]
 
     return (
@@ -507,46 +517,58 @@ export default function AgencyJobsPage() {
 
         <section>
           <h2 className="mb-4 text-base font-bold">All applicants</h2>
-          <div className="overflow-x-auto rounded-xl border border-[#e2e2e2]">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-[#e2e2e2] text-[#657080]">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Applicant</th>
-                  <th className="px-4 py-3 font-semibold">Profession</th>
-                  <th className="px-4 py-3 font-semibold">Location</th>
-                  <th className="px-4 py-3 font-semibold">Applied On</th>
-                  <th className="px-4 py-3 font-semibold">Match score</th>
-                  <th className="px-4 py-3 font-semibold">Application status</th>
-                  <th className="px-4 py-3 font-semibold">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {applicants.map((applicant) => (
-                  <tr key={applicant.id} className="border-b border-[#eef1f3] last:border-0">
-                    <td className="px-4 py-3 font-medium">{applicant.name}</td>
-                    <td className="px-4 py-3 text-[#565656]">{applicant.profession}</td>
-                    <td className="px-4 py-3 text-[#565656]">{applicant.location}</td>
-                    <td className="px-4 py-3 text-[#565656]">{applicant.appliedOn}</td>
-                    <td className="px-4 py-3 text-[#565656]">{applicant.matchScore}%</td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={applicant.status} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <button type="button" onClick={() => setSelectedApplicant(applicant)} className="font-semibold text-[#087fff] hover:underline">
-                        View
-                      </button>
-                    </td>
+          {applicationsLoading ? (
+            <Skeleton className="h-48 rounded-xl" />
+          ) : applications.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-[#e2e2e2] p-6 text-center text-sm text-[#657080]">
+              No applications yet.
+            </p>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-[#e2e2e2]">
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-[#e2e2e2] text-[#657080]">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Applicant</th>
+                    <th className="px-4 py-3 font-semibold">Location</th>
+                    <th className="px-4 py-3 font-semibold">Applied On</th>
+                    <th className="px-4 py-3 font-semibold">Application status</th>
+                    <th className="px-4 py-3 font-semibold">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {applications.map((application) => (
+                    <tr key={application.id} className="border-b border-[#eef1f3] last:border-0">
+                      <td className="px-4 py-3 font-medium">{application.applicantName ?? "Applicant"}</td>
+                      <td className="px-4 py-3 text-[#565656]">{application.location}</td>
+                      <td className="px-4 py-3 text-[#565656]">{formatDate(application.createdAt)}</td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={APPLICATION_STATUS_LABELS[application.status]} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <button type="button" onClick={() => setSelectedApplication(application)} className="font-semibold text-[#087fff] hover:underline">
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
-        <ApplicantDetailsPanel applicant={selectedApplicant} onClose={() => setSelectedApplicant(null)} />
+        <ApplicantDetailsPanel
+          application={selectedApplication}
+          onClose={() => setSelectedApplication(null)}
+          onStatusChange={handleStatusChange}
+        />
       </div>
     )
   }
+
+  const visiblePostings = search
+    ? postings.filter((posting) => posting.title.toLowerCase().includes(search.toLowerCase()))
+    : postings
 
   return (
     <div className="animate-fade-in-up space-y-6 p-5 sm:p-8">
@@ -554,44 +576,60 @@ export default function AgencyJobsPage() {
         <h1 className="text-xl font-bold">My jobs posting</h1>
         <div className="relative w-full max-w-sm">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
-          <Input placeholder="Keyword, no_of applicants etc." className="pl-9" />
+          <Input
+            placeholder="Keyword, no_of applicants etc."
+            className="pl-9"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
         </div>
         <Button type="button" className="bg-[#087fff]" onClick={() => setIsUploadOpen(true)}>
           Post job here
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {postings.map((posting) => (
-          <article
-            key={posting.id}
-            role="button"
-            tabIndex={0}
-            onClick={() => setSelectedPostingId(posting.id)}
-            onKeyDown={(event) => event.key === "Enter" && setSelectedPostingId(posting.id)}
-            className="cursor-pointer rounded-xl border border-white/60 bg-white/80 p-5 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(16,20,26,0.1)]"
-          >
-            <h3 className="font-bold">{posting.title}</h3>
-            <p className="mt-2 text-sm text-[#565656]">{posting.description}</p>
-            <div className="mt-6 grid grid-cols-3 gap-2 border-t border-[#eef1f3] pt-4 text-center">
-              <div>
-                <p className="font-bold">{posting.views}</p>
-                <p className="text-xs text-[#8a8f98]">Views</p>
+      {visiblePostings.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-[#e2e2e2] p-10 text-center text-sm text-[#657080]">
+          You haven&apos;t posted any jobs yet. Click &quot;Post job here&quot; to create your first listing.
+        </p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {visiblePostings.map((posting) => (
+            <article
+              key={posting.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelectedPostingId(posting.id)}
+              onKeyDown={(event) => event.key === "Enter" && setSelectedPostingId(posting.id)}
+              className="cursor-pointer rounded-xl border border-white/60 bg-white/80 p-5 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(16,20,26,0.1)]"
+            >
+              <h3 className="font-bold">{posting.title}</h3>
+              <p className="mt-2 line-clamp-2 text-sm text-[#565656]">{posting.description}</p>
+              <div className="mt-6 grid grid-cols-3 gap-2 border-t border-[#eef1f3] pt-4 text-center">
+                <div>
+                  <p className="font-bold">{posting.viewsCount}</p>
+                  <p className="text-xs text-[#8a8f98]">Views</p>
+                </div>
+                <div className="border-x border-[#eef1f3]">
+                  <p className="font-bold">{posting.applicationsCount}</p>
+                  <p className="text-xs text-[#8a8f98]">Applications</p>
+                </div>
+                <div>
+                  <p className="font-bold">{posting.savedCount}</p>
+                  <p className="text-xs text-[#8a8f98]">Saved</p>
+                </div>
               </div>
-              <div className="border-x border-[#eef1f3]">
-                <p className="font-bold">{posting.applications}</p>
-                <p className="text-xs text-[#8a8f98]">Applications</p>
-              </div>
-              <div>
-                <p className="font-bold">{posting.saved}</p>
-                <p className="text-xs text-[#8a8f98]">Saved</p>
-              </div>
-            </div>
-          </article>
-        ))}
-      </div>
+            </article>
+          ))}
+        </div>
+      )}
 
-      <UploadJobPanel open={isUploadOpen} onClose={() => setIsUploadOpen(false)} />
+      <UploadJobPanel
+        open={isUploadOpen}
+        onClose={() => setIsUploadOpen(false)}
+        defaultCompany={defaultCompany}
+        onCreated={(job) => setPostings((current) => [job, ...current])}
+      />
     </div>
   )
 }
