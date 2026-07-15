@@ -9,6 +9,7 @@ export const Routes = {
             marketplace: "/user/market-place",
             telehealth: "/user/tele-health",
             profile: "/user/profile",
+            viewProfile: (id: string) => `/user/profile/${id}`,
             settings: "/user/settings",
         },
         agency: {
@@ -19,6 +20,7 @@ export const Routes = {
             marketplace: "/agency/market-place",
             telehealth: "/agency/tele-health",
             profile: "/agency/profile",
+            viewProfile: (id: string) => `/agency/profile/${id}`,
             settings: "/agency/settings",
         },
     },

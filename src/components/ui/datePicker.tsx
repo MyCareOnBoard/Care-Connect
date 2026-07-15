@@ -22,6 +22,7 @@ export default function CustomDatePicker(
     }
 ) {
     const [isDateOpen, setIsDateOpen] = useState(false);
+    const validDate = date instanceof Date && !isNaN(date.getTime()) ? date : null;
 
     const calendarIcon =
         iconVariant === "calendar-2" ? (
@@ -36,12 +37,12 @@ export default function CustomDatePicker(
                 <button type="button" className="w-full cursor-pointer focus:outline-none">
                     <InputGroup
                         className={cn(
-                            "h-[var(--cr-field-height,48px)] min-h-[var(--cr-field-height,48px)] cursor-pointer rounded-xl border border-[#cccccd] bg-white px-4",
+                            "h-(--cr-field-height,48px) min-h-(--cr-field-height,48px) cursor-pointer rounded-xl border border-[#cccccd] bg-white px-4",
                             className
                         )}
                     >
                         <InputGroupInput
-                            value={date ? format(date, "MMMM d, yyyy") : ""}
+                            value={validDate ? format(validDate, "MMMM d, yyyy") : ""}
                             placeholder={placeholder}
                             readOnly
                             className={cn(
@@ -55,15 +56,15 @@ export default function CustomDatePicker(
                     </InputGroup>
                 </button>
             </PopoverTrigger>
-            <PopoverContent align={align} className="mt-3 w-auto border-none bg-white p-0 shadow-lg">
+            <PopoverContent align={align} className="w-auto p-0 mt-3 bg-white border-none shadow-lg">
                 <Calendar
                     mode="single"
                     className="bg-white"
                     captionLayout="dropdown"
                     startMonth={startMonth ?? new Date(1924, 0)}
                     endMonth={endMonth ?? new Date()}
-                    selected={date ?? undefined}
-                    defaultMonth={date ?? new Date()}
+                    selected={validDate ?? undefined}
+                    defaultMonth={validDate ?? new Date()}
                     onSelect={(selectedDate) => {
                         if (selectedDate) {
                             setDate(selectedDate);

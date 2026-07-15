@@ -30,6 +30,7 @@ const ApplicationsPage = lazy(() => import("@/pages/app/applications"));
 const MarketplacePage = lazy(() => import("@/pages/app/marketplace"));
 const TelehealthPage = lazy(() => import("@/pages/app/telehealth"));
 const ProfilePage = lazy(() => import("@/pages/app/profile"));
+const ViewProfilePage = lazy(() => import("@/pages/app/view-profile"));
 const SettingsPage = lazy(() => import("@/pages/app/settings"));
 
 export const router = createBrowserRouter([
@@ -73,6 +74,7 @@ export const router = createBrowserRouter([
           { path: Routes.app.user.marketplace, Component: MarketplacePage },
           { path: Routes.app.user.telehealth, Component: TelehealthPage },
           { path: Routes.app.user.profile, Component: ProfilePage },
+          { path: `${Routes.app.user.profile}/:id`, Component: ViewProfilePage },
           { path: Routes.app.user.settings, Component: SettingsPage },
           { path: Routes.app.agency.dashboard, Component: AgencyDashboardPage },
           { path: Routes.app.agency.messages, Component: MessagesPage },
@@ -80,6 +82,7 @@ export const router = createBrowserRouter([
           { path: Routes.app.agency.marketplace, Component: MarketplacePage },
           { path: Routes.app.agency.telehealth, Component: TelehealthPage },
           { path: Routes.app.agency.profile, Component: ProfilePage },
+          { path: `${Routes.app.agency.profile}/:id`, Component: ViewProfilePage },
           { path: Routes.app.agency.settings, Component: SettingsPage },
         ],
       },

@@ -2,6 +2,8 @@ import { useState } from "react"
 import { Camera, Mail, MapPin, Phone, UserRound } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProfileModals } from "@/components/profile/ProfileModals"
+import { PortfolioPost, type PortfolioPostData } from "@/components/profile/PortfolioPost"
+import { toast } from "sonner"
 
 const initialExperience = [
   {
@@ -51,6 +53,24 @@ const profileSummary = {
   ],
 }
 
+const initialPortfolio: PortfolioPostData[] = [
+  {
+    id: "post-1",
+    paragraphs: [
+      "One of the hardest product decisions isn't what to build.",
+      "It's deciding who you're willing to disappoint.",
+      "We spend so much time trying to make products work for everyone that we slowly make them exceptional for no one.",
+      "Every product has a target user.",
+      "The challenge is having the discipline to design for them, even when it means saying no to everyone else.",
+    ],
+    statement: "Not every user is your user.",
+    likes: 140,
+    comments: [
+      { id: "c1", author: "Esther Howard", text: "Needed this today. So well said." },
+    ],
+  },
+]
+
 const profileTabs = ["About", "Experience", "Skills", "Certifications", "Portfolio"] as const
 type ProfileTab = (typeof profileTabs)[number]
 
@@ -65,6 +85,7 @@ export default function ProfilePage() {
   const [experience, setExperience] = useState(initialExperience)
   const [skills, setSkills] = useState(initialSkills)
   const [certifications, setCertifications] = useState(initialCertifications)
+  const [portfolio, setPortfolio] = useState(initialPortfolio)
   const [newSkill, setNewSkill] = useState("")
   const [newExperience, setNewExperience] = useState({ role: "", company: "", duration: "", description: "" })
   const [newCertification, setNewCertification] = useState({ title: "", provider: "", date: "", file: "" })
@@ -207,7 +228,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <h3 className="text-sm font-bold">Contact</h3>
-                <div className="flex mt-4 space-x-4">
+                <div className="mt-4 space-x-4 ">
                   <span className="inline-flex items-center gap-2">
                     <MapPin className="text-black size-4" />
                     {profileSummary.location}
@@ -249,7 +270,7 @@ export default function ProfilePage() {
             <div className="space-y-6">
               <div className="flex flex-wrap gap-2">
                 {skills.map((skill) => (
-                  <span key={skill} className="inline-flex items-center justify-center rounded-full bg-[#eef5ff] px-4 py-2 text-sm text-[#087fff] text-bold border border-[#087fff]">
+                  <span key={skill} className="inline-flex items-center justify-center rounded-full bg-[#eef5ff] px-4 py-2 text-sm text-[#087fff] font-semibold border border-[#087fff]">
                     {skill}
                   </span>
                 ))}
@@ -281,12 +302,28 @@ export default function ProfilePage() {
 
           {activeTab === "Portfolio" && (
             <div className="space-y-6">
-              <div className="rounded-3xl border border-[#e5ecf5] bg-[#f7fafc] p-6">
-                <p className="text-sm text-[#687182]">Portfolio updates will appear here.</p>
-                <p className="mt-4 text-sm leading-7 text-[#505964]">
-                  Create posts, highlight work, and share recent achievements so your network can see your best care stories.
-                </p>
-              </div>
+              {portfolio.length === 0 ? (
+                <div className="rounded-3xl border border-[#e5ecf5] bg-[#f7fafc] p-6">
+                  <p className="text-sm text-[#687182]">Portfolio updates will appear here.</p>
+                  <p className="mt-4 text-sm leading-7 text-[#505964]">
+                    Create posts, highlight work, and share recent achievements so your network can see your best care stories.
+                  </p>
+                </div>
+              ) : (
+                portfolio.map((post) => (
+                  <PortfolioPost
+                    key={post.id}
+                    authorName={profileSummary.name}
+                    authorRole="Certified Nurse"
+                    avatarClassName="bg-[#6b9cca]"
+                    initials="JE"
+                    post={post}
+                    editable
+                    onEdit={() => toast("Editing isn't available in this demo")}
+                    onRemove={() => setPortfolio((current) => current.filter((item) => item.id !== post.id))}
+                  />
+                ))
+              )}
               <Button variant="outline">Add portfolio item</Button>
             </div>
           )}
