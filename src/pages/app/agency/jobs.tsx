@@ -9,17 +9,6 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SidePanel } from "@/components/app/SidePanel"
-import {
-  AlertDialog,
-  AlertDialogTrigger,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogFooter,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogAction,
-  AlertDialogCancel,
-} from "@/components/ui/alert-dialog"
 import { StatTile } from "@/components/app/StatTile"
 import { StatusBadge } from "@/components/app/StatusBadge"
 import { useDelayedLoading } from "@/hooks/useDelayedLoading"
@@ -457,32 +446,16 @@ function ApplicantDetailsPanel({
           No I&apos;d pass
         </Button>
 
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button type="button" className="bg-[#087fff]">
-              Yes I like this candidate
-            </Button>
-          </AlertDialogTrigger>
-
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirm action</AlertDialogTitle>
-              <AlertDialogDescription>Are you sure you want to mark this candidate as liked? This action can be reverted from the applicants list.</AlertDialogDescription>
-            </AlertDialogHeader>
-
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => {
-                  toast.success("Candidate liked!")
-                  onClose()
-                }}
-              >
-                Confirm
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <Button
+          type="button"
+          className="bg-[#087fff]"
+          onClick={() => {
+            toast.success("Candidate liked!")
+            onClose()
+          }}
+        >
+          Yes I like this candidate
+        </Button>
       </div>
     </SidePanel>
   )

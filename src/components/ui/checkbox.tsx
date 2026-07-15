@@ -23,7 +23,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
         />
         <span
           className={cn(
-            "relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border transition-colors",
+            "relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-[8px] border transition-colors",
             "border-[var(--input-border)] bg-white",
             "peer-checked:border-primary peer-checked:bg-primary",
             "peer-checked:[&>svg]:opacity-100",

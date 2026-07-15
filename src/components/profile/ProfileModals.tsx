@@ -53,6 +53,12 @@ type ProfileModalsProps = {
   onNewCertificationChange: (value: { title: string; provider: string; date: string; file: string }) => void
 }
 
+function parseDurationDate(value: string) {
+  if (!value || value === "Present") return null
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
 const accountTabs = ["Account info", "Password", "Danger zone"] as const
 
 type AccountTab = (typeof accountTabs)[number]
@@ -307,14 +313,14 @@ export function ProfileModals({
               <div>
                 <label className="mb-2 block text-sm font-medium text-[#151922]">Start date</label>
                 <CustomDatePicker
-                  date={newExperience.duration.split(" – ")[0] ? new Date(newExperience.duration.split(" – ")[0]) : null}
+                  date={parseDurationDate(newExperience.duration.split(" – ")[0])}
                   setDate={(value) => onNewExperienceChange({ ...newExperience, duration: `${value ? format(value, "yyyy-MM-dd") : ""} – ${newExperience.duration.split(" – ")[1] || "Present"}` })}
                 />
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-[#151922]">End date</label>
                 <CustomDatePicker
-                  date={newExperience.duration.split(" – ")[1] ? new Date(newExperience.duration.split(" – ")[1]) : null}
+                  date={parseDurationDate(newExperience.duration.split(" – ")[1])}
                   setDate={(value) => onNewExperienceChange({ ...newExperience, duration: `${newExperience.duration.split(" – ")[0] || ""} – ${value ? format(value, "yyyy-MM-dd") : "Present"}` })}
                 />
               </div>
@@ -379,7 +385,7 @@ export function ProfileModals({
               <div>
                 <label className="mb-2 block text-sm font-medium text-[#151922]">Start date</label>
                 <CustomDatePicker
-                  date={newCertification.date ? new Date(newCertification.date) : null}
+                  date={parseDurationDate(newCertification.date)}
                   setDate={(value) => onNewCertificationChange({ ...newCertification, date: value ? format(value, "yyyy-MM-dd") : "" })}
                 />
               </div>

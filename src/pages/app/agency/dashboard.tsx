@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { StatRow } from "@/components/app/StatRow"
 import { ViewAllLink } from "@/components/app/ViewAllLink"
 import { PostComposer } from "@/components/app/PostComposer"
-import { FeaturedPost } from "@/components/app/FeaturedPost"
+import { DashboardFeed } from "@/components/app/DashboardFeed"
 import { ConnectionsSection, type Connection } from "@/components/app/ConnectionsSection"
 import { useDelayedLoading } from "@/hooks/useDelayedLoading"
 import { Routes } from "@/routes/constants"
@@ -24,10 +24,10 @@ const agencies: Connection[] = [
 ]
 
 const professionals: Connection[] = [
-  { name: "Jerome Bell", subtitle: "Registered Nurse | Ment...", initials: "JB", avatarClassName: "bg-[#ffc95c]" },
-  { name: "Esther Howard", subtitle: "Doctor", initials: "EH", avatarClassName: "bg-[#d193ce]" },
-  { name: "Theresa Webb", subtitle: "Counsellor", initials: "TW", avatarClassName: "bg-[#ffc33d]" },
-  { name: "Eleanor Pena", subtitle: "Psychiatrist", initials: "EP", avatarClassName: "bg-[#cdbeb5]" },
+  { name: "Jerome Bell", subtitle: "Registered Nurse | Ment...", initials: "JB", avatarClassName: "bg-[#ffc95c]", profileHref: Routes.app.agency.viewProfile("jerome-bell") },
+  { name: "Esther Howard", subtitle: "Doctor", initials: "EH", avatarClassName: "bg-[#d193ce]", profileHref: Routes.app.agency.viewProfile("esther-howard") },
+  { name: "Theresa Webb", subtitle: "Counsellor", initials: "TW", avatarClassName: "bg-[#ffc33d]", profileHref: Routes.app.agency.viewProfile("theresa-webb") },
+  { name: "Eleanor Pena", subtitle: "Psychiatrist", initials: "EP", avatarClassName: "bg-[#cdbeb5]", profileHref: Routes.app.agency.viewProfile("eleanor-pena") },
 ]
 
 function JobOverviewCard({ posting, style }: { posting: (typeof postings)[number]; style?: CSSProperties }) {
@@ -144,7 +144,7 @@ export default function AgencyDashboardPage() {
 
       <main className="space-y-8">
         <PostComposer />
-        <FeaturedPost />
+        <DashboardFeed />
       </main>
 
       <aside className="space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">

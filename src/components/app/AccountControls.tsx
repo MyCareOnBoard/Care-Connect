@@ -80,7 +80,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
   }
 
   return (
-    <div className="flex w-fit items-center rounded-full border-[3px] border-[#e8edef] bg-[#f7fafb] p-1">
+    <div className="flex w-fit items-center rounded-full border-[3px] border-[#e8edef] bg-[#f7fafb]">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -88,7 +88,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
             aria-label="Notifications"
             className={`relative flex ${notificationButtonSize} items-center justify-center rounded-full bg-white text-[#151922] outline-none transition hover:bg-[#f2f6f8] cursor-pointer`}
           >
-            <Bell className="size-5 fill-[#151922]" />
+            <Bell className="size-4.5 fill-[#151922]" />
             <span className="absolute right-3 top-2 size-2 rounded-full bg-[#ed2f20]" />
           </button>
         </DropdownMenuTrigger>
@@ -103,7 +103,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
         aria-label="Profile image"
         className="ml-1 flex size-9 items-center justify-center rounded-full bg-[#d6e6f2] transition hover:ring-2 hover:ring-[#087fff]/30"
       >
-        <span className="size-5 rounded-full bg-[#6b9cca]" />
+        <UserRound className="size-5 rounded-full text-[#6b9cca]" />
       </Link>
 
       <DropdownMenu>
@@ -129,7 +129,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
             </div>
           </div>
           <div className="px-1 py-1 space-y-1">
-            <DropdownMenuItem asChild className="rounded-lg hover:bg-[#edf3f5]">
+            <DropdownMenuItem asChild className="rounded-lg hover:bg-[#edf3f5] cursor-pointer">
               <Link to={profilePath} className="flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-xl">
                 <span className="flex items-center gap-2">
                   <UserRound className="size-4 text-[#087fff]" />
@@ -167,7 +167,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
             </DropdownMenuItem>
           </div>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={handleLogout} variant="destructive" className="rounded-lg hover:bg-[#ff313157]">
+          <DropdownMenuItem onSelect={handleLogout} variant="destructive" className="rounded-lg mx-2 hover:bg-[#ff313157] mb-2">
             <div className="flex items-center gap-2 px-3 py-2 text-sm">
               <LogOut className="size-4" />
               Sign out
