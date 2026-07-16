@@ -104,7 +104,7 @@ function QuickScreeningPanel({
 
 function JobsSkeleton() {
   return (
-    <div className="space-y-6 p-5 sm:p-8">
+    <div className="p-5 space-y-6 sm:p-8">
       <Skeleton className="h-10 w-60" />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Skeleton className="h-40 rounded-xl" />

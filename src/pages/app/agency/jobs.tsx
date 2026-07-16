@@ -73,6 +73,8 @@ function ScreeningQuestionSetupPanel({ open, onClose }: { open: boolean; onClose
       open={open}
       onClose={onClose}
       title="Screening question setup"
+      centered
+      widthClassName="max-w-[560px]"
       footer={
         <div className="flex justify-end gap-2">
           <Button
@@ -159,6 +161,8 @@ function UploadJobPanel({
   const [wantsScreening, setWantsScreening] = useState(false)
   const [isScreeningOpen, setIsScreeningOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [currency, setCurrency] = useState("USD")
+  const [salary, setSalary] = useState("")
 
   useEffect(() => {
     setCompany((current) => current || defaultCompany)
@@ -205,7 +209,7 @@ function UploadJobPanel({
         open={open}
         onClose={onClose}
         title="Upload Job"
-        widthClassName="max-w-[560px]"
+        widthClassName="max-w-[520px]"
         footer={
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" disabled={saving} onClick={() => submit("draft")}>
@@ -275,7 +279,7 @@ function UploadJobPanel({
           <div className="space-y-2">
             <label className="text-sm font-semibold">Salary, provide salary if you want it visible.</label>
             <div className="flex gap-3">
-              <Select defaultValue="USD">
+              <Select value={currency} onValueChange={(val) => setCurrency(val)}>
                 <SelectTrigger className="w-28 shrink-0">
                   <SelectValue />
                 </SelectTrigger>
@@ -285,19 +289,13 @@ function UploadJobPanel({
                   <SelectItem value="EUR">EUR</SelectItem>
                 </SelectContent>
               </Select>
-              <Input type="number" placeholder="0.00" />
+              <Input type="number" value={salary} onChange={(e) => setSalary(e.target.value)} placeholder="0.00" />
             </div>
           </div>
 
           <div className="flex items-center justify-between border-t border-[#eef1f3] pt-5">
             <span className="text-sm font-semibold">Want to add screening questions?</span>
-            <Switch
-              checked={wantsScreening}
-              onCheckedChange={(checked) => {
-                setWantsScreening(checked)
-                if (checked) setIsScreeningOpen(true)
-              }}
-            />
+            <Switch checked={wantsScreening} onCheckedChange={(checked) => setWantsScreening(checked)} />
           </div>
         </div>
       </SidePanel>
@@ -334,7 +332,7 @@ function ApplicantDetailsPanel({
   ]
 
   return (
-    <SidePanel open onClose={onClose} title="Applicant details" widthClassName="max-w-[560px]">
+    <SidePanel open={true} onClose={onClose} title="Applicant details" widthClassName="max-w-[520px]">
       <div className="space-y-6">
         <div className="flex items-center gap-3">
           <span className="flex size-12 items-center justify-center rounded-full bg-[#e8f1f7] text-sm font-bold text-[#087fff]">
@@ -400,7 +398,7 @@ function ApplicantDetailsPanel({
 
 function JobsSkeleton() {
   return (
-    <div className="space-y-6 p-5 sm:p-8">
+    <div className="p-5 space-y-6 sm:p-8">
       <Skeleton className="h-10 w-60" />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Skeleton className="h-40 rounded-xl" />
@@ -493,7 +491,7 @@ export default function AgencyJobsPage() {
     ]
 
     return (
-      <div className="animate-fade-in-up space-y-6 p-5 sm:p-8">
+      <div className="p-5 space-y-6 animate-fade-in-up sm:p-8">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -571,7 +569,7 @@ export default function AgencyJobsPage() {
     : postings
 
   return (
-    <div className="animate-fade-in-up space-y-6 p-5 sm:p-8">
+    <div className="p-5 space-y-6 animate-fade-in-up sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-xl font-bold">My jobs posting</h1>
         <div className="relative w-full max-w-sm">
@@ -593,7 +591,7 @@ export default function AgencyJobsPage() {
           You haven&apos;t posted any jobs yet. Click &quot;Post job here&quot; to create your first listing.
         </p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 py-8 sm:grid-cols-2 xl:grid-cols-4">
           {visiblePostings.map((posting) => (
             <article
               key={posting.id}
@@ -601,22 +599,31 @@ export default function AgencyJobsPage() {
               tabIndex={0}
               onClick={() => setSelectedPostingId(posting.id)}
               onKeyDown={(event) => event.key === "Enter" && setSelectedPostingId(posting.id)}
-              className="cursor-pointer rounded-xl border border-white/60 bg-white/80 p-5 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(16,20,26,0.1)]"
+              className="cursor-pointer transition-all duration-300 hover:-translate-y-0.5"
             >
-              <h3 className="font-bold">{posting.title}</h3>
-              <p className="mt-2 line-clamp-2 text-sm text-[#565656]">{posting.description}</p>
-              <div className="mt-6 grid grid-cols-3 gap-2 border-t border-[#eef1f3] pt-4 text-center">
-                <div>
-                  <p className="font-bold">{posting.viewsCount}</p>
-                  <p className="text-xs text-[#8a8f98]">Views</p>
+              <div className="relative rounded-3xl p-10 hover:shadow-[0_8px_32px_rgba(16,20,26,0.06)] min-h-55 overflow-hidden">
+                <svg aria-hidden="true" className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 331 225" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+                  <path d="M314 0.5C323.113 0.500016 330.5 7.88731 330.5 17V208C330.5 217.113 323.113 224.5 314 224.5H17C7.8873 224.5 0.5 217.113 0.5 208V50.627C0.500016 41.5143 7.88731 34.127 17 34.127H224.948C231.357 34.1269 237.106 30.1824 239.411 24.2021L244.475 11.0654C246.929 4.69946 253.048 0.500175 259.87 0.5H314Z" stroke="#D9D9D9" strokeWidth="1" />
+                </svg>
+
+                <div className="relative z-10">
+                  <h3 className="font-bold">{posting.title}</h3>
+                  <p className="mt-2 line-clamp-2 text-sm text-[#565656]">{posting.description}</p>
                 </div>
-                <div className="border-x border-[#eef1f3]">
-                  <p className="font-bold">{posting.applicationsCount}</p>
-                  <p className="text-xs text-[#8a8f98]">Applications</p>
-                </div>
-                <div>
-                  <p className="font-bold">{posting.savedCount}</p>
-                  <p className="text-xs text-[#8a8f98]">Saved</p>
+
+                <div className="absolute left-0 right-0 bottom-0 grid grid-cols-3 gap-2 border-t border-[#eef1f3] p-4 text-center bg-white/0">
+                  <div>
+                    <p className="font-bold">{posting.viewsCount}</p>
+                    <p className="text-xs text-[#8a8f98]">Views</p>
+                  </div>
+                  <div className="border-x border-[#eef1f3]">
+                    <p className="font-bold">{posting.applicationsCount}</p>
+                    <p className="text-xs text-[#8a8f98]">Applications</p>
+                  </div>
+                  <div>
+                    <p className="font-bold">{posting.savedCount}</p>
+                    <p className="text-xs text-[#8a8f98]">Saved</p>
+                  </div>
                 </div>
               </div>
             </article>
