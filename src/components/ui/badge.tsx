@@ -9,9 +9,13 @@ const badgeVariants = cva(
 )
 
 const badgeStyles: Record<string, string> = {
+  confirmed: "bg-success/10 border-success text-success",
   success: "bg-success/10 border-success text-success",
+  completed: "border-foreground/20 bg-white text-foreground",
+  incomplete: "border-amber-300 bg-amber-100 text-amber-900",
   warning: "border-destructive bg-destructive/10 text-destructive",
   error: "border-destructive bg-destructive/10 text-destructive",
+  expired: "border-destructive bg-destructive/10 text-destructive",
   info: "border-info bg-info/10 text-info",
   pending: "border-grey-200 bg-muted text-grey-800",
   outline: "border-grey-200 bg-white/60 text-foreground",

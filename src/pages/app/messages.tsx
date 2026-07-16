@@ -132,12 +132,12 @@ function MessagesSkeleton() {
   return (
     <div className="flex h-[calc(100vh-72px)] gap-4 p-5 sm:p-8">
       <div className="w-full max-w-sm space-y-3">
-        <Skeleton className="h-10 w-full" />
+        <Skeleton className="w-full h-10" />
         <Skeleton className="h-16 rounded-xl" />
         <Skeleton className="h-16 rounded-xl" />
         <Skeleton className="h-16 rounded-xl" />
       </div>
-      <Skeleton className="hidden flex-1 rounded-xl sm:block" />
+      <Skeleton className="flex-1 hidden rounded-xl sm:block" />
     </div>
   )
 }
@@ -170,8 +170,8 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="animate-fade-in-up flex h-[calc(100vh-72px)]">
-      <aside className="w-full max-w-sm shrink-0 space-y-1 overflow-y-auto border-r border-[#eef1f3] p-4">
+    <div className="animate-fade-in-up flex h-[calc(100vh-72px)] flex-col lg:flex-row p-8">
+      <aside className="w-full lg:max-w-sm shrink-0 space-y-1 overflow-y-auto border-b border-[#eef1f3] p-4 lg:border-b-0 lg:border-r">
         <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
           <Input placeholder="Search here" className="pl-9" />
@@ -190,9 +190,9 @@ export default function MessagesPage() {
             <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white", conversation.color)}>
               {conversation.initials}
             </span>
-            <div className="min-w-0 flex-1">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <p className="truncate text-sm font-bold">{conversation.name}</p>
+                <p className="text-sm font-bold truncate">{conversation.name}</p>
                 <span className="shrink-0 text-xs text-[#8a8f98]">{conversation.time}</span>
               </div>
               <p className="mt-1 truncate text-sm text-[#657080]">{conversation.preview}</p>
@@ -206,7 +206,7 @@ export default function MessagesPage() {
         ))}
       </aside>
 
-      <main className="flex-1">
+      <main className="flex-1 min-h-0">
         <ChatThread
           messages={selected.messages}
           onSend={sendMessage}

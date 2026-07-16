@@ -36,7 +36,7 @@ export function ChatThread({ messages, onSend, header, className = "" }: ChatThr
         {messages.map((message) => (
           <div key={message.id} className={cn("flex flex-col", message.from === "me" ? "items-end" : "items-start")}>
             {message.meetLink ? (
-              <div className="max-w-90 rounded-2xl bg-[#eafaf1] px-4 py-3 text-sm text-[#0f5132]">
+              <div className="max-w-[90%] rounded-2xl bg-[#eafaf1] px-4 py-3 text-sm text-[#0f5132]">
                 <p>{message.text}</p>
                 <a
                   href={message.meetLink}
@@ -50,7 +50,7 @@ export function ChatThread({ messages, onSend, header, className = "" }: ChatThr
             ) : (
               <div
                 className={cn(
-                  "max-w-90 rounded-2xl px-4 py-2.5 text-sm",
+                  "max-w-[90%] rounded-2xl px-4 py-2.5 text-sm",
                   message.from === "me" ? "bg-[#087fff] text-white" : "bg-[#f2f4f6] text-[#20242c]"
                 )}
               >

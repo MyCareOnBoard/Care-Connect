@@ -5,9 +5,10 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { StatRow } from "@/components/app/StatRow"
 import { ViewAllLink } from "@/components/app/ViewAllLink"
 import { PostComposer } from "@/components/app/PostComposer"
-import { FeaturedPost } from "@/components/app/FeaturedPost"
+import { DashboardFeed } from "@/components/app/DashboardFeed"
 import { ConnectionsSection, type Connection } from "@/components/app/ConnectionsSection"
 import { useDelayedLoading } from "@/hooks/useDelayedLoading"
+import { Routes } from "@/routes/constants"
 import { cn } from "@/lib/utils"
 
 const jobs = [
@@ -37,10 +38,10 @@ const agencies: Connection[] = [
 ]
 
 const professionals: Connection[] = [
-  { name: "Jerome Bell", subtitle: "Registered Nurse | Ment...", initials: "JB", avatarClassName: "bg-[#ffc95c]" },
-  { name: "Esther Howard", subtitle: "Doctor", initials: "EH", avatarClassName: "bg-[#d193ce]" },
-  { name: "Theresa Webb", subtitle: "Counsellor", initials: "TW", avatarClassName: "bg-[#ffc33d]" },
-  { name: "Eleanor Pena", subtitle: "Psychiatrist", initials: "EP", avatarClassName: "bg-[#cdbeb5]" },
+  { name: "Jerome Bell", subtitle: "Registered Nurse | Ment...", initials: "JB", avatarClassName: "bg-[#ffc95c]", profileHref: Routes.app.user.viewProfile("jerome-bell") },
+  { name: "Esther Howard", subtitle: "Doctor", initials: "EH", avatarClassName: "bg-[#d193ce]", profileHref: Routes.app.user.viewProfile("esther-howard") },
+  { name: "Theresa Webb", subtitle: "Counsellor", initials: "TW", avatarClassName: "bg-[#ffc33d]", profileHref: Routes.app.user.viewProfile("theresa-webb") },
+  { name: "Eleanor Pena", subtitle: "Psychiatrist", initials: "EP", avatarClassName: "bg-[#cdbeb5]", profileHref: Routes.app.user.viewProfile("eleanor-pena") },
 ]
 
 function JobCard({
@@ -91,11 +92,11 @@ function JobCard({
 
 function DashboardSkeleton() {
   return (
-    <div className="grid min-h-[calc(100vh-72px)] items-start gap-5 px-7.5 pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,680px)_326px]">
+    <div className="grid min-h-[calc(100vh-72px)] items-start gap-5 px-0 pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,680px)_326px] w-full">
       <aside className="space-y-10">
         <Skeleton className="h-20 rounded-lg" />
         <div className="space-y-3">
-          <Skeleton className="h-4 w-24" />
+          <Skeleton className="w-24 h-4" />
           <Skeleton className="h-28 rounded-xl" />
           <Skeleton className="h-28 rounded-xl" />
           <Skeleton className="h-28 rounded-xl" />
@@ -107,11 +108,11 @@ function DashboardSkeleton() {
         <Skeleton className="h-32 rounded-[30px]" />
         <div className="space-y-4">
           <div className="flex items-start gap-3">
-            <Skeleton className="size-12 shrink-0 rounded-full" />
+            <Skeleton className="rounded-full size-12 shrink-0" />
             <div className="flex-1 space-y-3">
-              <Skeleton className="h-5 w-48" />
-              <Skeleton className="h-4 w-full max-w-md" />
-              <Skeleton className="h-4 w-full max-w-sm" />
+              <Skeleton className="w-48 h-5" />
+              <Skeleton className="w-full h-4 max-w-md" />
+              <Skeleton className="w-full h-4 max-w-sm" />
             </div>
           </div>
           <Skeleton className="h-96 rounded-xl" />
@@ -120,13 +121,13 @@ function DashboardSkeleton() {
 
       <aside className="space-y-10">
         <div className="space-y-4">
-          <Skeleton className="h-4 w-32" />
+          <Skeleton className="w-32 h-4" />
           {Array.from({ length: 4 }).map((_, index) => (
             <div key={index} className="flex items-center gap-3">
-              <Skeleton className="size-12 shrink-0 rounded-full" />
+              <Skeleton className="rounded-full size-12 shrink-0" />
               <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-3 w-24" />
+                <Skeleton className="w-32 h-4" />
+                <Skeleton className="w-24 h-3" />
               </div>
             </div>
           ))}
@@ -155,7 +156,7 @@ export default function DashboardPage() {
   if (isLoading) return <DashboardSkeleton />
 
   return (
-    <div className="animate-fade-in-up grid min-h-[calc(100vh-72px)] items-start gap-5 px-7.5 pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,680px)_326px]">
+    <div className="animate-fade-in-up grid min-h-[calc(100vh-72px)] items-start gap-5 px-8 sm:w-full pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,1fr)_326px] w-full">
       <aside className="space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
         <section className="rounded-lg border border-white/60 bg-white/80 px-4 py-3 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md">
           <div className="space-y-5">
@@ -182,7 +183,7 @@ export default function DashboardPage() {
 
         <section className="group relative overflow-hidden rounded-lg bg-[#e9e1ff] p-2 shadow-[0_8px_24px_rgba(90,78,224,0.15)]">
           <div className="relative overflow-hidden rounded-md border border-[#d5cafa] bg-[linear-gradient(55deg,rgba(92,72,215,0.08)_25%,transparent_25%,transparent_50%,rgba(92,72,215,0.08)_50%,rgba(92,72,215,0.08)_75%,transparent_75%)] bg-size-[36px_36px] px-2 py-3">
-            <span className="animate-shimmer pointer-events-none absolute inset-y-0 -left-1/2 w-1/2 bg-linear-to-r from-transparent via-white/40 to-transparent" />
+            <span className="absolute inset-y-0 w-1/2 pointer-events-none animate-shimmer -left-1/2 bg-linear-to-r from-transparent via-white/40 to-transparent" />
             <h2 className="text-2xl font-bold leading-tight text-[#2a0c4a]">Turn your equipment into opportunity</h2>
             <p className="mt-3 text-sm leading-5 text-[#321c47]">
               Have medical equipment or supplies to sell? List them and connect with the right people
@@ -196,7 +197,7 @@ export default function DashboardPage() {
 
       <main className="space-y-8">
         <PostComposer />
-        <FeaturedPost />
+        <DashboardFeed />
       </main>
 
       <aside className="space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">

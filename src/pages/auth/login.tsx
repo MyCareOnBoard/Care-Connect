@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { useNavigate, Link } from "react-router"
+import { useNavigate, Link } from "react-router-dom"
 import { useDispatch } from "react-redux"
 import { Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
