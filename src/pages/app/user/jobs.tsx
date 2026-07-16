@@ -308,10 +308,11 @@ export default function UserJobsPage() {
             </button>
             <button
               type="button"
-              aria-label="Bookmark job"
+              onClick={() => toggleSaved(selectedJob.id)}
+              aria-label={savedJobIds.has(selectedJob.id) ? "Remove from saved" : "Save job"}
               className="flex size-11 items-center justify-center rounded-full border border-[#e2e2e2] transition hover:bg-[#f2f6f8]"
             >
-              <Bookmark className="size-4" />
+              <Bookmark className={`size-4 transition-colors ${savedJobIds.has(selectedJob.id) ? "fill-[#087fff] text-[#087fff]" : ""}`} />
             </button>
           </div>
 
