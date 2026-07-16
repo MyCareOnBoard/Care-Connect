@@ -122,6 +122,7 @@ export default function UserJobsPage() {
   const [search, setSearch] = useState("")
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
   const [savedJobIds, setSavedJobIds] = useState<Set<string>>(new Set())
+  const [likedJobIds, setLikedJobIds] = useState<Set<string>>(new Set())
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set())
   const [isApplyOpen, setIsApplyOpen] = useState(false)
 
@@ -187,6 +188,17 @@ export default function UserJobsPage() {
       })
       toast.error(getAuthErrorMessage(error))
     }
+  }
+
+  // "Like" is a separate, local-only affordance (no backend concept) — kept
+  // independent of Save so tapping one doesn't toggle the other.
+  const toggleLiked = (id: string) => {
+    setLikedJobIds((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
 
   const handleApply = async (screening: Screening) => {
@@ -300,11 +312,11 @@ export default function UserJobsPage() {
             </Button>
             <button
               type="button"
-              onClick={() => toggleSaved(selectedJob.id)}
-              aria-label="Save job"
+              onClick={() => toggleLiked(selectedJob.id)}
+              aria-label={likedJobIds.has(selectedJob.id) ? "Unlike job" : "Like job"}
               className="flex size-11 items-center justify-center rounded-full border border-[#e2e2e2] transition hover:bg-[#f2f6f8]"
             >
-              <Heart className={`size-4 transition-colors ${savedJobIds.has(selectedJob.id) ? "fill-[#ff3e66] text-[#ff3e66]" : ""}`} />
+              <Heart className={`size-4 transition-colors ${likedJobIds.has(selectedJob.id) ? "fill-[#ff3e66] text-[#ff3e66]" : ""}`} />
             </button>
             <button
               type="button"
