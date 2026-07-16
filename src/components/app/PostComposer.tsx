@@ -5,24 +5,37 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar } from "@/components/app/DashboardAvatar"
 import { cn, getInitials } from "@/lib/utils"
-import { useAuthUser } from "@/utils/auth"
+import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
+import { createPost, POST_CREATED_EVENT } from "@/utils/careconnect/services/postsService"
 
 export function PostComposer() {
   const { user } = useAuthUser()
   const [text, setText] = useState("")
   const [image, setImage] = useState<File | null>(null)
   const [video, setVideo] = useState<File | null>(null)
+  const [posting, setPosting] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const videoInputRef = useRef<HTMLInputElement>(null)
 
-  const canPost = text.trim().length > 0 || !!image || !!video
+  // A post needs text (the backend requires a statement); media is optional.
+  const canPost = text.trim().length > 0
 
-  const handlePost = () => {
-    if (!canPost) return
-    toast.success("Post shared!")
-    setText("")
-    setImage(null)
-    setVideo(null)
+  const handlePost = async () => {
+    if (!canPost || posting) return
+    setPosting(true)
+    try {
+      if (video) toast("Video posts are coming soon — sharing text and image only.")
+      const post = await createPost({ statement: text.trim(), media: image })
+      window.dispatchEvent(new CustomEvent(POST_CREATED_EVENT, { detail: post }))
+      toast.success("Post shared!")
+      setText("")
+      setImage(null)
+      setVideo(null)
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setPosting(false)
+    }
   }
 
   return (
@@ -96,7 +109,7 @@ export function PostComposer() {
         </div>
         <Button
           type="button"
-          disabled={!canPost}
+          disabled={!canPost || posting}
           onClick={handlePost}
           className={cn(
             "h-10 rounded-lg px-3 text-white transition-all duration-200",

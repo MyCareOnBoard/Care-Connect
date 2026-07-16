@@ -1,16 +1,60 @@
 import { useState } from "react"
 import { Check } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { getAuthErrorMessage } from "@/utils/auth"
+import { follow, unfollow, type ConnectionRelation } from "@/utils/careconnect/services/connectionsService"
 
-export function FollowButton({ label, activeLabel }: { label: string; activeLabel: string }) {
-  const [active, setActive] = useState(false)
+/**
+ * Follow/connect/subscribe toggle. When `targetId` is provided the toggle is
+ * persisted via the connections service (optimistic, reverts on failure) and
+ * seeds from `initialActive`. Without a `targetId` it falls back to a local-only
+ * toggle (for surfaces not yet wired to a real target).
+ */
+export function FollowButton({
+  label,
+  activeLabel,
+  targetId,
+  relation = "connect",
+  targetType,
+  initialActive = false,
+}: {
+  label: string
+  activeLabel: string
+  targetId?: string
+  relation?: ConnectionRelation
+  targetType?: "individual" | "company"
+  initialActive?: boolean
+}) {
+  const [active, setActive] = useState(initialActive)
+  const [busy, setBusy] = useState(false)
+
+  const handleClick = async () => {
+    if (!targetId) {
+      setActive((current) => !current)
+      return
+    }
+    const next = !active
+    setActive(next)
+    setBusy(true)
+    try {
+      if (next) await follow(targetId, relation, targetType)
+      else await unfollow(targetId)
+    } catch (error) {
+      setActive(!next) // revert
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return (
     <Button
       type="button"
       variant="outline"
-      onClick={() => setActive((current) => !current)}
+      disabled={busy}
+      onClick={handleClick}
       className={cn(
         "h-10 rounded-full px-5 transition-all duration-200 hover:scale-105 active:scale-95",
         active

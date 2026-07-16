@@ -2,6 +2,7 @@ import { Link } from "react-router"
 import { Avatar } from "@/components/app/DashboardAvatar"
 import { FollowButton } from "@/components/app/FollowButton"
 import { ViewAllLink } from "@/components/app/ViewAllLink"
+import type { ConnectionRelation } from "@/utils/careconnect/services/connectionsService"
 
 export type Connection = {
   name: string
@@ -9,6 +10,9 @@ export type Connection = {
   initials: string
   avatarClassName: string
   profileHref?: string
+  /** Target uid — when present the follow button persists via the connections service. */
+  uid?: string
+  isFollowing?: boolean
 }
 
 type ConnectionsSectionProps = {
@@ -16,16 +20,19 @@ type ConnectionsSectionProps = {
   items: Connection[]
   actionLabel: string
   activeLabel: string
+  /** connect (people) or subscribe (agencies). */
+  relation?: ConnectionRelation
+  targetType?: "individual" | "company"
 }
 
-export function ConnectionsSection({ title, items, actionLabel, activeLabel }: ConnectionsSectionProps) {
+export function ConnectionsSection({ title, items, actionLabel, activeLabel, relation, targetType }: ConnectionsSectionProps) {
   return (
     <section>
       <h2 className="mb-5 text-sm font-semibold">{title}</h2>
       <div className="space-y-4">
         {items.map((item, index) => (
           <div
-            key={item.name}
+            key={item.uid ?? item.name}
             style={{ animationDelay: `${index * 80}ms` }}
             className="animate-fade-in-up -mx-2 flex items-center gap-3 rounded-xl px-2 py-1 transition-colors duration-200 hover:bg-white/70"
           >
@@ -46,7 +53,14 @@ export function ConnectionsSection({ title, items, actionLabel, activeLabel }: C
                 </div>
               </>
             )}
-            <FollowButton label={actionLabel} activeLabel={activeLabel} />
+            <FollowButton
+              label={actionLabel}
+              activeLabel={activeLabel}
+              targetId={item.uid}
+              relation={relation}
+              targetType={targetType}
+              initialActive={item.isFollowing}
+            />
           </div>
         ))}
       </div>

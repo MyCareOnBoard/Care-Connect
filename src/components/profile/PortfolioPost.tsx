@@ -38,6 +38,12 @@ type PortfolioPostProps = {
   onEdit?: () => void
   onRemove?: () => void
   action?: ReactNode
+  /** Real-data wiring (optional — omitted surfaces stay local-only mock). */
+  initialLiked?: boolean
+  initialCommentCount?: number
+  onLikeChange?: (nextLiked: boolean) => void
+  onSubmitComment?: (text: string) => void
+  onLoadComments?: () => Promise<PostComment[]>
 }
 
 export function PortfolioPost({
@@ -51,16 +57,42 @@ export function PortfolioPost({
   onEdit,
   onRemove,
   action,
+  initialLiked = false,
+  initialCommentCount,
+  onLikeChange,
+  onSubmitComment,
+  onLoadComments,
 }: PortfolioPostProps) {
-  const [liked, setLiked] = useState(false)
+  const [liked, setLiked] = useState(initialLiked)
   const [likeCount, setLikeCount] = useState(post.likes)
   const [comments, setComments] = useState(post.comments)
+  const [commentsLoaded, setCommentsLoaded] = useState(false)
   const [showComments, setShowComments] = useState(false)
   const [commentText, setCommentText] = useState("")
 
+  // Show the server count until real comments are loaded on expand.
+  const commentCount = commentsLoaded ? comments.length : initialCommentCount ?? comments.length
+
   const toggleLike = () => {
-    setLiked((current) => !current)
-    setLikeCount((current) => current + (liked ? -1 : 1))
+    const next = !liked
+    setLiked(next)
+    setLikeCount((current) => current + (next ? 1 : -1))
+    onLikeChange?.(next)
+  }
+
+  const toggleComments = async () => {
+    const next = !showComments
+    setShowComments(next)
+    if (next && !commentsLoaded && onLoadComments) {
+      try {
+        const loaded = await onLoadComments()
+        setComments(loaded)
+      } catch {
+        // leave existing comments on failure
+      } finally {
+        setCommentsLoaded(true)
+      }
+    }
   }
 
   const submitComment = () => {
@@ -68,6 +100,7 @@ export function PortfolioPost({
     if (!text) return
     setComments((current) => [...current, { id: `${Date.now()}`, author: "You", text }])
     setCommentText("")
+    onSubmitComment?.(text)
   }
 
   const authorBlock = (
@@ -148,7 +181,7 @@ export function PortfolioPost({
             </button>
             <button
               type="button"
-              onClick={() => setShowComments((current) => !current)}
+              onClick={toggleComments}
               aria-pressed={showComments}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
@@ -156,7 +189,7 @@ export function PortfolioPost({
               )}
             >
               <MessageSquare className="size-4" />
-              {comments.length}
+              {commentCount}
             </button>
           </div>
 
