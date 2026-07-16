@@ -10,7 +10,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Routes } from "@/routes/constants"
-import { useAuth } from "@/utils/auth"
+import { useAuth, useAuthUser } from "@/utils/auth"
+import { getInitials } from "@/lib/utils"
 import { ProfileModals } from "@/components/profile/ProfileModals"
 import type { CareFlow } from "./useCareFlow"
 
@@ -21,6 +22,16 @@ type AccountControlsProps = {
 
 export function AccountControls({ flow = "user", notificationSize = "md" }: AccountControlsProps) {
   const { logout } = useAuth()
+  const { user } = useAuthUser()
+
+  const displayName = user?.fullName || "—"
+  const initials = getInitials(user?.fullName)
+  const isCompany = user?.userType === "careconnect_company" || user?.userType === "agency"
+  const displaySubtitle =
+    (user?.profile?.profession as string | undefined) ||
+    (isCompany ? (user?.profile?.organizationName as string | undefined) : undefined) ||
+    (isCompany ? "Company" : "Professional")
+
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -46,8 +57,8 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
     showOnlineStatus: true,
   })
   const [accountInfo, setAccountInfo] = useState({
-    fullName: "Joseph Eshun",
-    email: "marcus@careconnect.io",
+    fullName: user?.fullName || "",
+    email: user?.email || "",
     phone: "+1 (404) 555-0182",
     location: "Atlanta, GA",
     headline: "ICU Registered Nurse | CCRN | Healthcare Tech Enthusiast",
@@ -118,19 +129,19 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
             type="button"
             className="flex h-6 items-center gap-3 rounded-full pl-2 pr-3 outline-none transition hover:bg-[#edf3f5] cursor-pointer"
           >
-            <span className="hidden text-sm font-medium sm:inline">Joseph Eshun</span>
+            <span className="hidden text-sm font-medium sm:inline">{displayName}</span>
             <ChevronDown className="size-4" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64 rounded-2xl border-[#dce2e6] bg-white p-0 overflow-hidden shadow-lg">
           <div className="bg-[#f7fafb] px-4 py-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#d6e6f2] text-[#087fff]">
-                <UserRound className="size-5" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#d6e6f2] text-sm font-bold text-[#087fff]">
+                {initials}
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold">Joseph Eshun</p>
-                <p className="truncate text-xs text-[#656f80]">Registered nurse</p>
+                <p className="text-sm font-semibold">{displayName}</p>
+                <p className="truncate text-xs text-[#656f80]">{displaySubtitle}</p>
               </div>
             </div>
           </div>

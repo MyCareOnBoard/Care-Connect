@@ -1,5 +1,6 @@
-import { useState, type CSSProperties } from "react"
+import { useEffect, useState, type CSSProperties } from "react"
 import { Heart } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { StatRow } from "@/components/app/StatRow"
@@ -7,28 +8,16 @@ import { ViewAllLink } from "@/components/app/ViewAllLink"
 import { PostComposer } from "@/components/app/PostComposer"
 import { DashboardFeed } from "@/components/app/DashboardFeed"
 import { ConnectionsSection, type Connection } from "@/components/app/ConnectionsSection"
-import { useDelayedLoading } from "@/hooks/useDelayedLoading"
 import { Routes } from "@/routes/constants"
 import { cn } from "@/lib/utils"
-
-const jobs = [
-  {
-    title: "In Home Caregiver",
-    company: "National senior home care",
-    location: "4140 Parker Rd. Allentown, New Mexico 31134",
-  },
-  {
-    title: "Synergy HomeCare has Caregiver Opportunities in Cherry Hill, Vorhees...",
-    company: "SYNERGY HOMECARE",
-    location: "4517 Washington Ave. Manchester, Kentucky 39495",
-  },
-  {
-    title: "Direct Support Professional",
-    company: "Assurance care & support Inc",
-    location: "Carneys point, NJ 08069",
-    tags: ["401(K)", "Flexible schedule"],
-  },
-]
+import { getAuthErrorMessage } from "@/utils/auth"
+import {
+  listJobs,
+  listSavedJobs,
+  saveJob,
+  unsaveJob,
+} from "@/utils/careconnect/services/jobsService"
+import { formatSalary, type Job } from "@/utils/careconnect/types"
 
 const agencies: Connection[] = [
   { name: "HHC Bellevue Hospital...", subtitle: "Austin , TX", initials: "LA", avatarClassName: "border border-[#dedede] bg-white" },
@@ -50,7 +39,7 @@ function JobCard({
   onToggleLike,
   style,
 }: {
-  job: (typeof jobs)[number]
+  job: Job
   liked: boolean
   onToggleLike: () => void
   style?: CSSProperties
@@ -77,7 +66,10 @@ function JobCard({
       </div>
       <p className="mt-4 text-sm text-[#20242c]">{job.company}</p>
       <p className="mt-2 text-sm leading-6 text-[#20242c]">{job.location}</p>
-      {job.tags && (
+      {formatSalary(job) && (
+        <p className="mt-2 text-sm font-semibold text-[#087fff]">{formatSalary(job)}</p>
+      )}
+      {job.tags && job.tags.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">
           {job.tags.map((tag) => (
             <span key={tag} className="rounded-full bg-[#dddddd] px-3 py-1 text-sm font-semibold text-[#20242c]">
@@ -138,19 +130,54 @@ function DashboardSkeleton() {
 }
 
 export default function DashboardPage() {
-  const [likedJobs, setLikedJobs] = useState<Set<string>>(new Set())
-  const isLoading = useDelayedLoading()
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [savedJobIds, setSavedJobIds] = useState<Set<string>>(new Set())
+  const [isLoading, setIsLoading] = useState(true)
 
-  const toggleLike = (title: string) => {
-    setLikedJobs((current) => {
-      const next = new Set(current)
-      if (next.has(title)) {
-        next.delete(title)
-      } else {
-        next.add(title)
+  useEffect(() => {
+    let active = true
+    ;(async () => {
+      setIsLoading(true)
+      try {
+        const [feedJobs, saved] = await Promise.all([
+          listJobs({ limit: 3 }),
+          listSavedJobs().catch(() => []),
+        ])
+        if (!active) return
+        setJobs(feedJobs)
+        setSavedJobIds(new Set(saved.map((job) => job.id)))
+      } catch (error) {
+        if (active) toast.error(getAuthErrorMessage(error))
+      } finally {
+        if (active) setIsLoading(false)
       }
+    })()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const toggleLike = async (id: string) => {
+    const isSaved = savedJobIds.has(id)
+    setSavedJobIds((current) => {
+      const next = new Set(current)
+      if (isSaved) next.delete(id)
+      else next.add(id)
       return next
     })
+    try {
+      if (isSaved) await unsaveJob(id)
+      else await saveJob(id)
+    } catch (error) {
+      // Revert on failure
+      setSavedJobIds((current) => {
+        const next = new Set(current)
+        if (isSaved) next.add(id)
+        else next.delete(id)
+        return next
+      })
+      toast.error(getAuthErrorMessage(error))
+    }
   }
 
   if (isLoading) return <DashboardSkeleton />
@@ -160,25 +187,32 @@ export default function DashboardPage() {
       <aside className="space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
         <section className="rounded-lg border border-white/60 bg-white/80 px-4 py-3 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md">
           <div className="space-y-5">
-            <StatRow label="Profile views" value="17" />
-            <StatRow label="Application views" value="12" />
+            {/* No backend view-tracking yet — shown as 0 until it exists. */}
+            <StatRow label="Profile views" value="0" />
+            <StatRow label="Application views" value="0" />
           </div>
         </section>
 
         <section>
           <h2 className="mb-4 text-sm font-semibold">Jobs for you</h2>
-          <div className="space-y-3">
-            {jobs.map((job, index) => (
-              <JobCard
-                key={job.title}
-                job={job}
-                liked={likedJobs.has(job.title)}
-                onToggleLike={() => toggleLike(job.title)}
-                style={{ animationDelay: `${index * 80}ms` }}
-              />
-            ))}
-          </div>
-          <ViewAllLink />
+          {jobs.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-[#e2e2e2] p-6 text-center text-sm text-[#657080]">
+              No jobs yet.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {jobs.map((job, index) => (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  liked={savedJobIds.has(job.id)}
+                  onToggleLike={() => toggleLike(job.id)}
+                  style={{ animationDelay: `${index * 80}ms` }}
+                />
+              ))}
+            </div>
+          )}
+          <ViewAllLink href={Routes.app.user.jobs} />
         </section>
 
         <section className="group relative overflow-hidden rounded-lg bg-[#e9e1ff] p-2 shadow-[0_8px_24px_rgba(90,78,224,0.15)]">

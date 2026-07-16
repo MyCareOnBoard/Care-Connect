@@ -4,9 +4,11 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar } from "@/components/app/DashboardAvatar"
-import { cn } from "@/lib/utils"
+import { cn, getInitials } from "@/lib/utils"
+import { useAuthUser } from "@/utils/auth"
 
 export function PostComposer() {
+  const { user } = useAuthUser()
   const [text, setText] = useState("")
   const [image, setImage] = useState<File | null>(null)
   const [video, setVideo] = useState<File | null>(null)
@@ -26,7 +28,7 @@ export function PostComposer() {
   return (
     <section className="rounded-[30px] border border-white/60 bg-white/80 px-4 py-4 shadow-[0_8px_28px_rgba(16,20,26,0.06)] backdrop-blur-md">
       <div className="flex items-start gap-4">
-        <Avatar className="mt-0.5 border border-[#d8d8d8] bg-white" />
+        <Avatar className="mt-0.5 border border-[#d8d8d8] bg-[#087fff]" initials={getInitials(user?.fullName)} />
         <Textarea
           value={text}
           onChange={(event) => setText(event.target.value)}
