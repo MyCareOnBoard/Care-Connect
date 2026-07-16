@@ -43,6 +43,8 @@ export interface Job {
   hirerName?: string
   hirerTitle?: string
   benefits: string[]
+  salary?: number
+  salaryCurrency?: string
   status: JobStatus
   viewsCount: number
   applicationsCount: number
@@ -61,6 +63,8 @@ export interface CreateJobPayload {
   hirerName?: string
   hirerTitle?: string
   benefits?: string[]
+  salary?: number
+  salaryCurrency?: string
   status?: JobStatus
 }
 export type UpdateJobPayload = Partial<CreateJobPayload>
@@ -188,4 +192,19 @@ export function formatRelative(value: Timestampish): string {
   if (days === 1) return "Yesterday"
   if (days < 7) return `${days} days ago`
   return formatDate(value)
+}
+
+/** e.g. "$65,000" — returns null when no salary is set. */
+export function formatSalary(job: Pick<Job, "salary" | "salaryCurrency">): string | null {
+  if (job.salary === undefined || job.salary === null) return null
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: job.salaryCurrency || "USD",
+      maximumFractionDigits: 0,
+    }).format(job.salary)
+  } catch {
+    // Unknown currency code — fall back to a plain number with the code.
+    return `${job.salaryCurrency || ""} ${job.salary.toLocaleString()}`.trim()
+  }
 }

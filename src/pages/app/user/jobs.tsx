@@ -17,7 +17,7 @@ import {
   applyToJob,
   listMyApplications,
 } from "@/utils/careconnect/services/applicationsService"
-import { AVAILABILITY_FROM_LABEL, type Job, type Screening } from "@/utils/careconnect/types"
+import { AVAILABILITY_FROM_LABEL, formatSalary, type Job, type Screening } from "@/utils/careconnect/types"
 
 function QuickScreeningPanel({
   open,
@@ -271,6 +271,9 @@ export default function UserJobsPage() {
                 <LinkIcon className="size-3.5" />
               </p>
               <p className="mt-1 text-sm text-[#565656]">{selectedJob.location}</p>
+              {formatSalary(selectedJob) && (
+                <p className="mt-1 text-sm font-semibold text-[#087fff]">{formatSalary(selectedJob)}</p>
+              )}
             </div>
           </div>
 
