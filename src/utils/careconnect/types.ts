@@ -194,6 +194,35 @@ export function formatRelative(value: Timestampish): string {
   return formatDate(value)
 }
 
+export type DirectoryType = "individual" | "company"
+
+export interface CareConnectProfile {
+  uid: string
+  userType: string | null
+  name: string
+  profession: string | null
+  organizationName: string | null
+  organizationType: string | null
+  organizationInterests: string[]
+  certifications: unknown[]
+  documents: unknown[]
+  location: string | null
+  photo: string | null
+  subtitle: string
+  profileViewsCount: number
+  applicationViewsCount: number
+  connectionsCount: number
+  /** Whether the current viewer follows/connects with this profile (set once Connections ship). */
+  isFollowing?: boolean
+}
+
+export interface ListProfilesParams {
+  type?: DirectoryType
+  search?: string
+  limit?: number
+  offset?: number
+}
+
 /** e.g. "$65,000" — returns null when no salary is set. */
 export function formatSalary(job: Pick<Job, "salary" | "salaryCurrency">): string | null {
   if (job.salary === undefined || job.salary === null) return null

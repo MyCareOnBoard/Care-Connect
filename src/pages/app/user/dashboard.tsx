@@ -1,4 +1,5 @@
 import { useEffect, useState, type CSSProperties } from "react"
+import { Link } from "react-router"
 import { Heart } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -9,29 +10,38 @@ import { PostComposer } from "@/components/app/PostComposer"
 import { DashboardFeed } from "@/components/app/DashboardFeed"
 import { ConnectionsSection, type Connection } from "@/components/app/ConnectionsSection"
 import { Routes } from "@/routes/constants"
-import { cn } from "@/lib/utils"
-import { getAuthErrorMessage } from "@/utils/auth"
+import { cn, getInitials } from "@/lib/utils"
+import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
 import {
   listJobs,
   listSavedJobs,
   saveJob,
   unsaveJob,
 } from "@/utils/careconnect/services/jobsService"
-import { formatSalary, type Job } from "@/utils/careconnect/types"
+import { getProfile, listProfiles } from "@/utils/careconnect/services/profilesService"
+import { formatSalary, type CareConnectProfile, type Job } from "@/utils/careconnect/types"
 
-const agencies: Connection[] = [
-  { name: "HHC Bellevue Hospital...", subtitle: "Austin , TX", initials: "LA", avatarClassName: "border border-[#dedede] bg-white" },
-  { name: "Harlem Hospital Center", subtitle: "Pasadena, Oklahoma", initials: "HG", avatarClassName: "bg-[#efefef]" },
-  { name: "NYU Langone Medical...", subtitle: "Great Falls, Maryland", initials: "NY", avatarClassName: "bg-[#ffa33d]" },
-  { name: "Gracie Square Hospital", subtitle: "Kent, Utah", initials: "GS", avatarClassName: "bg-[#a782d8]" },
+const AVATAR_PALETTE = [
+  "bg-[#087fff]",
+  "bg-[#ffa33d]",
+  "bg-[#a782d8]",
+  "bg-[#d193ce]",
+  "bg-[#ffc95c]",
+  "bg-[#33b6a6]",
 ]
 
-const professionals: Connection[] = [
-  { name: "Jerome Bell", subtitle: "Registered Nurse | Ment...", initials: "JB", avatarClassName: "bg-[#ffc95c]", profileHref: Routes.app.user.viewProfile("jerome-bell") },
-  { name: "Esther Howard", subtitle: "Doctor", initials: "EH", avatarClassName: "bg-[#d193ce]", profileHref: Routes.app.user.viewProfile("esther-howard") },
-  { name: "Theresa Webb", subtitle: "Counsellor", initials: "TW", avatarClassName: "bg-[#ffc33d]", profileHref: Routes.app.user.viewProfile("theresa-webb") },
-  { name: "Eleanor Pena", subtitle: "Psychiatrist", initials: "EP", avatarClassName: "bg-[#cdbeb5]", profileHref: Routes.app.user.viewProfile("eleanor-pena") },
-]
+/** Map a directory profile into the presentational Connection shape. */
+function toConnection(profile: CareConnectProfile, index: number): Connection {
+  return {
+    name: profile.name || "Care Connect user",
+    subtitle: profile.subtitle,
+    initials: getInitials(profile.name),
+    avatarClassName: AVATAR_PALETTE[index % AVATAR_PALETTE.length],
+    profileHref: Routes.app.user.viewProfile(profile.uid),
+    uid: profile.uid,
+    isFollowing: profile.isFollowing,
+  }
+}
 
 function JobCard({
   job,
@@ -130,22 +140,33 @@ function DashboardSkeleton() {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuthUser()
   const [jobs, setJobs] = useState<Job[]>([])
   const [savedJobIds, setSavedJobIds] = useState<Set<string>>(new Set())
+  const [companies, setCompanies] = useState<Connection[]>([])
+  const [people, setPeople] = useState<Connection[]>([])
+  const [profileViews, setProfileViews] = useState(0)
+  const [applicationViews, setApplicationViews] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+
+  const uid = user?.uid
 
   useEffect(() => {
     let active = true
     ;(async () => {
       setIsLoading(true)
       try {
-        const [feedJobs, saved] = await Promise.all([
+        const [feedJobs, saved, companyProfiles, peopleProfiles] = await Promise.all([
           listJobs({ limit: 3 }),
           listSavedJobs().catch(() => []),
+          listProfiles({ type: "company", limit: 4 }).catch(() => []),
+          listProfiles({ type: "individual", limit: 4 }).catch(() => []),
         ])
         if (!active) return
         setJobs(feedJobs)
         setSavedJobIds(new Set(saved.map((job) => job.id)))
+        setCompanies(companyProfiles.map(toConnection))
+        setPeople(peopleProfiles.map(toConnection))
       } catch (error) {
         if (active) toast.error(getAuthErrorMessage(error))
       } finally {
@@ -156,6 +177,25 @@ export default function DashboardPage() {
       active = false
     }
   }, [])
+
+  // Own view/application-view counters for the stats card (no self-increment on GET /:uid).
+  useEffect(() => {
+    if (!uid) return
+    let active = true
+    ;(async () => {
+      try {
+        const me = await getProfile(uid)
+        if (!active) return
+        setProfileViews(me.profileViewsCount ?? 0)
+        setApplicationViews(me.applicationViewsCount ?? 0)
+      } catch {
+        // stats are non-critical; leave at 0 on failure
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [uid])
 
   const toggleLike = async (id: string) => {
     const isSaved = savedJobIds.has(id)
@@ -187,9 +227,8 @@ export default function DashboardPage() {
       <aside className="space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
         <section className="rounded-lg border border-white/60 bg-white/80 px-4 py-3 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md">
           <div className="space-y-5">
-            {/* No backend view-tracking yet — shown as 0 until it exists. */}
-            <StatRow label="Profile views" value="0" />
-            <StatRow label="Application views" value="0" />
+            <StatRow label="Profile views" value={String(profileViews)} />
+            <StatRow label="Application views" value={String(applicationViews)} />
           </div>
         </section>
 
@@ -222,8 +261,11 @@ export default function DashboardPage() {
             <p className="mt-3 text-sm leading-5 text-[#321c47]">
               Have medical equipment or supplies to sell? List them and connect with the right people
             </p>
-            <Button className="mt-5 h-11 w-full bg-linear-to-r from-[#5a4ee0] to-[#7a6ff0] text-white shadow-[0_4px_14px_rgba(90,78,224,0.35)] transition-transform duration-200 hover:scale-[1.02] active:scale-95">
-              Sell an Item
+            <Button
+              asChild
+              className="mt-5 h-11 w-full bg-linear-to-r from-[#5a4ee0] to-[#7a6ff0] text-white shadow-[0_4px_14px_rgba(90,78,224,0.35)] transition-transform duration-200 hover:scale-[1.02] active:scale-95"
+            >
+              <Link to={`${Routes.app.user.marketplace}?add=1`}>Sell an Item</Link>
             </Button>
           </div>
         </section>
@@ -235,8 +277,12 @@ export default function DashboardPage() {
       </main>
 
       <aside className="space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
-        <ConnectionsSection title="Top agencies around you" items={agencies} actionLabel="Subscribe" activeLabel="Subscribed" />
-        <ConnectionsSection title="Professionals you may be interested in" items={professionals} actionLabel="Connect" activeLabel="Pending" />
+        {companies.length > 0 && (
+          <ConnectionsSection title="Top agencies around you" items={companies} actionLabel="Subscribe" activeLabel="Subscribed" relation="subscribe" targetType="company" />
+        )}
+        {people.length > 0 && (
+          <ConnectionsSection title="Professionals you may be interested in" items={people} actionLabel="Connect" activeLabel="Pending" relation="connect" targetType="individual" />
+        )}
       </aside>
     </div>
   )

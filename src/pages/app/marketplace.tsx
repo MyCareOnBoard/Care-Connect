@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { useSearchParams } from "react-router"
 import { toast } from "sonner"
 import { Plus, Search, ShoppingBag } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -9,7 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SidePanel } from "@/components/app/SidePanel"
 import { ChatThread, type ChatMessage } from "@/components/app/ChatThread"
 import { FileDropzone } from "@/components/auth/FileDropzone"
-import { useDelayedLoading } from "@/hooks/useDelayedLoading"
+import { getAuthErrorMessage } from "@/utils/auth"
+import {
+  createProduct,
+  listProducts,
+  type MarketProduct,
+  type NewProductInput,
+} from "@/utils/careconnect/services/marketplaceService"
 
 const FILTERS = ["All", "Courses", "Equipment", "Template", "Uniforms", "Books", "Services", "Consulting"]
 
@@ -35,18 +42,22 @@ type Product = {
   price: number
   seller: string
   sellerLocation: string
+  imageUrl?: string
 }
 
-const initialProducts: Product[] = [
-  { id: "p1", name: "NCLEX-RN Prep Master Course", category: "Course", description: "Comprehensive NCLEX-RN prep with 2,000+ practice questions, detailed rationales, and adaptive quizzes designed to build confidence and mastery before exam day.", price: 89, seller: "Riverside General Hospital", sellerLocation: "Austin, TX" },
-  { id: "p2", name: "Medical-Grade Pulse Oximeter", category: "Equipment", description: "Clinically accurate fingertip pulse oximeter with fast readings, ideal for home health visits and bedside monitoring.", price: 34, seller: "HHC Bellevue Hospital", sellerLocation: "Austin, TX" },
-  { id: "p3", name: "Clinical Documentation Templates", category: "Templates", description: "A ready-to-use pack of clinical documentation and care-plan templates that keep charting consistent and compliant.", price: 19, seller: "Harlem Hospital Center", sellerLocation: "Pasadena, OK" },
-  { id: "p4", name: "Compression Nursing Scrubs Set", category: "Uniforms", description: "Breathable, compression-fit scrub set built for long shifts, with reinforced stitching and multiple utility pockets.", price: 68, seller: "NYU Langone Medical Center", sellerLocation: "Great Falls, MD" },
-  { id: "p5", name: "Clinical Documentation Templates", category: "Templates", description: "A ready-to-use pack of clinical documentation and care-plan templates that keep charting consistent and compliant.", price: 70, seller: "Gracie Square Hospital", sellerLocation: "Kent, UT" },
-  { id: "p6", name: "NCLEX-RN Prep Master Course", category: "Course", description: "Comprehensive NCLEX-RN prep with 2,000+ practice questions, detailed rationales, and adaptive quizzes designed to build confidence and mastery before exam day.", price: 49, seller: "Riverside General Hospital", sellerLocation: "Austin, TX" },
-  { id: "p7", name: "Compression Nursing Scrubs Set", category: "Uniforms", description: "Breathable, compression-fit scrub set built for long shifts, with reinforced stitching and multiple utility pockets.", price: 65, seller: "NYU Langone Medical Center", sellerLocation: "Great Falls, MD" },
-  { id: "p8", name: "Medical-Grade Pulse Oximeter", category: "Equipment", description: "Clinically accurate fingertip pulse oximeter with fast readings, ideal for home health visits and bedside monitoring.", price: 108, seller: "HHC Bellevue Hospital", sellerLocation: "Austin, TX" },
-]
+/** Map a backend marketplace product into the page's display shape. */
+function toDisplayProduct(p: MarketProduct): Product {
+  return {
+    id: p.id,
+    name: p.name,
+    category: p.category,
+    description: p.description || "No description provided.",
+    price: p.price,
+    seller: p.sellerName || "Seller",
+    sellerLocation: p.sellerLocation || "",
+    imageUrl: p.imageUrl,
+  }
+}
 
 function normalize(value: string) {
   return value.toLowerCase().replace(/s$/, "")
@@ -152,33 +163,41 @@ function EnquirePanel({ product, onClose }: { product: Product | null; onClose: 
   )
 }
 
-function AddProductPanel({ open, onClose, onCreate }: { open: boolean; onClose: () => void; onCreate: (product: Product) => void }) {
+function AddProductPanel({ open, onClose, onSubmit }: { open: boolean; onClose: () => void; onSubmit: (input: NewProductInput) => Promise<void> }) {
   const [image, setImage] = useState<File | null>(null)
   const [name, setName] = useState("")
   const [category, setCategory] = useState("Course")
   const [description, setDescription] = useState("")
   const [price, setPrice] = useState("")
+  const [currency, setCurrency] = useState("USD")
+  const [saving, setSaving] = useState(false)
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name.trim()) {
       toast.error("Please enter a product name")
       return
     }
-    onCreate({
-      id: `p-${Date.now()}`,
-      name,
-      category,
-      description: description || "No description provided.",
-      price: Number(price) || 0,
-      seller: "You",
-      sellerLocation: "",
-    })
-    toast.success("Product uploaded!")
-    setImage(null)
-    setName("")
-    setDescription("")
-    setPrice("")
-    onClose()
+    setSaving(true)
+    try {
+      await onSubmit({
+        name: name.trim(),
+        category,
+        description: description.trim(),
+        price: Number(price) || 0,
+        currency,
+        image,
+      })
+      toast.success("Product uploaded!")
+      setImage(null)
+      setName("")
+      setDescription("")
+      setPrice("")
+      onClose()
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -187,7 +206,7 @@ function AddProductPanel({ open, onClose, onCreate }: { open: boolean; onClose: 
       onClose={onClose}
       title="Add product"
       footer={
-        <Button type="button" className="w-full bg-[#087fff]" onClick={handleSubmit}>
+        <Button type="button" className="w-full bg-[#087fff]" disabled={saving} onClick={handleSubmit}>
           Upload product
         </Button>
       }
@@ -229,7 +248,7 @@ function AddProductPanel({ open, onClose, onCreate }: { open: boolean; onClose: 
         <div className="space-y-2">
           <label className="text-sm font-semibold">Price</label>
           <div className="flex gap-3">
-            <Select defaultValue="USD">
+            <Select value={currency} onValueChange={setCurrency}>
               <SelectTrigger className="w-28 shrink-0">
                 <SelectValue />
               </SelectTrigger>
@@ -261,12 +280,37 @@ function MarketplaceSkeleton() {
 }
 
 export default function MarketplacePage() {
-  const isLoading = useDelayedLoading()
-  const [products, setProducts] = useState(initialProducts)
+  const [searchParams] = useSearchParams()
+  const [products, setProducts] = useState<Product[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState("All")
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [enquiryProduct, setEnquiryProduct] = useState<Product | null>(null)
-  const [isAddOpen, setIsAddOpen] = useState(false)
+  // Deep-link: /market-place?add=1 (e.g. the dashboard "Sell an Item" promo) opens the panel.
+  const [isAddOpen, setIsAddOpen] = useState(searchParams.get("add") === "1")
+
+  useEffect(() => {
+    let active = true
+    ;(async () => {
+      setIsLoading(true)
+      try {
+        const list = await listProducts()
+        if (active) setProducts(list.map(toDisplayProduct))
+      } catch (error) {
+        if (active) toast.error(getAuthErrorMessage(error))
+      } finally {
+        if (active) setIsLoading(false)
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const handleCreate = async (input: NewProductInput) => {
+    const created = await createProduct(input)
+    setProducts((current) => [toDisplayProduct(created), ...current])
+  }
 
   if (isLoading) return <MarketplaceSkeleton />
 
@@ -304,11 +348,17 @@ export default function MarketplacePage() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {filteredProducts.map((product) => (
-          <ProductCard key={product.id} product={product} onOpen={() => setSelectedProduct(product)} />
-        ))}
-      </div>
+      {filteredProducts.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-[#e2e2e2] p-10 text-center text-sm text-[#657080]">
+          No products listed yet. Click &quot;Add product&quot; to list the first one.
+        </p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {filteredProducts.map((product) => (
+            <ProductCard key={product.id} product={product} onOpen={() => setSelectedProduct(product)} />
+          ))}
+        </div>
+      )}
 
       <ProductDetailsPanel
         product={selectedProduct}
@@ -319,7 +369,7 @@ export default function MarketplacePage() {
         }}
       />
       <EnquirePanel product={enquiryProduct} onClose={() => setEnquiryProduct(null)} />
-      <AddProductPanel open={isAddOpen} onClose={() => setIsAddOpen(false)} onCreate={(product) => setProducts((current) => [product, ...current])} />
+      <AddProductPanel open={isAddOpen} onClose={() => setIsAddOpen(false)} onSubmit={handleCreate} />
     </div>
   )
 }

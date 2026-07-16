@@ -1,9 +1,11 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Camera, Mail, MapPin, Phone, UserRound } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProfileModals } from "@/components/profile/ProfileModals"
 import { PortfolioPost, type PortfolioPostData } from "@/components/profile/PortfolioPost"
 import { toast } from "sonner"
+import { useAuthUser } from "@/utils/auth"
+import { getProfile } from "@/utils/careconnect/services/profilesService"
 
 const initialExperience = [
   {
@@ -39,17 +41,16 @@ const initialCertifications = [
   { title: "RN License — Georgia", provider: "Georgia Nursing Board", date: "Expires Mar 2026", status: "Active" },
 ]
 
-const profileSummary = {
-  name: "Joseph Eshun",
-  headline: "ICU Registered Nurse | CCRN | Healthcare Tech Enthusiast",
-  location: "2464 Royal Ln. Mesa, New Jersey 45463",
-  email: "marcus@careconnect.io",
-  phone: "+1 (404) 555-0182",
+const defaultSummary = {
+  name: "",
+  headline: "",
+  location: "",
+  email: "",
+  phone: "",
   metrics: [
-    { label: "Connections", value: "30" },
-    { label: "Profile views", value: "3.5K" },
-    { label: "Match rate", value: "91%" },
-    { label: "Career score", value: "84" },
+    { label: "Connections", value: "0" },
+    { label: "Profile views", value: "0" },
+    { label: "Application views", value: "0" },
   ],
 }
 
@@ -75,7 +76,47 @@ const profileTabs = ["About", "Experience", "Skills", "Certifications", "Portfol
 type ProfileTab = (typeof profileTabs)[number]
 
 export default function ProfilePage() {
+  const { user } = useAuthUser()
+  const [profileSummary, setProfileSummary] = useState(defaultSummary)
   const [activeTab, setActiveTab] = useState<ProfileTab>("About")
+
+  // Populate the header identity + view/connection counters from real data.
+  useEffect(() => {
+    if (!user?.uid) return
+    let active = true
+    ;(async () => {
+      try {
+        const me = await getProfile(user.uid)
+        if (!active) return
+        setProfileSummary({
+          name: me.name || user.fullName || "",
+          headline: me.subtitle || "",
+          location: me.location || "",
+          email: user.email || "",
+          phone: user.phoneNumber || "",
+          metrics: [
+            { label: "Connections", value: String(me.connectionsCount ?? 0) },
+            { label: "Profile views", value: String(me.profileViewsCount ?? 0) },
+            { label: "Application views", value: String(me.applicationViewsCount ?? 0) },
+          ],
+        })
+      } catch {
+        // fall back to auth identity only
+        if (active) {
+          setProfileSummary((prev) => ({
+            ...prev,
+            name: user.fullName || "",
+            email: user.email || "",
+            phone: user.phoneNumber || "",
+          }))
+        }
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [user?.uid, user?.fullName, user?.email, user?.phoneNumber])
+
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
