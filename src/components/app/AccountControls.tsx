@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Link, useNavigate } from "react-router"
+import { Link } from "react-router"
 import { Bell, ChevronDown, ChevronRight, LogOut, Settings, UserRound } from "lucide-react"
 import {
   DropdownMenu,
@@ -20,7 +20,6 @@ type AccountControlsProps = {
 }
 
 export function AccountControls({ flow = "user", notificationSize = "md" }: AccountControlsProps) {
-  const navigate = useNavigate()
   const { logout } = useAuth()
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
@@ -66,8 +65,15 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
   const handleLogout = async () => {
     try {
       await logout()
+    } catch (error) {
+      console.error("Logout error:", error)
     } finally {
-      navigate(Routes.auth.login, { replace: true })
+      // Hard redirect (not client-side navigate): a full reload tears down the
+      // authenticated React tree and any Radix body/focus locks left by this
+      // dropdown, and re-hydrates from the just-cleared storage. Client-side
+      // navigation here leaves the previous view mounted ("stuck") on some routes.
+      // Mirrors the 401 handler in src/lib/axios.ts.
+      window.location.replace(Routes.auth.login)
     }
   }
 
