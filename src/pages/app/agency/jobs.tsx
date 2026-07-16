@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { ChevronLeft, Search, Plus, Check } from "lucide-react"
+import { ChevronLeft, Search, Plus, Check, MoreVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -8,13 +8,32 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { SidePanel } from "@/components/app/SidePanel"
 import { StatTile } from "@/components/app/StatTile"
 import { StatusBadge } from "@/components/app/StatusBadge"
 import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
 import {
   createJob,
+  deleteJob,
   listMyJobs,
+  updateJob,
 } from "@/utils/careconnect/services/jobsService"
 import {
   listMyApplications,
@@ -24,17 +43,26 @@ import {
   APPLICATION_STATUS_LABELS,
   AVAILABILITY_LABELS,
   formatDate,
+  formatSalary,
   type Application,
   type CreateJobPayload,
   type EmploymentType,
   type Job,
+  type JobStatus,
 } from "@/utils/careconnect/types"
 
-const CONTRACT_TYPES = ["Part time", "Contract", "Full time"]
+const CONTRACT_TYPES = ["Part time", "Contract", "Full time", "Per diem"]
 const CONTRACT_TYPE_MAP: Record<string, EmploymentType> = {
   "Part time": "part_time",
   Contract: "contract",
   "Full time": "full_time",
+  "Per diem": "per_diem",
+}
+const EMPLOYMENT_TO_CONTRACT_LABEL: Record<EmploymentType, string> = {
+  part_time: "Part time",
+  contract: "Contract",
+  full_time: "Full time",
+  per_diem: "Per diem",
 }
 const BENEFITS = [
   "Retirement Plan (401k)",
@@ -47,6 +75,21 @@ const BENEFITS = [
   "Tuition & Certification Reimbursement",
   "Career Growth & Professional Development",
 ]
+
+const STATUS_PILL: Record<JobStatus, { label: string; className: string }> = {
+  open: { label: "Open", className: "bg-[#eafaf1] text-[#10ad58]" },
+  closed: { label: "Closed", className: "bg-[#eef1f3] text-[#565656]" },
+  draft: { label: "Draft", className: "bg-[#fff4e5] text-[#d97a2b]" },
+}
+
+function StatusPill({ status }: { status: JobStatus }) {
+  const pill = STATUS_PILL[status] ?? STATUS_PILL.open
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${pill.className}`}>
+      {pill.label}
+    </span>
+  )
+}
 
 function BenefitTag({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
   return (
@@ -145,18 +188,24 @@ function UploadJobPanel({
   open,
   onClose,
   defaultCompany,
-  onCreated,
+  job,
+  onSaved,
 }: {
   open: boolean
   onClose: () => void
   defaultCompany: string
-  onCreated: (job: Job) => void
+  job: Job | null
+  onSaved: (job: Job) => void
 }) {
+  const isEdit = Boolean(job)
   const [title, setTitle] = useState("")
   const [company, setCompany] = useState(defaultCompany)
   const [location, setLocation] = useState("")
   const [description, setDescription] = useState("")
-  const [contractTypes, setContractTypes] = useState<Set<string>>(new Set(["Part time"]))
+  const [contractType, setContractType] = useState("Part time")
+  const [tags, setTags] = useState("")
+  const [hirerName, setHirerName] = useState("")
+  const [hirerTitle, setHirerTitle] = useState("")
   const [benefits, setBenefits] = useState<Set<string>>(new Set())
   const [wantsScreening, setWantsScreening] = useState(false)
   const [isScreeningOpen, setIsScreeningOpen] = useState(false)
@@ -164,37 +213,77 @@ function UploadJobPanel({
   const [currency, setCurrency] = useState("USD")
   const [salary, setSalary] = useState("")
 
+  // Prefill from `job` when editing, reset to blanks when creating — each time the panel opens.
   useEffect(() => {
-    setCompany((current) => current || defaultCompany)
-  }, [defaultCompany])
+    if (!open) return
+    if (job) {
+      setTitle(job.title)
+      setCompany(job.company)
+      setLocation(job.location)
+      setDescription(job.description)
+      setContractType(EMPLOYMENT_TO_CONTRACT_LABEL[job.employmentType] ?? "Full time")
+      setTags((job.tags ?? []).join(", "))
+      setHirerName(job.hirerName ?? "")
+      setHirerTitle(job.hirerTitle ?? "")
+      setBenefits(new Set(job.benefits ?? []))
+      setSalary(job.salary != null ? String(job.salary) : "")
+      setCurrency(job.salaryCurrency ?? "USD")
+    } else {
+      setTitle("")
+      setCompany(defaultCompany)
+      setLocation("")
+      setDescription("")
+      setContractType("Part time")
+      setTags("")
+      setHirerName("")
+      setHirerTitle("")
+      setBenefits(new Set())
+      setSalary("")
+      setCurrency("USD")
+    }
+  }, [open, job, defaultCompany])
 
-  const toggleSet = (set: Set<string>, setSet: (next: Set<string>) => void, value: string) => {
-    const next = new Set(set)
-    if (next.has(value)) next.delete(value)
-    else next.add(value)
-    setSet(next)
+  const toggleBenefit = (value: string) => {
+    setBenefits((current) => {
+      const next = new Set(current)
+      if (next.has(value)) next.delete(value)
+      else next.add(value)
+      return next
+    })
   }
 
-  const submit = async (status: "open" | "draft") => {
+  const submit = async (status: JobStatus) => {
     if (!title.trim() || !company.trim() || !location.trim() || !description.trim()) {
       toast.error("Title, company, location, and description are required")
       return
     }
-    const firstContract = Array.from(contractTypes)[0]
+    const salaryNum = salary.trim() ? Number(salary) : undefined
+    if (salaryNum !== undefined && Number.isNaN(salaryNum)) {
+      toast.error("Salary must be a number")
+      return
+    }
     const payload: CreateJobPayload = {
       title: title.trim(),
       company: company.trim(),
       location: location.trim(),
       description: description.trim(),
-      employmentType: CONTRACT_TYPE_MAP[firstContract] ?? "full_time",
+      employmentType: CONTRACT_TYPE_MAP[contractType] ?? "full_time",
+      tags: tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+      hirerName: hirerName.trim() || undefined,
+      hirerTitle: hirerTitle.trim() || undefined,
       benefits: Array.from(benefits),
+      salary: salaryNum,
+      salaryCurrency: currency,
       status,
     }
     setSaving(true)
     try {
-      const job = await createJob(payload)
-      onCreated(job)
-      toast.success(status === "draft" ? "Saved as draft" : "Job posted!")
+      const saved = job ? await updateJob(job.id, payload) : await createJob(payload)
+      onSaved(saved)
+      toast.success(isEdit ? "Job updated" : status === "draft" ? "Saved as draft" : "Job posted!")
       onClose()
     } catch (error) {
       toast.error(getAuthErrorMessage(error))
@@ -208,17 +297,33 @@ function UploadJobPanel({
       <SidePanel
         open={open}
         onClose={onClose}
-        title="Upload Job"
+        title={isEdit ? "Edit Job" : "Upload Job"}
         widthClassName="max-w-[520px]"
         footer={
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" disabled={saving} onClick={() => submit("draft")}>
-              Save as draft
-            </Button>
-            <Button type="button" className="bg-[#087fff]" disabled={saving} onClick={() => submit("open")}>
-              Upload job
-            </Button>
-          </div>
+          isEdit ? (
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" disabled={saving} onClick={onClose}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="bg-[#087fff]"
+                disabled={saving}
+                onClick={() => submit(job?.status ?? "open")}
+              >
+                Save changes
+              </Button>
+            </div>
+          ) : (
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" disabled={saving} onClick={() => submit("draft")}>
+                Save as draft
+              </Button>
+              <Button type="button" className="bg-[#087fff]" disabled={saving} onClick={() => submit("open")}>
+                Upload job
+              </Button>
+            </div>
+          )
         }
       >
         <div className="space-y-6">
@@ -255,11 +360,27 @@ function UploadJobPanel({
                 <Checkbox
                   key={type}
                   label={type}
-                  checked={contractTypes.has(type)}
-                  onChange={() => toggleSet(contractTypes, setContractTypes, type)}
+                  checked={contractType === type}
+                  onChange={() => setContractType(type)}
                 />
               ))}
             </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold">Hiring contact name</label>
+              <Input value={hirerName} onChange={(event) => setHirerName(event.target.value)} placeholder="e.g. Jerome Bell" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold">Hiring contact title</label>
+              <Input value={hirerTitle} onChange={(event) => setHirerTitle(event.target.value)} placeholder="e.g. Hiring Manager" />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold">Tags</label>
+            <Input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="Comma-separated, e.g. 401(K), Flexible schedule" />
           </div>
 
           <div className="space-y-3">
@@ -270,7 +391,7 @@ function UploadJobPanel({
                   key={benefit}
                   label={benefit}
                   selected={benefits.has(benefit)}
-                  onClick={() => toggleSet(benefits, setBenefits, benefit)}
+                  onClick={() => toggleBenefit(benefit)}
                 />
               ))}
             </div>
@@ -419,7 +540,9 @@ export default function AgencyJobsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [selectedPostingId, setSelectedPostingId] = useState<string | null>(null)
-  const [isUploadOpen, setIsUploadOpen] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [editingJob, setEditingJob] = useState<Job | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Job | null>(null)
 
   // Applications for the selected posting.
   const [applications, setApplications] = useState<Application[]>([])
@@ -476,6 +599,47 @@ export default function AgencyJobsPage() {
     }
   }
 
+  // Insert (create) or replace (edit) a posting in local state.
+  const upsertPosting = (job: Job) =>
+    setPostings((current) => {
+      const index = current.findIndex((posting) => posting.id === job.id)
+      if (index === -1) return [job, ...current]
+      const next = [...current]
+      next[index] = job
+      return next
+    })
+
+  const handleEditPosting = (job: Job) => {
+    setEditingJob(job)
+    setPanelOpen(true)
+  }
+
+  const handleChangeJobStatus = async (job: Job, status: JobStatus) => {
+    try {
+      const updated = await updateJob(job.id, { status })
+      upsertPosting(updated)
+      toast.success(
+        status === "closed" ? "Posting closed" : status === "draft" ? "Moved to draft" : "Posting is now open",
+      )
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    }
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    const id = deleteTarget.id
+    try {
+      await deleteJob(id)
+      setPostings((current) => current.filter((posting) => posting.id !== id))
+      toast.success("Posting deleted")
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setDeleteTarget(null)
+    }
+  }
+
   if (loading) return <JobsSkeleton />
 
   const selectedPosting = postings.find((posting) => posting.id === selectedPostingId) ?? null
@@ -502,6 +666,7 @@ export default function AgencyJobsPage() {
             <ChevronLeft className="size-4" />
           </button>
           <h1 className="text-xl font-bold">{selectedPosting.title}</h1>
+          <StatusPill status={selectedPosting.status} />
         </div>
 
         <section>
@@ -581,7 +746,14 @@ export default function AgencyJobsPage() {
             onChange={(event) => setSearch(event.target.value)}
           />
         </div>
-        <Button type="button" className="bg-[#087fff]" onClick={() => setIsUploadOpen(true)}>
+        <Button
+          type="button"
+          className="bg-[#087fff]"
+          onClick={() => {
+            setEditingJob(null)
+            setPanelOpen(true)
+          }}
+        >
           Post job here
         </Button>
       </div>
@@ -606,8 +778,51 @@ export default function AgencyJobsPage() {
                   <path d="M314 0.5C323.113 0.500016 330.5 7.88731 330.5 17V208C330.5 217.113 323.113 224.5 314 224.5H17C7.8873 224.5 0.5 217.113 0.5 208V50.627C0.500016 41.5143 7.88731 34.127 17 34.127H224.948C231.357 34.1269 237.106 30.1824 239.411 24.2021L244.475 11.0654C246.929 4.69946 253.048 0.500175 259.87 0.5H314Z" stroke="#D9D9D9" strokeWidth="1" />
                 </svg>
 
-                <div className="relative z-10">
-                  <h3 className="font-bold">{posting.title}</h3>
+                <div className="absolute right-4 top-4 z-20">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="Posting actions"
+                        onClick={(event) => event.stopPropagation()}
+                        className="flex size-8 items-center justify-center rounded-full text-[#565656] transition hover:bg-black/5"
+                      >
+                        <MoreVertical className="size-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => handleEditPosting(posting)}>Edit</DropdownMenuItem>
+                      {posting.status === "open" && (
+                        <DropdownMenuItem onSelect={() => handleChangeJobStatus(posting, "closed")}>
+                          Close posting
+                        </DropdownMenuItem>
+                      )}
+                      {posting.status === "closed" && (
+                        <DropdownMenuItem onSelect={() => handleChangeJobStatus(posting, "open")}>
+                          Reopen posting
+                        </DropdownMenuItem>
+                      )}
+                      {posting.status === "draft" && (
+                        <DropdownMenuItem onSelect={() => handleChangeJobStatus(posting, "open")}>
+                          Publish posting
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem variant="destructive" onSelect={() => setDeleteTarget(posting)}>
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="relative z-10 pr-8">
+                  <div className="flex items-center gap-2">
+                    <StatusPill status={posting.status} />
+                    {formatSalary(posting) && (
+                      <span className="text-xs font-semibold text-[#087fff]">{formatSalary(posting)}</span>
+                    )}
+                  </div>
+                  <h3 className="mt-2 font-bold">{posting.title}</h3>
                   <p className="mt-2 line-clamp-2 text-sm text-[#565656]">{posting.description}</p>
                 </div>
 
@@ -632,11 +847,32 @@ export default function AgencyJobsPage() {
       )}
 
       <UploadJobPanel
-        open={isUploadOpen}
-        onClose={() => setIsUploadOpen(false)}
+        open={panelOpen}
+        job={editingJob}
+        onClose={() => {
+          setPanelOpen(false)
+          setEditingJob(null)
+        }}
         defaultCompany={defaultCompany}
-        onCreated={(job) => setPostings((current) => [job, ...current])}
+        onSaved={upsertPosting}
       />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(nextOpen) => { if (!nextOpen) setDeleteTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this posting?</AlertDialogTitle>
+            <AlertDialogDescription>
+              &quot;{deleteTarget?.title}&quot; will be permanently removed. Existing applications are not deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-[#ff3e66] hover:bg-[#ff3e66]/90" onClick={confirmDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
