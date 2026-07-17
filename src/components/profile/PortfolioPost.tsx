@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react"
 import { Link } from "react-router"
-import { Heart, MessageSquare, MoreHorizontal } from "lucide-react"
+import { Heart, MessageSquare, MoreHorizontal, Repeat2 } from "lucide-react"
+import { toast } from "sonner"
 import { Avatar } from "@/components/app/DashboardAvatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +26,7 @@ export type PortfolioPostData = {
   statement: string
   likes: number
   comments: PostComment[]
+  reposts?: number
 }
 
 type PortfolioPostProps = {
@@ -57,10 +59,18 @@ export function PortfolioPost({
   const [comments, setComments] = useState(post.comments)
   const [showComments, setShowComments] = useState(false)
   const [commentText, setCommentText] = useState("")
+  const [reposted, setReposted] = useState(false)
+  const [repostCount, setRepostCount] = useState(post.reposts ?? 0)
 
   const toggleLike = () => {
     setLiked((current) => !current)
     setLikeCount((current) => current + (liked ? -1 : 1))
+  }
+
+  const toggleRepost = () => {
+    setReposted((current) => !current)
+    setRepostCount((current) => current + (reposted ? -1 : 1))
+    if (!reposted) toast.success("Reposted to your profile")
   }
 
   const submitComment = () => {
@@ -157,6 +167,18 @@ export function PortfolioPost({
             >
               <MessageSquare className="size-4" />
               {comments.length}
+            </button>
+            <button
+              type="button"
+              onClick={toggleRepost}
+              aria-pressed={reposted}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
+                reposted ? "border-[#0f8a4d] bg-[#e9f9f0] text-[#0f8a4d]" : "border-[#e2e2e2] text-[#565656] hover:border-[#0f8a4d]/40"
+              )}
+            >
+              <Repeat2 className="size-4" />
+              {repostCount}
             </button>
           </div>
 

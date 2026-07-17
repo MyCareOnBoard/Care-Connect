@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { useLocation, useNavigate } from "react-router"
 import { toast } from "sonner"
 import { Plus, Search, ShoppingBag } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -262,11 +263,20 @@ function MarketplaceSkeleton() {
 
 export default function MarketplacePage() {
   const isLoading = useDelayedLoading()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [products, setProducts] = useState(initialProducts)
   const [activeFilter, setActiveFilter] = useState("All")
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [enquiryProduct, setEnquiryProduct] = useState<Product | null>(null)
   const [isAddOpen, setIsAddOpen] = useState(false)
+
+  useEffect(() => {
+    if ((location.state as { openAdd?: boolean } | null)?.openAdd) {
+      setIsAddOpen(true)
+      navigate(location.pathname, { replace: true })
+    }
+  }, [location.state, location.pathname, navigate])
 
   if (isLoading) return <MarketplaceSkeleton />
 
