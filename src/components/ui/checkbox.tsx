@@ -13,18 +13,18 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
     const inputId = props.id || id;
 
     return (
-      <label htmlFor={inputId} className="inline-flex cursor-pointer items-center gap-3">
+      <label htmlFor={inputId} className="inline-flex items-center gap-3 cursor-pointer">
         <input
           type="checkbox"
           id={inputId}
           ref={ref}
-          className="peer sr-only"
+          className="sr-only peer"
           {...props}
         />
         <span
           className={cn(
-            "relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-[8px] border transition-colors",
-            "border-[var(--input-border)] bg-white",
+            "relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors",
+            "border-(--input-border) bg-white",
             "peer-checked:border-primary peer-checked:bg-primary",
             "peer-checked:[&>svg]:opacity-100",
             "peer-focus-visible:ring-2 peer-focus-visible:ring-ring/25",
@@ -32,7 +32,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
             className
           )}
         >
-          <Check className="h-4 w-4 text-white opacity-0 transition-opacity" />
+          <Check className="w-4 h-4 text-white transition-opacity opacity-0" />
         </span>
         {label && (
           <span

@@ -1,7 +1,8 @@
 import { ChevronRight } from "lucide-react"
 import { Link } from "react-router"
+import { cn } from "@/lib/utils"
 
-const className =
+const baseClassName =
   "group mt-4 flex w-full items-center justify-between px-1 text-sm font-semibold text-[#087fff] transition-colors hover:text-[#0665cc]"
 
 function Contents() {
@@ -13,17 +14,17 @@ function Contents() {
   )
 }
 
-export function ViewAllLink({ href }: { href?: string }) {
+export function ViewAllLink({ href, onClick }: { href?: string; onClick?: () => void }) {
   if (href) {
     return (
-      <Link to={href} className={className}>
+      <Link to={href} className={baseClassName}>
         <Contents />
       </Link>
     )
   }
 
   return (
-    <button type="button" className={className}>
+    <button type="button" onClick={onClick} className={cn(baseClassName, onClick && "cursor-pointer")}>
       <Contents />
     </button>
   )
