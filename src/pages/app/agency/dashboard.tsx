@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react"
-import { Link } from "react-router"
+import { Link, useNavigate } from "react-router"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { StatRow } from "@/components/app/StatRow"
@@ -104,6 +104,7 @@ function AgencyDashboardSkeleton() {
 }
 
 export default function AgencyDashboardPage() {
+  const navigate = useNavigate()
   const isLoading = useDelayedLoading()
 
   if (isLoading) return <AgencyDashboardSkeleton />
@@ -125,7 +126,7 @@ export default function AgencyDashboardPage() {
               <JobOverviewCard key={posting.id} posting={posting} style={{ animationDelay: `${index * 80}ms` }} />
             ))}
           </div>
-          <ViewAllLink />
+          <ViewAllLink onClick={() => navigate(Routes.app.agency.jobs)} />
         </section>
 
         <section className="group relative overflow-hidden rounded-lg bg-[#e9e1ff] p-2 shadow-[0_8px_24px_rgba(90,78,224,0.15)]">
@@ -135,7 +136,10 @@ export default function AgencyDashboardPage() {
             <p className="mt-3 text-sm leading-5 text-[#321c47]">
               Have medical equipment or supplies to sell? List them and connect with the right people
             </p>
-            <Button className="mt-5 h-11 w-full bg-linear-to-r from-[#5a4ee0] to-[#7a6ff0] text-white shadow-[0_4px_14px_rgba(90,78,224,0.35)] transition-transform duration-200 hover:scale-[1.02] active:scale-95">
+            <Button
+              onClick={() => navigate(Routes.app.agency.marketplace, { state: { openAdd: true } })}
+              className="mt-5 h-11 w-full bg-linear-to-r from-[#5a4ee0] to-[#7a6ff0] text-white shadow-[0_4px_14px_rgba(90,78,224,0.35)] transition-transform duration-200 hover:scale-[1.02] active:scale-95"
+            >
               Sell an Item
             </Button>
           </div>
