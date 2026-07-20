@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useSearchParams } from "react-router"
+import { useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
 import { Plus, Search, ShoppingBag } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -8,8 +8,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SidePanel } from "@/components/app/SidePanel"
-import { ChatThread, type ChatMessage } from "@/components/app/ChatThread"
+import { useCareFlow } from "@/components/app/useCareFlow"
 import { FileDropzone } from "@/components/auth/FileDropzone"
+import { Routes } from "@/routes/constants"
 import { getAuthErrorMessage } from "@/utils/auth"
 import {
   createProduct,
@@ -41,6 +42,7 @@ type Product = {
   description: string
   price: number
   seller: string
+  sellerId: string
   sellerLocation: string
   imageUrl?: string
 }
@@ -54,6 +56,7 @@ function toDisplayProduct(p: MarketProduct): Product {
     description: p.description || "No description provided.",
     price: p.price,
     seller: p.sellerName || "Seller",
+    sellerId: p.sellerId,
     sellerLocation: p.sellerLocation || "",
     imageUrl: p.imageUrl,
   }
@@ -123,42 +126,6 @@ function ProductDetailsPanel({ product, onClose, onEnquire }: { product: Product
       <Button type="button" className="mt-8 w-full bg-[#087fff]" onClick={onEnquire}>
         Enquire
       </Button>
-    </SidePanel>
-  )
-}
-
-function EnquirePanel({ product, onClose }: { product: Product | null; onClose: () => void }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-
-  if (!product) return null
-
-  const seedMessages: ChatMessage[] = [
-    { id: "seed-1", from: "them", text: "Yes this is available", time: "12:23 Pm" },
-    { id: "seed-2", from: "me", text: "Yes, absolutely! That works perfectly for me.", time: "12:24 Pm" },
-    { id: "seed-3", from: "me", text: "How can I pay and get this", time: "12:24 Pm" },
-    { id: "seed-4", from: "them", text: "Text me on +1 223 435 7675", time: "12:23 Pm" },
-    { id: "seed-5", from: "me", text: "Okay check your messages", time: "12:24 Pm" },
-  ]
-
-  return (
-    <SidePanel open onClose={onClose} title={product.seller} widthClassName="max-w-[480px]">
-      <div className="flex h-full flex-col -mx-6 -my-5">
-        <div className="mx-6 mt-2 flex items-center gap-3 rounded-xl border border-[#e2e2e2] p-3">
-          <ProductImage category={product.category} className="size-14 shrink-0 rounded-lg" />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold">{product.name}</p>
-            <p className="font-bold text-[#087fff]">${product.price}</p>
-          </div>
-        </div>
-
-        <ChatThread
-          messages={[...seedMessages, ...messages]}
-          onSend={(text) =>
-            setMessages((current) => [...current, { id: `${Date.now()}`, from: "me", text, time: "Now" }])
-          }
-          className="flex-1"
-        />
-      </div>
     </SidePanel>
   )
 }
@@ -281,11 +248,13 @@ function MarketplaceSkeleton() {
 
 export default function MarketplacePage() {
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const { flow } = useCareFlow()
+  const messagesPath = flow === "agency" ? Routes.app.agency.messages : Routes.app.user.messages
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState("All")
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-  const [enquiryProduct, setEnquiryProduct] = useState<Product | null>(null)
   // Deep-link: /market-place?add=1 (e.g. the dashboard "Sell an Item" promo) opens the panel.
   const [isAddOpen, setIsAddOpen] = useState(searchParams.get("add") === "1")
 
@@ -364,11 +333,11 @@ export default function MarketplacePage() {
         product={selectedProduct}
         onClose={() => setSelectedProduct(null)}
         onEnquire={() => {
-          setEnquiryProduct(selectedProduct)
+          const sellerId = selectedProduct?.sellerId
           setSelectedProduct(null)
+          if (sellerId) navigate(`${messagesPath}?to=${sellerId}`)
         }}
       />
-      <EnquirePanel product={enquiryProduct} onClose={() => setEnquiryProduct(null)} />
       <AddProductPanel open={isAddOpen} onClose={() => setIsAddOpen(false)} onSubmit={handleCreate} />
     </div>
   )
