@@ -19,6 +19,7 @@ import {
   unsaveJob,
 } from "@/utils/careconnect/services/jobsService"
 import { getProfile, listProfiles } from "@/utils/careconnect/services/profilesService"
+import { listConnections } from "@/utils/careconnect/services/connectionsService"
 import { formatSalary, type CareConnectProfile, type Job } from "@/utils/careconnect/types"
 
 const AVATAR_PALETTE = [
@@ -156,17 +157,31 @@ export default function DashboardPage() {
     ;(async () => {
       setIsLoading(true)
       try {
-        const [feedJobs, saved, companyProfiles, peopleProfiles] = await Promise.all([
+        const [feedJobs, saved, companyProfiles, peopleProfiles, connections] = await Promise.all([
           listJobs({ limit: 3 }),
           listSavedJobs().catch(() => []),
           listProfiles({ type: "company", limit: 4 }).catch(() => []),
           listProfiles({ type: "individual", limit: 4 }).catch(() => []),
+          listConnections().catch(() => []),
         ])
         if (!active) return
+        // Seed follow-state from the viewer's authoritative connections, not the
+        // directory's isFollowing (which can lag), so it persists across reloads.
+        const followed = new Set(connections.map((connection) => connection.targetId))
         setJobs(feedJobs)
         setSavedJobIds(new Set(saved.map((job) => job.id)))
-        setCompanies(companyProfiles.map(toConnection))
-        setPeople(peopleProfiles.map(toConnection))
+        setCompanies(
+          companyProfiles.map((profile, index) => ({
+            ...toConnection(profile, index),
+            isFollowing: followed.has(profile.uid),
+          })),
+        )
+        setPeople(
+          peopleProfiles.map((profile, index) => ({
+            ...toConnection(profile, index),
+            isFollowing: followed.has(profile.uid),
+          })),
+        )
       } catch (error) {
         if (active) toast.error(getAuthErrorMessage(error))
       } finally {
