@@ -9,6 +9,8 @@ import { Routes } from "@/routes/constants"
 import { toast } from "sonner"
 import { useAuthUser } from "@/utils/auth"
 import { getProfile } from "@/utils/careconnect/services/profilesService"
+import { listMyJobs } from "@/utils/careconnect/services/jobsService"
+import { EMPLOYMENT_TYPE_LABELS, formatRelative, formatSalary, type Job } from "@/utils/careconnect/types"
 
 const initialExperience = [
   {
@@ -57,24 +59,18 @@ const defaultSummary = {
   ],
 }
 
-const agencyProfileSummary = {
-  name: "St.Patrick memorial hospital",
-  headline: "Healthcare Staffing Agency | Joint Commission Accredited",
-  location: "2464 Royal Ln. Mesa, New Jersey 45463",
-  email: "marcus@careconnect.io",
-  phone: "+1 (404) 555-0182",
+const defaultAgencySummary = {
+  name: "",
+  headline: "",
+  location: "",
+  email: "",
+  phone: "",
   metrics: [
-    { label: "Subscriptions", value: "30k" },
-    { label: "Profile views", value: "3.5K" },
-    { label: "Jobs posted", value: "12" },
-    { label: "Team members", value: "28" },
+    { label: "Subscriptions", value: "0" },
+    { label: "Profile views", value: "0" },
+    { label: "Jobs posted", value: "0" },
   ],
 }
-
-const agencyCompanyOverview =
-  "Leading healthcare staffing agency serving the Southeast since 2015. We specialize in placing highly qualified nurses, therapists, and allied health professionals in hospitals, clinics, schools, and home care settings. Joint Commission accredited with a 98% client satisfaction rate."
-
-const agencySpecialties = ["Critical Care", "Home Health", "Behavioral Therapy", "Youth Services", "Medical Staffing"]
 
 type AgencyPostedJob = {
   id: string
@@ -87,10 +83,21 @@ type AgencyPostedJob = {
   postedAgo: string
 }
 
-const agencyPostedJobs: AgencyPostedJob[] = [
-  { id: "job-1", title: "ICU Registered Nurse", status: "Active", type: "Full-Time", location: "Atlanta, GA", pay: "$72-88/hr", applicants: 18, postedAgo: "Posted 2 days ago" },
-  { id: "job-2", title: "BCBA — Board Certified Behavior Analyst", status: "Active", type: "Contract", location: "Remote", applicants: 24, postedAgo: "Posted 5 days ago" },
-]
+const AGENCY_STATUS_LABEL: Record<string, string> = { open: "Active", closed: "Closed", draft: "Draft" }
+
+/** Map a backend job into the presentational posted-job shape. */
+function toPostedJob(job: Job): AgencyPostedJob {
+  return {
+    id: job.id,
+    title: job.title,
+    status: AGENCY_STATUS_LABEL[job.status] ?? job.status,
+    type: EMPLOYMENT_TYPE_LABELS[job.employmentType] ?? job.employmentType,
+    location: job.location,
+    pay: formatSalary(job) ?? undefined,
+    applicants: job.applicationsCount ?? 0,
+    postedAgo: `Posted ${formatRelative(job.createdAt)}`,
+  }
+}
 
 const initialPortfolio: PortfolioPostData[] = [
   {
@@ -120,7 +127,10 @@ export default function ProfilePage() {
   const navigate = useNavigate()
   const isAgency = flow === "agency"
   const [profileSummary, setProfileSummary] = useState(defaultSummary)
-  const summary = isAgency ? agencyProfileSummary : profileSummary
+  const [agencySummary, setAgencySummary] = useState(defaultAgencySummary)
+  const [postedJobs, setPostedJobs] = useState<AgencyPostedJob[]>([])
+  const [specialties, setSpecialties] = useState<string[]>([])
+  const summary = isAgency ? agencySummary : profileSummary
   const tabs = isAgency ? agencyTabs : userTabs
   const [activeTab, setActiveTab] = useState<ProfileTab>("About")
 
@@ -144,22 +154,42 @@ export default function ProfilePage() {
             { label: "Application views", value: String(me.applicationViewsCount ?? 0) },
           ],
         })
+
+        if (isAgency) {
+          const jobs = await listMyJobs().catch(() => [])
+          if (!active) return
+          setPostedJobs(jobs.map(toPostedJob))
+          setSpecialties(Array.isArray(me.organizationInterests) ? me.organizationInterests : [])
+          setAgencySummary({
+            name: me.name || user.fullName || "",
+            headline: me.subtitle || "",
+            location: me.location || "",
+            email: user.email || "",
+            phone: user.phoneNumber || "",
+            metrics: [
+              { label: "Subscriptions", value: String(me.connectionsCount ?? 0) },
+              { label: "Profile views", value: String(me.profileViewsCount ?? 0) },
+              { label: "Jobs posted", value: String(jobs.length) },
+            ],
+          })
+        }
       } catch {
         // fall back to auth identity only
         if (active) {
-          setProfileSummary((prev) => ({
-            ...prev,
+          const identity = {
             name: user.fullName || "",
             email: user.email || "",
             phone: user.phoneNumber || "",
-          }))
+          }
+          setProfileSummary((prev) => ({ ...prev, ...identity }))
+          setAgencySummary((prev) => ({ ...prev, ...identity }))
         }
       }
     })()
     return () => {
       active = false
     }
-  }, [user?.uid, user?.fullName, user?.email, user?.phoneNumber])
+  }, [user?.uid, user?.fullName, user?.email, user?.phoneNumber, isAgency])
 
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
@@ -328,29 +358,37 @@ export default function ProfilePage() {
             <div className="space-y-6">
               <div>
                 <h2 className="text-lg font-bold text-[#151922]">Company Overview</h2>
-                <p className="max-w-3xl mt-3 text-sm leading-7">{agencyCompanyOverview}</p>
+                <p className="max-w-3xl mt-3 text-sm leading-7">
+                  {summary.headline || "This organization hasn't added an overview yet."}
+                </p>
               </div>
-              <div>
-                <h3 className="text-sm font-bold">Specialties</h3>
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {agencySpecialties.map((item) => (
-                    <span key={item} className="inline-flex items-center justify-center rounded-full bg-[#eef5ff] px-4 py-2 text-sm text-[#087fff] font-semibold border border-[#087fff]">
-                      {item}
-                    </span>
-                  ))}
+              {specialties.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-bold">Specialties</h3>
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    {specialties.map((item) => (
+                      <span key={item} className="inline-flex items-center justify-center rounded-full bg-[#eef5ff] px-4 py-2 text-sm text-[#087fff] font-semibold border border-[#087fff]">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
               <div>
                 <h3 className="text-sm font-bold">Contact information</h3>
                 <div className="mt-4 space-x-4">
-                  <span className="inline-flex items-center gap-2">
-                    <MapPin className="text-black size-4" />
-                    {agencyProfileSummary.location}
-                  </span>
-                  <span className="inline-flex items-center gap-2">
-                    <Mail className="text-black size-4" />
-                    {agencyProfileSummary.email}
-                  </span>
+                  {summary.location && (
+                    <span className="inline-flex items-center gap-2">
+                      <MapPin className="text-black size-4" />
+                      {summary.location}
+                    </span>
+                  )}
+                  {summary.email && (
+                    <span className="inline-flex items-center gap-2">
+                      <Mail className="text-black size-4" />
+                      {summary.email}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -386,7 +424,12 @@ export default function ProfilePage() {
 
           {activeTab === "Posted jobs" && (
             <div className="space-y-4">
-              {agencyPostedJobs.map((job) => (
+              {postedJobs.length === 0 && (
+                <p className="rounded-3xl border border-dashed border-[#e5ecf5] p-6 text-center text-sm text-[#657080]">
+                  You haven&apos;t posted any jobs yet.
+                </p>
+              )}
+              {postedJobs.map((job) => (
                 <div key={job.id} className="rounded-3xl border border-[#e5ecf5] p-5">
                   <div className="flex flex-wrap items-center gap-3">
                     <h3 className="text-base font-semibold text-[#151922]">{job.title}</h3>

@@ -14,6 +14,7 @@ import {
   POST_CREATED_EVENT,
   type FeedPost,
 } from "@/utils/careconnect/services/postsService"
+import { listConnections } from "@/utils/careconnect/services/connectionsService"
 
 const AVATAR_PALETTE = ["bg-[#087fff]", "bg-[#ffa33d]", "bg-[#a782d8]", "bg-[#d193ce]", "bg-[#ffc95c]"]
 
@@ -33,14 +34,17 @@ export function DashboardFeed() {
   const { flow } = useCareFlow()
   const viewProfile = flow === "agency" ? Routes.app.agency.viewProfile : Routes.app.user.viewProfile
   const [posts, setPosts] = useState<FeedPost[]>([])
+  const [followed, setFollowed] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let active = true
     const load = async () => {
       try {
-        const feed = await listFeed()
-        if (active) setPosts(feed)
+        const [feed, connections] = await Promise.all([listFeed(), listConnections().catch(() => [])])
+        if (!active) return
+        setPosts(feed)
+        setFollowed(new Set(connections.map((connection) => connection.targetId)))
       } catch {
         // feed is non-critical; leave empty on failure
       } finally {
@@ -102,7 +106,7 @@ export function DashboardFeed() {
             const comments = await listComments(post.id)
             return comments.map((c) => ({ id: c.id, author: c.author, text: c.text }))
           }}
-          action={<FollowButton label="Connect" activeLabel="Pending" targetId={post.authorId} relation="connect" />}
+          action={<FollowButton label="Connect" activeLabel="Pending" targetId={post.authorId} relation="connect" initialActive={followed.has(post.authorId)} />}
         />
       ))}
     </div>

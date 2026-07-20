@@ -136,7 +136,7 @@ export default function ViewProfilePage() {
 
                 <div className="flex items-center gap-3">
                   <Button asChild className="h-10 rounded-full bg-[#087fff] px-5 text-white hover:opacity-90">
-                    <Link to={messagesPath}>Message</Link>
+                    <Link to={`${messagesPath}?to=${profile.uid}`}>Message</Link>
                   </Button>
                   <FollowButton
                     label="Connect"

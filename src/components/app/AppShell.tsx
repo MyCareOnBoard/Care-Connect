@@ -1,9 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react"
 import { Link, NavLink, useLocation } from "react-router"
 import { Menu, X } from "lucide-react"
+import { collection, onSnapshot, query, where } from "firebase/firestore"
 import { CareConnectLogo } from "@/components/auth/CareConnectLogo"
 import { Routes } from "@/routes/constants"
 import { cn } from "@/lib/utils"
+import { db } from "@/lib/firebase"
+import { useAuthUser } from "@/utils/auth"
 import { useCareFlow } from "./useCareFlow"
 import { AccountControls } from "./AccountControls"
 
@@ -30,10 +33,31 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navItems = flow === "agency" ? agencyNavItems : userNavItems
   const homeHref = flow === "agency" ? Routes.app.agency.dashboard : Routes.app.user.dashboard
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [unreadMessages, setUnreadMessages] = useState(0)
 
   useEffect(() => {
     setIsSidebarOpen(false)
   }, [location.pathname])
+
+  // Live unread-message count for the Messages nav badge (Firestore onSnapshot).
+  const { user } = useAuthUser()
+  const uid = user?.uid
+  useEffect(() => {
+    if (!uid) return
+    const q = query(collection(db, "careconnectConversations"), where("participantIds", "array-contains", uid))
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const total = snapshot.docs.reduce((sum, doc) => {
+          const unread = doc.data().unreadCount
+          return sum + ((unread && unread[uid]) || 0)
+        }, 0)
+        setUnreadMessages(total)
+      },
+      () => undefined,
+    )
+    return () => unsubscribe()
+  }, [uid])
 
   useEffect(() => {
     if (!isSidebarOpen) return
@@ -76,6 +100,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                 )}
               >
                 {item.label}
+                {item.label === "Messages" && unreadMessages > 0 && (
+                  <span className={cn(
+                    "ml-2 flex min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold",
+                    isActive ? "bg-white text-[#087fff]" : "bg-[#087fff] text-white"
+                  )}>
+                    {unreadMessages}
+                  </span>
+                )}
               </NavLink>
             )
           })}
@@ -120,6 +152,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                   )}
                 >
                   {item.label}
+                  {item.label === "Messages" && unreadMessages > 0 && (
+                    <span className={cn(
+                      "ml-2 flex min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold",
+                      isActive ? "bg-white text-[#087fff]" : "bg-[#087fff] text-white"
+                    )}>
+                      {unreadMessages}
+                    </span>
+                  )}
                 </NavLink>
               )
             })}
