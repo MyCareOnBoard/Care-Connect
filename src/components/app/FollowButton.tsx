@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Check } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -29,6 +29,11 @@ export function FollowButton({
 }) {
   const [active, setActive] = useState(initialActive)
   const [busy, setBusy] = useState(false)
+
+  // Re-sync when the seed changes (e.g. data arrives after mount or a parent refetch).
+  useEffect(() => {
+    setActive(initialActive)
+  }, [initialActive])
 
   const handleClick = async () => {
     if (!targetId) {
