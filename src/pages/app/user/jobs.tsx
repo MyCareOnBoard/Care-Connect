@@ -17,21 +17,68 @@ import {
   applyToJob,
   listMyApplications,
 } from "@/utils/careconnect/services/applicationsService"
-import { AVAILABILITY_FROM_LABEL, formatSalary, type Job, type Screening } from "@/utils/careconnect/types"
+import {
+  AVAILABILITY_FROM_LABEL,
+  formatSalary,
+  type Job,
+  type Screening,
+  type ScreeningAnswer,
+  type ScreeningQuestion,
+} from "@/utils/careconnect/types"
 
 function QuickScreeningPanel({
   open,
   onClose,
+  questions,
   onApply,
 }: {
   open: boolean
   onClose: () => void
-  onApply: (screening: Screening) => void
+  questions: ScreeningQuestion[]
+  onApply: (screening: Screening, screeningAnswers: ScreeningAnswer[]) => void
 }) {
   const [relocate, setRelocate] = useState<"No" | "Yes">("No")
   const [certifications, setCertifications] = useState<"No" | "Yes">("No")
   const [availability, setAvailability] = useState("Immediately")
   const [why, setWhy] = useState("")
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+
+  // Reset every field when the panel (re)opens for a job.
+  useEffect(() => {
+    if (!open) return
+    setRelocate("No")
+    setCertifications("No")
+    setAvailability("Immediately")
+    setWhy("")
+    setAnswers({})
+  }, [open])
+
+  const setAnswer = (id: string, value: string) =>
+    setAnswers((current) => ({ ...current, [id]: value }))
+
+  const handleSubmit = () => {
+    const missing = questions.find((question) => question.required && !(answers[question.id] ?? "").trim())
+    if (missing) {
+      toast.error(`Please answer: ${missing.question}`)
+      return
+    }
+    const screeningAnswers: ScreeningAnswer[] = questions.map((question) => ({
+      questionId: question.id,
+      question: question.question,
+      type: question.type,
+      answer: answers[question.id] ?? "",
+    }))
+    onApply(
+      {
+        willingToRelocate: relocate === "Yes",
+        certificationsUpToDate: certifications === "Yes",
+        availability: AVAILABILITY_FROM_LABEL[availability] ?? "immediately",
+        whyInterested: why,
+      },
+      screeningAnswers,
+    )
+    onClose()
+  }
 
   return (
     <SidePanel
@@ -39,19 +86,7 @@ function QuickScreeningPanel({
       onClose={onClose}
       title="Quick screening question"
       footer={
-        <Button
-          type="button"
-          className="w-full bg-[#087fff]"
-          onClick={() => {
-            onApply({
-              willingToRelocate: relocate === "Yes",
-              certificationsUpToDate: certifications === "Yes",
-              availability: AVAILABILITY_FROM_LABEL[availability] ?? "immediately",
-              whyInterested: why,
-            })
-            onClose()
-          }}
-        >
+        <Button type="button" className="w-full bg-[#087fff]" onClick={handleSubmit}>
           Apply
         </Button>
       }
@@ -97,6 +132,59 @@ function QuickScreeningPanel({
           <label className="text-sm font-medium">Why are you interested in this opportunity?</label>
           <Textarea value={why} onChange={(event) => setWhy(event.target.value)} className="min-h-30" />
         </div>
+
+        {/* Company-defined screening questions for this job. */}
+        {questions.map((question) => (
+          <div key={question.id} className="space-y-3 border-t border-[#eef1f3] pt-5">
+            <p className="text-sm font-medium">
+              {question.question}
+              {question.required && <span className="ml-1 text-[#ff3e66]">*</span>}
+            </p>
+
+            {question.type === "short_answer" && (
+              <Textarea
+                value={answers[question.id] ?? ""}
+                onChange={(event) => setAnswer(question.id, event.target.value)}
+                className="min-h-20"
+                placeholder="Your answer"
+              />
+            )}
+
+            {question.type === "yes_no" && (
+              <div className="flex gap-6">
+                {["Yes", "No"].map((option) => (
+                  <label key={option} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name={`q-${question.id}`}
+                      checked={answers[question.id] === option}
+                      onChange={() => setAnswer(question.id, option)}
+                      className="accent-[#087fff]"
+                    />
+                    {option}
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {question.type === "multiple_choice" && (
+              <div className="flex flex-col gap-2">
+                {(question.options ?? []).map((option) => (
+                  <label key={option} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name={`q-${question.id}`}
+                      checked={answers[question.id] === option}
+                      onChange={() => setAnswer(question.id, option)}
+                      className="accent-[#087fff]"
+                    />
+                    {option}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </SidePanel>
   )
@@ -201,10 +289,10 @@ export default function UserJobsPage() {
     })
   }
 
-  const handleApply = async (screening: Screening) => {
+  const handleApply = async (screening: Screening, screeningAnswers: ScreeningAnswer[]) => {
     if (!selectedJob) return
     try {
-      await applyToJob({ jobId: selectedJob.id, screening })
+      await applyToJob({ jobId: selectedJob.id, screening, screeningAnswers })
       toast.success("Application submitted!")
       setAppliedJobIds((current) => new Set(current).add(selectedJob.id))
     } catch (error) {
@@ -341,6 +429,7 @@ export default function UserJobsPage() {
       <QuickScreeningPanel
         open={isApplyOpen}
         onClose={() => setIsApplyOpen(false)}
+        questions={selectedJob?.screeningQuestions ?? []}
         onApply={handleApply}
       />
     </div>
