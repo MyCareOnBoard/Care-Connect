@@ -7,17 +7,78 @@ import { PageHeader } from "@/components/app/PageHeader"
 import { StatTile } from "@/components/app/StatTile"
 import { StatusBadge } from "@/components/app/StatusBadge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { SidePanel } from "@/components/app/SidePanel"
 import { useCareFlow } from "@/components/app/useCareFlow"
 import { getAuthErrorMessage } from "@/utils/auth"
 import { listMyApplications } from "@/utils/careconnect/services/applicationsService"
 import {
   APPLICATION_STATUS_LABELS,
+  AVAILABILITY_LABELS,
   EMPLOYMENT_TYPE_LABELS,
   formatDate,
   formatRelative,
   type Application,
   type ApplicationStats,
 } from "@/utils/careconnect/types"
+
+/** Read-only detail of the applicant's own submitted application, incl. screening answers. */
+function ApplicationDetailPanel({
+  application,
+  onClose,
+}: {
+  application: Application | null
+  onClose: () => void
+}) {
+  if (!application) return null
+
+  const answers = [
+    { question: "Are you willing to relocate for the job", answer: application.screening.willingToRelocate ? "Yes" : "No" },
+    { question: "Are your required certifications up to date?", answer: application.screening.certificationsUpToDate ? "Yes" : "No" },
+    { question: "When are you available to start?", answer: AVAILABILITY_LABELS[application.screening.availability] },
+    ...(application.screeningAnswers ?? []).map((entry) => ({
+      question: entry.question,
+      answer: entry.answer?.trim() ? entry.answer : "—",
+    })),
+  ]
+
+  return (
+    <SidePanel open={true} onClose={onClose} title="Application details" widthClassName="max-w-[520px]">
+      <div className="space-y-6">
+        <div>
+          <p className="text-lg font-bold">{application.jobTitle}</p>
+          <p className="text-sm text-[#657080]">
+            {application.employer} · {application.location}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-4 rounded-xl border border-[#e2e2e2] p-3 text-sm">
+          <StatusBadge status={APPLICATION_STATUS_LABELS[application.status]} />
+          <span className="text-[#657080]">Applied {formatDate(application.createdAt)}</span>
+        </div>
+
+        {application.screening.whyInterested ? (
+          <div className="space-y-1">
+            <p className="text-sm font-semibold">Why you&apos;re interested</p>
+            <p className="text-sm text-[#565656]">{application.screening.whyInterested}</p>
+          </div>
+        ) : null}
+
+        <div className="space-y-4">
+          <p className="text-sm font-semibold">Screening questions</p>
+          {answers.map((entry, index) => (
+            <div key={`${entry.question}-${index}`}>
+              <p className="text-sm">{entry.question}</p>
+              <p className="mt-1 flex items-center gap-2 text-sm text-[#087fff]">
+                <span className="size-2 rounded-full bg-[#087fff]" />
+                {entry.answer}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </SidePanel>
+  )
+}
 
 function ApplicationsSkeleton() {
   return (
@@ -38,6 +99,7 @@ function UserApplications() {
   const [applications, setApplications] = useState<Application[]>([])
   const [stats, setStats] = useState<ApplicationStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
 
   useEffect(() => {
     let active = true
@@ -118,7 +180,7 @@ function UserApplications() {
                     <td className="px-4 py-3">
                       <button
                         type="button"
-                        onClick={() => toast(`Viewing application for ${application.jobTitle}`)}
+                        onClick={() => setSelectedApplication(application)}
                         className="font-semibold text-[#087fff] hover:underline"
                       >
                         View
@@ -148,6 +210,11 @@ function UserApplications() {
           </div>
         )}
       </section>
+
+      <ApplicationDetailPanel
+        application={selectedApplication}
+        onClose={() => setSelectedApplication(null)}
+      />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { ChevronLeft, Search, Plus, Check, MoreVertical } from "lucide-react"
+import { ChevronLeft, Search, Plus, Check, MoreVertical, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -49,6 +49,8 @@ import {
   type EmploymentType,
   type Job,
   type JobStatus,
+  type ScreeningQuestion,
+  type ScreeningQuestionType,
 } from "@/utils/careconnect/types"
 
 const CONTRACT_TYPES = ["Part time", "Contract", "Full time", "Per diem"]
@@ -106,81 +108,137 @@ function BenefitTag({ label, selected, onClick }: { label: string; selected: boo
   )
 }
 
-function ScreeningQuestionSetupPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [question, setQuestion] = useState("")
-  const [options, setOptions] = useState(["Option 1"])
-  const [required, setRequired] = useState(false)
+/** Editable draft of a screening question inside the upload-job form. */
+type QuestionDraft = {
+  id: string
+  question: string
+  type: ScreeningQuestionType
+  options: string[]
+  required: boolean
+}
+
+const newQuestionDraft = (): QuestionDraft => ({
+  id: crypto.randomUUID(),
+  question: "",
+  type: "short_answer",
+  options: ["", ""],
+  required: false,
+})
+
+/** Convert a persisted job question back into an editable draft. */
+const questionToDraft = (question: ScreeningQuestion): QuestionDraft => ({
+  id: question.id || crypto.randomUUID(),
+  question: question.question,
+  type: question.type,
+  options: question.options && question.options.length > 0 ? question.options : ["", ""],
+  required: Boolean(question.required),
+})
+
+const QUESTION_TYPE_OPTIONS: { value: ScreeningQuestionType; label: string }[] = [
+  { value: "short_answer", label: "Short answer" },
+  { value: "multiple_choice", label: "Multiple choice" },
+  { value: "yes_no", label: "Yes / No" },
+]
+
+function ScreeningQuestionsBuilder({
+  questions,
+  onChange,
+}: {
+  questions: QuestionDraft[]
+  onChange: (next: QuestionDraft[]) => void
+}) {
+  const update = (id: string, patch: Partial<QuestionDraft>) =>
+    onChange(questions.map((question) => (question.id === id ? { ...question, ...patch } : question)))
+  const remove = (id: string) => onChange(questions.filter((question) => question.id !== id))
 
   return (
-    <SidePanel
-      open={open}
-      onClose={onClose}
-      title="Screening question setup"
-      centered
-      widthClassName="max-w-[560px]"
-      footer={
-        <div className="flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setOptions((current) => [...current, `Option ${current.length + 1}`])}
-          >
-            Add another question
-          </Button>
-          <Button
-            type="button"
-            className="bg-[#087fff]"
-            onClick={() => {
-              toast.success("Screening questions saved!")
-              onClose()
-            }}
-          >
-            Upload questions
-          </Button>
-        </div>
-      }
-    >
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <label className="text-sm font-semibold">Question</label>
+    <div className="space-y-4">
+      {questions.map((question, index) => (
+        <div key={question.id} className="space-y-3 rounded-xl border border-[#e2e2e2] p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-[#657080]">Question {index + 1}</span>
+            <button
+              type="button"
+              onClick={() => remove(question.id)}
+              aria-label="Remove question"
+              className="text-[#657080] transition hover:text-[#ff3e66]"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+
           <div className="flex gap-3">
-            <Input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Enter your question here" />
-            <Select defaultValue="multiple-choice">
-              <SelectTrigger className="w-45 shrink-0">
+            <Input
+              value={question.question}
+              onChange={(event) => update(question.id, { question: event.target.value })}
+              placeholder="Enter your question here"
+            />
+            <Select
+              value={question.type}
+              onValueChange={(value) => update(question.id, { type: value as ScreeningQuestionType })}
+            >
+              <SelectTrigger className="w-40 shrink-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="multiple-choice">Multiple choice</SelectItem>
-                <SelectItem value="short-answer">Short answer</SelectItem>
-                <SelectItem value="yes-no">Yes / No</SelectItem>
+                {QUESTION_TYPE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
-        </div>
 
-        <div className="space-y-3">
-          {options.map((option, index) => (
-            <label key={index} className="flex items-center gap-2 text-sm">
-              <span className="flex size-4.5 items-center justify-center rounded-full border-2 border-[#087fff]" />
-              {option}
-            </label>
-          ))}
-          <button
-            type="button"
-            onClick={() => setOptions((current) => [...current, `Option ${current.length + 1}`])}
-            className="flex items-center gap-2 text-sm font-medium text-[#565656] hover:text-[#087fff]"
-          >
-            <span className="flex size-4.5 items-center justify-center rounded-full border-2 border-[#d9d9d9]" />
-            Add another option
-          </button>
-        </div>
+          {question.type === "multiple_choice" && (
+            <div className="space-y-2">
+              {question.options.map((option, optionIndex) => (
+                <div key={optionIndex} className="flex items-center gap-2">
+                  <span className="size-3.5 shrink-0 rounded-full border-2 border-[#087fff]" />
+                  <Input
+                    value={option}
+                    onChange={(event) =>
+                      update(question.id, {
+                        options: question.options.map((current, i) => (i === optionIndex ? event.target.value : current)),
+                      })
+                    }
+                    placeholder={`Option ${optionIndex + 1}`}
+                  />
+                  {question.options.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => update(question.id, { options: question.options.filter((_, i) => i !== optionIndex) })}
+                      aria-label="Remove option"
+                      className="text-[#657080] transition hover:text-[#ff3e66]"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => update(question.id, { options: [...question.options, ""] })}
+                className="flex items-center gap-2 text-sm font-medium text-[#087fff] hover:underline"
+              >
+                <Plus className="size-4" />
+                Add another option
+              </button>
+            </div>
+          )}
 
-        <div className="flex items-center justify-between border-t border-[#eef1f3] pt-5">
-          <span className="text-sm font-semibold">Is this question required?</span>
-          <Switch checked={required} onCheckedChange={setRequired} />
+          <div className="flex items-center justify-between border-t border-[#eef1f3] pt-3">
+            <span className="text-sm">Required?</span>
+            <Switch checked={question.required} onCheckedChange={(checked) => update(question.id, { required: checked })} />
+          </div>
         </div>
-      </div>
-    </SidePanel>
+      ))}
+
+      <Button type="button" variant="outline" onClick={() => onChange([...questions, newQuestionDraft()])}>
+        <Plus className="size-4" />
+        Add screening question
+      </Button>
+    </div>
   )
 }
 
@@ -208,7 +266,7 @@ function UploadJobPanel({
   const [hirerTitle, setHirerTitle] = useState("")
   const [benefits, setBenefits] = useState<Set<string>>(new Set())
   const [wantsScreening, setWantsScreening] = useState(false)
-  const [isScreeningOpen, setIsScreeningOpen] = useState(false)
+  const [questions, setQuestions] = useState<QuestionDraft[]>([])
   const [saving, setSaving] = useState(false)
   const [currency, setCurrency] = useState("USD")
   const [salary, setSalary] = useState("")
@@ -228,6 +286,9 @@ function UploadJobPanel({
       setBenefits(new Set(job.benefits ?? []))
       setSalary(job.salary != null ? String(job.salary) : "")
       setCurrency(job.salaryCurrency ?? "USD")
+      const drafts = (job.screeningQuestions ?? []).map(questionToDraft)
+      setQuestions(drafts)
+      setWantsScreening(drafts.length > 0)
     } else {
       setTitle("")
       setCompany(defaultCompany)
@@ -240,6 +301,8 @@ function UploadJobPanel({
       setBenefits(new Set())
       setSalary("")
       setCurrency("USD")
+      setQuestions([])
+      setWantsScreening(false)
     }
   }, [open, job, defaultCompany])
 
@@ -262,6 +325,29 @@ function UploadJobPanel({
       toast.error("Salary must be a number")
       return
     }
+
+    const screeningQuestions: ScreeningQuestion[] = wantsScreening
+      ? questions
+          .filter((question) => question.question.trim())
+          .map((question) => ({
+            id: question.id,
+            question: question.question.trim(),
+            type: question.type,
+            options:
+              question.type === "multiple_choice"
+                ? question.options.map((option) => option.trim()).filter(Boolean)
+                : [],
+            required: question.required,
+          }))
+      : []
+    const invalidChoice = screeningQuestions.find(
+      (question) => question.type === "multiple_choice" && (question.options?.length ?? 0) < 2,
+    )
+    if (invalidChoice) {
+      toast.error("Multiple-choice questions need at least two options")
+      return
+    }
+
     const payload: CreateJobPayload = {
       title: title.trim(),
       company: company.trim(),
@@ -278,6 +364,7 @@ function UploadJobPanel({
       salary: salaryNum,
       salaryCurrency: currency,
       status,
+      screeningQuestions,
     }
     setSaving(true)
     try {
@@ -414,14 +501,29 @@ function UploadJobPanel({
             </div>
           </div>
 
-          <div className="flex items-center justify-between border-t border-[#eef1f3] pt-5">
-            <span className="text-sm font-semibold">Want to add screening questions?</span>
-            <Switch checked={wantsScreening} onCheckedChange={(checked) => setWantsScreening(checked)} />
+          <div className="space-y-4 border-t border-[#eef1f3] pt-5">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold">Want to add screening questions?</span>
+              <Switch
+                checked={wantsScreening}
+                onCheckedChange={(checked) => {
+                  setWantsScreening(checked)
+                  // Seed a first blank question when turning the section on.
+                  if (checked && questions.length === 0) setQuestions([newQuestionDraft()])
+                }}
+              />
+            </div>
+            {wantsScreening && (
+              <>
+                <p className="text-xs text-[#657080]">
+                  Applicants answer these when applying. Their responses show on the applicant details view.
+                </p>
+                <ScreeningQuestionsBuilder questions={questions} onChange={setQuestions} />
+              </>
+            )}
           </div>
         </div>
       </SidePanel>
-
-      <ScreeningQuestionSetupPanel open={isScreeningOpen} onClose={() => setIsScreeningOpen(false)} />
     </>
   )
 }
@@ -450,6 +552,11 @@ function ApplicantDetailsPanel({
       question: "When are you available to start?",
       answer: AVAILABILITY_LABELS[application.screening.availability],
     },
+    // Company-defined questions from the job posting.
+    ...(application.screeningAnswers ?? []).map((entry) => ({
+      question: entry.question,
+      answer: entry.answer?.trim() ? entry.answer : "—",
+    })),
   ]
 
   return (

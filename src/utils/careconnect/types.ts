@@ -30,6 +30,25 @@ export interface FirestoreTimestamp {
 }
 export type Timestampish = string | number | FirestoreTimestamp | null | undefined
 
+export type ScreeningQuestionType = "short_answer" | "yes_no" | "multiple_choice"
+
+/** A company-defined screening question attached to a job posting. */
+export interface ScreeningQuestion {
+  id: string
+  question: string
+  type: ScreeningQuestionType
+  options?: string[]
+  required: boolean
+}
+
+/** An applicant's answer to one of a job's screening questions. */
+export interface ScreeningAnswer {
+  questionId: string
+  question: string
+  type: ScreeningQuestionType | string
+  answer: string
+}
+
 export interface Job {
   id: string
   posterId: string
@@ -46,6 +65,7 @@ export interface Job {
   salary?: number
   salaryCurrency?: string
   status: JobStatus
+  screeningQuestions?: ScreeningQuestion[]
   viewsCount: number
   applicationsCount: number
   savedCount: number
@@ -66,6 +86,7 @@ export interface CreateJobPayload {
   salary?: number
   salaryCurrency?: string
   status?: JobStatus
+  screeningQuestions?: ScreeningQuestion[]
 }
 export type UpdateJobPayload = Partial<CreateJobPayload>
 
@@ -97,6 +118,7 @@ export interface Application {
   employmentType: EmploymentType
   status: ApplicationStatus
   screening: Screening
+  screeningAnswers?: ScreeningAnswer[]
   createdAt?: Timestampish
   updatedAt?: Timestampish
 }
@@ -116,6 +138,7 @@ export interface ApplicationStats {
 export interface ApplyPayload {
   jobId: string
   screening: Screening
+  screeningAnswers?: ScreeningAnswer[]
 }
 
 /** Human-readable labels for enum values (the mock UI used these strings). */
