@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { format } from "date-fns"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -9,6 +10,7 @@ import { PhoneNumberField } from "@/components/auth/PhoneNumberField"
 import { FileDropzone } from "@/components/auth/FileDropzone"
 import { PasswordField } from "@/components/auth/PasswordField"
 import CustomDatePicker from "@/components/ui/datePicker"
+import { Routes } from "@/routes/constants"
 
 type NotificationKey = "jobMatches" | "certificationExpiring" | "newMessages" | "mentorInvitations" | "appointmentReminders" | "pushNotifications" | "emailDigestWeekly" | "smsAlerts"
 type PrivacyKey = "publicProfile" | "showEmailAddress" | "showPhoneNumber" | "showLocation" | "allowMessages" | "showOnlineStatus"
@@ -476,6 +478,13 @@ export function ProfileModals({
                       avatarBg: "bg-[#8a94a6]",
                     },
                   ])
+
+                  const inviteUrl = new URL(Routes.auth.professionalInvite, window.location.origin)
+                  inviteUrl.searchParams.set("name", newTeamInvite.fullName.trim())
+                  if (newTeamInvite.email.trim()) inviteUrl.searchParams.set("email", newTeamInvite.email.trim())
+                  navigator.clipboard?.writeText(inviteUrl.toString()).catch(() => undefined)
+                  toast.success("Invite link copied — send it to the new team member to set up their dashboard.")
+
                   onNewTeamInviteChange({ phone: "", email: "", fullName: "" })
                   onTeamInviteOpenChange(false)
                 }

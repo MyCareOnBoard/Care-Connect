@@ -95,7 +95,7 @@ export function ChatThread({ messages, onSend, onAttach, header, className = "",
                     message.from === "me" ? "bg-[#087fff] text-white" : "bg-[#f2f4f6] text-[#20242c]"
                   )}
                 >
-                  {message.text && <p className="whitespace-pre-wrap break-words">{message.text}</p>}
+                  {message.text && <p className="whitespace-pre-wrap wrap-break-word">{message.text}</p>}
                   {message.attachments?.map((attachment, index) => (
                     <AttachmentView key={`${message.id}-att-${index}`} attachment={attachment} />
                   ))}

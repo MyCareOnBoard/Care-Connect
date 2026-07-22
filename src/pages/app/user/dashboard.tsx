@@ -95,7 +95,7 @@ function JobCard({
 
 function DashboardSkeleton() {
   return (
-    <div className="grid min-h-[calc(100vh-72px)] items-start gap-5 px-0 pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,680px)_326px] w-full">
+    <div className="grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-0 pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,680px)_326px] w-full">
       <aside className="space-y-10">
         <Skeleton className="h-20 rounded-lg" />
         <div className="space-y-3">
@@ -238,7 +238,7 @@ export default function DashboardPage() {
   if (isLoading) return <DashboardSkeleton />
 
   return (
-    <div className="animate-fade-in-up grid min-h-[calc(100vh-72px)] items-start gap-5 px-8 sm:w-full pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,1fr)_326px] w-full">
+    <div className="animate-fade-in-up grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-4 sm:px-8 sm:w-full pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,1fr)_326px] w-full">
       <aside className="space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
         <section className="rounded-lg border border-white/60 bg-white/80 px-4 py-3 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md">
           <div className="space-y-5">

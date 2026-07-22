@@ -11,6 +11,8 @@ interface SignupWizardState {
   organizationInterests: string[]
   profession: string
   certifications: string[]
+  /** True when this signup started from an agency team-invite link — adds the Availability step. */
+  isProfessional: boolean
 }
 
 interface SignupWizardContextType extends SignupWizardState {
@@ -22,6 +24,7 @@ interface SignupWizardContextType extends SignupWizardState {
   setOrganizationInterests: (value: string[]) => void
   setProfession: (value: string) => void
   setCertifications: (value: string[]) => void
+  setIsProfessional: (value: boolean) => void
   reset: () => void
 }
 
@@ -34,6 +37,7 @@ const initialState: SignupWizardState = {
   organizationInterests: [],
   profession: "",
   certifications: [],
+  isProfessional: false,
 }
 
 const SignupWizardContext = createContext<SignupWizardContextType>({} as SignupWizardContextType)
@@ -58,6 +62,7 @@ export function SignupWizardProvider({ children }: { children: ReactNode }) {
       setState((s) => ({ ...s, organizationInterests })),
     setProfession: (profession) => setState((s) => ({ ...s, profession })),
     setCertifications: (certifications) => setState((s) => ({ ...s, certifications })),
+    setIsProfessional: (isProfessional) => setState((s) => ({ ...s, isProfessional })),
     reset: () => setState(initialState),
   }
 

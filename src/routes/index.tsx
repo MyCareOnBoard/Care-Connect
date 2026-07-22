@@ -17,6 +17,8 @@ const OrganizationInterestsPage = lazy(() => import("@/pages/auth/organization-i
 const ProfessionPage = lazy(() => import("@/pages/auth/profession"));
 const CertificationsPage = lazy(() => import("@/pages/auth/certifications"));
 const DocumentsPage = lazy(() => import("@/pages/auth/documents"));
+const ProfessionalInvitePage = lazy(() => import("@/pages/auth/professional/invite"));
+const ProfessionalAvailabilityPage = lazy(() => import("@/pages/auth/professional/availability"));
 const WelcomePage = lazy(() => import("@/pages/auth/welcome"));
 const ForgotPasswordPage = lazy(() => import("@/pages/auth/forgot-password"));
 const ResetPasswordPage = lazy(() => import("@/pages/auth/reset-password"));
@@ -60,6 +62,8 @@ export const router = createBrowserRouter([
           { path: Routes.auth.profession, Component: ProfessionPage },
           { path: Routes.auth.certifications, Component: CertificationsPage },
           { path: Routes.auth.documents, Component: DocumentsPage },
+          { path: Routes.auth.professionalInvite, Component: ProfessionalInvitePage },
+          { path: Routes.auth.professionalAvailability, Component: ProfessionalAvailabilityPage },
           { path: Routes.auth.welcome, Component: WelcomePage },
           { path: Routes.auth.forgotPassword, Component: ForgotPasswordPage },
           { path: Routes.auth.resetPassword, Component: ResetPasswordPage },
