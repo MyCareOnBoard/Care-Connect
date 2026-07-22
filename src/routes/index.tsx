@@ -28,6 +28,7 @@ const AgencyJobsPage = lazy(() => import("@/pages/app/agency/jobs"));
 const MessagesPage = lazy(() => import("@/pages/app/messages"));
 const ApplicationsPage = lazy(() => import("@/pages/app/applications"));
 const MarketplacePage = lazy(() => import("@/pages/app/marketplace"));
+const SchedulePage = lazy(() => import("@/pages/app/schedule"));
 const TelehealthPage = lazy(() => import("@/pages/app/telehealth"));
 const ProfilePage = lazy(() => import("@/pages/app/profile"));
 const ViewProfilePage = lazy(() => import("@/pages/app/view-profile"));
@@ -72,6 +73,7 @@ export const router = createBrowserRouter([
           { path: Routes.app.user.jobs, Component: UserJobsPage },
           { path: Routes.app.user.applications, Component: ApplicationsPage },
           { path: Routes.app.user.marketplace, Component: MarketplacePage },
+          { path: Routes.app.user.schedule, Component: SchedulePage },
           { path: Routes.app.user.telehealth, Component: TelehealthPage },
           { path: Routes.app.user.profile, Component: ProfilePage },
           { path: `${Routes.app.user.profile}/:id`, Component: ViewProfilePage },
