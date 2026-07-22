@@ -3,6 +3,9 @@ import { format, addDays, isSameDay } from "date-fns"
 import { ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { getInitials } from "@/lib/utils"
+import { useAuthUser } from "@/utils/auth"
+import { isProfessionalAccount } from "@/utils/professional/professionalAccount"
+import { BookingsTab } from "@/components/professional/BookingsTab"
 
 const HOUR_HEIGHT = 96
 const START_HOUR = 8
@@ -90,7 +93,13 @@ const currentTimeOffset = minutesFromStart(11, 15) * PX_PER_MIN
 const views = ["Day", "Week", "Month"] as const
 type ScheduleView = (typeof views)[number]
 
+const pageTabs = ["Calendar", "Bookings"] as const
+type PageTab = (typeof pageTabs)[number]
+
 export default function SchedulePage() {
+  const { user } = useAuthUser()
+  const isProfessional = isProfessionalAccount(user?.uid)
+  const [pageTab, setPageTab] = useState<PageTab>("Calendar")
   const [view, setView] = useState<ScheduleView>("Day")
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [search, setSearch] = useState("")
@@ -99,6 +108,27 @@ export default function SchedulePage() {
 
   return (
     <div className="p-5 sm:p-8">
+      {isProfessional ? (
+        <div className="mb-4 flex items-center gap-1 rounded-xl border border-[#e2e2e2] p-1 w-fit">
+          {pageTabs.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setPageTab(item)}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                pageTab === item ? "bg-[#eef1f3] text-[#151922]" : "text-[#657080] hover:text-[#151922]"
+              }`}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {isProfessional && pageTab === "Bookings" ? (
+        <BookingsTab />
+      ) : (
+      <>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="flex items-center rounded-xl border border-[#e2e2e2] p-1">
@@ -202,6 +232,8 @@ export default function SchedulePage() {
             ))}
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   )

@@ -34,6 +34,8 @@ export const Routes = {
         profession: "/auth/profession",
         certifications: "/auth/certifications",
         documents: "/auth/documents",
+        professionalInvite: "/auth/professional-invite",
+        professionalAvailability: "/auth/professional-availability",
         welcome: "/auth/welcome",
         organizationName: "/auth/organization-name",
         organizationType: "/auth/organization-type",

@@ -7,11 +7,13 @@ import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
 import { AuthStepHeader } from "@/components/auth/AuthStepHeader"
 import { FileDropzone } from "@/components/auth/FileDropzone"
 import { Routes } from "@/routes/constants"
+import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
 import { completeOnboarding, uploadCareConnectDocument } from "@/utils/auth/services/authService"
 import { getAuthErrorMessage } from "@/utils/auth/helpers/errorMessages"
 
 export default function DocumentsPage() {
   const navigate = useNavigate()
+  const { isProfessional } = useSignupWizard()
   const [cv, setCv] = useState<File | null>(null)
   const [coverLetter, setCoverLetter] = useState<File | null>(null)
   const [finishing, setFinishing] = useState(false)
@@ -21,6 +23,13 @@ export default function DocumentsPage() {
     try {
       if (cv) await uploadCareConnectDocument(cv, "resume")
       if (coverLetter) await uploadCareConnectDocument(coverLetter, "coverLetter")
+
+      if (isProfessional) {
+        // Availability (step 4 of 4) still needs to run, so onboarding is completed there.
+        navigate(Routes.auth.professionalAvailability)
+        return
+      }
+
       await completeOnboarding()
       navigate(Routes.auth.welcome)
     } catch (error: unknown) {
@@ -35,7 +44,9 @@ export default function DocumentsPage() {
       <div className="flex flex-col flex-1 min-h-0 px-5 py-7 sm:px-10">
         <div className="flex items-center justify-between gap-4 mb-5">
           <h1 className="text-[22px] font-semibold leading-none">One more thing!</h1>
-          <span className="rounded-full border border-[#087fff] px-3 py-1 text-sm font-medium text-[#151922]">3 of 3</span>
+          <span className="rounded-full border border-[#087fff] px-3 py-1 text-sm font-medium text-[#151922]">
+            {isProfessional ? "3 of 4" : "3 of 3"}
+          </span>
         </div>
 
         <div className="flex-1 min-h-0 pr-1 space-y-2 overflow-y-auto">
@@ -57,8 +68,10 @@ export default function DocumentsPage() {
             {finishing ? (
               <span className="flex items-center justify-center gap-2">
                 <ButtonLoader />
-                Finishing up...
+                {isProfessional ? "Continuing..." : "Finishing up..."}
               </span>
+            ) : isProfessional ? (
+              "Continue"
             ) : (
               "Finish set up"
             )}

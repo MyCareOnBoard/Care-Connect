@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Link } from "react-router"
-import { Bell, ChevronDown, ChevronRight, LogOut, Settings, UserRound } from "lucide-react"
+import { Bell, CalendarClock, ChevronDown, ChevronRight, LogOut, Settings, UserRound } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +13,8 @@ import { Routes } from "@/routes/constants"
 import { useAuth, useAuthUser } from "@/utils/auth"
 import { getInitials } from "@/lib/utils"
 import { ProfileModals } from "@/components/profile/ProfileModals"
+import { AvailabilityModal } from "@/components/professional/AvailabilityModal"
+import { isProfessionalAccount } from "@/utils/professional/professionalAccount"
 import type { CareFlow } from "./useCareFlow"
 
 type AccountControlsProps = {
@@ -32,9 +34,12 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
     (isCompany ? (user?.profile?.organizationName as string | undefined) : undefined) ||
     (isCompany ? "Company" : "Professional")
 
+  const isProfessional = isProfessionalAccount(user?.uid)
+
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [availabilityOpen, setAvailabilityOpen] = useState(false)
   const [experienceOpen, setExperienceOpen] = useState(false)
   const [skillOpen, setSkillOpen] = useState(false)
   const [certificationOpen, setCertificationOpen] = useState(false)
@@ -129,7 +134,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
             type="button"
             className="flex h-6 items-center gap-3 rounded-full pl-2 pr-3 outline-none transition hover:bg-[#edf3f5] cursor-pointer"
           >
-            <span className="hidden text-sm font-medium sm:inline">{displayName}</span>
+            <span className="hidden text-xs font-medium sm:inline">{displayName}</span>
             <ChevronDown className="size-4" />
           </button>
         </DropdownMenuTrigger>
@@ -155,6 +160,17 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
                 <ChevronRight className="size-4 text-[#8b97a8]" />
               </Link>
             </DropdownMenuItem>
+            {isProfessional ? (
+              <DropdownMenuItem asChild className="rounded-lg hover:bg-[#edf3f5]">
+                <button type="button" onClick={() => setAvailabilityOpen(true)} className="flex items-center justify-between w-full gap-2 px-3 py-2 text-sm text-left rounded-xl">
+                  <span className="flex items-center gap-2">
+                    <CalendarClock className="size-4 text-[#087fff]" />
+                    Availability
+                  </span>
+                  <ChevronRight className="size-4 text-[#8b97a8]" />
+                </button>
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem asChild className="rounded-lg hover:bg-[#edf3f5]">
               <button type="button" onClick={() => setSettingsOpen(true)} className="flex items-center justify-between w-full gap-2 px-3 py-2 text-sm text-left rounded-xl">
                 <span className="flex items-center gap-2">
@@ -225,6 +241,9 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
         newCertification={newCertification}
         onNewCertificationChange={setNewCertification}
       />
+      {isProfessional ? (
+        <AvailabilityModal open={availabilityOpen} onOpenChange={setAvailabilityOpen} uid={user?.uid} />
+      ) : null}
     </div>
   )
 }

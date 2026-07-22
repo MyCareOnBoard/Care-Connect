@@ -12,14 +12,21 @@ import { Routes } from "@/routes/constants"
 import { getPasswordStrength } from "@/utils/passwordStrength"
 import { useAuth } from "@/utils/auth"
 import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
+import { createBackendUserProfile, deleteCurrentFirebaseUser } from "@/utils/auth/services/authService"
 import { getAuthErrorMessage } from "@/utils/auth/helpers/errorMessages"
 
 export default function SignUpPage() {
   const navigate = useNavigate()
   const { signup } = useAuth()
-  const { setFullName: setWizardFullName, setEmail: setWizardEmail } = useSignupWizard()
-  const [fullName, setFullName] = useState("")
-  const [email, setEmail] = useState("")
+  const {
+    fullName: wizardFullName,
+    email: wizardEmail,
+    isProfessional,
+    setFullName: setWizardFullName,
+    setEmail: setWizardEmail,
+  } = useSignupWizard()
+  const [fullName, setFullName] = useState(wizardFullName)
+  const [email, setEmail] = useState(wizardEmail)
   const [phone, setPhone] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -33,6 +40,20 @@ export default function SignUpPage() {
       await signup(email, password, fullName)
       setWizardFullName(fullName)
       setWizardEmail(email)
+
+      if (isProfessional) {
+        // Invite-link signups skip join-type.tsx (there's no card to pick) — they're
+        // always backend userType "careconnect_individual", same as the Individual branch.
+        try {
+          await createBackendUserProfile(fullName, "careconnect_individual")
+          navigate(Routes.auth.verifyContact)
+        } catch (error: unknown) {
+          await deleteCurrentFirebaseUser().catch(() => undefined)
+          toast.error(getAuthErrorMessage(error))
+        }
+        return
+      }
+
       navigate(Routes.auth.joinType)
     } catch (error: unknown) {
       toast.error(getAuthErrorMessage(error))
