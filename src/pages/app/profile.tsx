@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react"
 import { useNavigate } from "react-router"
-import { Banknote, Briefcase, Camera, Mail, MapPin, Pencil, Phone, UserRound, Users } from "lucide-react"
+import { Banknote, Briefcase, Camera, Mail, MapPin, Pencil, Phone, UserPlus, UserRound, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProfileModals } from "@/components/profile/ProfileModals"
 import { PortfolioPost, type PortfolioPostData } from "@/components/profile/PortfolioPost"
@@ -99,6 +99,19 @@ function toPostedJob(job: Job): AgencyPostedJob {
   }
 }
 
+type TeamMember = {
+  id: string
+  name: string
+  role: string
+  status: "active" | "invited"
+  avatarBg: string
+}
+
+const initialTeamMembers: TeamMember[] = [
+  { id: "tm-1", name: "Jerome Bell", role: "Registered Nurse | Mental Health Advocate", status: "active", avatarBg: "bg-[#f5a623]" },
+  { id: "tm-2", name: "Darrell Steward", role: "Registered Nurse | Mental Health Advocate", status: "active", avatarBg: "bg-[#6b9cca]" },
+]
+
 const initialPortfolio: PortfolioPostData[] = [
   {
     id: "post-1",
@@ -118,7 +131,7 @@ const initialPortfolio: PortfolioPostData[] = [
 ]
 
 const userTabs = ["About", "Experience", "Skills", "Certifications", "Portfolio"] as const
-const agencyTabs = ["About", "Posted jobs", "Certifications", "Portfolio"] as const
+const agencyTabs = ["About", "Posted jobs", "Team", "Certifications", "Portfolio"] as const
 type ProfileTab = (typeof userTabs)[number] | (typeof agencyTabs)[number]
 
 export default function ProfilePage() {
@@ -197,13 +210,20 @@ export default function ProfilePage() {
   const [experienceOpen, setExperienceOpen] = useState(false)
   const [skillOpen, setSkillOpen] = useState(false)
   const [certificationOpen, setCertificationOpen] = useState(false)
+  const [teamInviteOpen, setTeamInviteOpen] = useState(false)
   const [experience, setExperience] = useState(initialExperience)
   const [skills, setSkills] = useState(initialSkills)
   const [certifications, setCertifications] = useState(initialCertifications)
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(initialTeamMembers)
   const [portfolio, setPortfolio] = useState(initialPortfolio)
   const [newSkill, setNewSkill] = useState("")
   const [newExperience, setNewExperience] = useState({ role: "", company: "", duration: "", description: "" })
   const [newCertification, setNewCertification] = useState({ title: "", provider: "", date: "", file: "" })
+  const [newTeamInvite, setNewTeamInvite] = useState({ phone: "", email: "", fullName: "" })
+
+  const withdrawInvite = (id: string) => {
+    setTeamMembers((current) => current.filter((member) => member.id !== id))
+  }
   const [notificationOptions, setNotificationOptions] = useState({
     jobMatches: true,
     certificationExpiring: true,
@@ -465,6 +485,46 @@ export default function ProfilePage() {
             </div>
           )}
 
+          {activeTab === "Team" && (
+            <div className="space-y-4">
+              {teamMembers.map((member) => (
+                <div key={member.id} className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-[#e5ecf5] p-5">
+                  <div className="flex items-center gap-4">
+                    <div className={`flex size-12 items-center justify-center rounded-full ${member.avatarBg}`}>
+                      <UserRound className="text-white size-7" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-[#151922]">{member.name}</p>
+                      <p className="mt-1 text-sm text-[#656f80]">{member.status === "invited" ? "Unknown" : member.role}</p>
+                    </div>
+                  </div>
+                  {member.status === "invited" ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full border-[#087fff] text-[#087fff] hover:bg-[#eef5ff]"
+                      onClick={() => withdrawInvite(member.id)}
+                    >
+                      Withdraw invite
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" className="rounded-full border-[#087fff] text-[#087fff] hover:bg-[#eef5ff]">
+                      Message
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setTeamInviteOpen(true)}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[#087fff] cursor-pointer"
+              >
+                <UserPlus className="size-4" />
+                Invite team members
+              </button>
+            </div>
+          )}
+
           {activeTab === "Experience" && (
             <div className="space-y-6">
               {experience.map((item) => (
@@ -580,6 +640,12 @@ export default function ProfilePage() {
         onCertificationsChange={setCertifications}
         newCertification={newCertification}
         onNewCertificationChange={setNewCertification}
+        teamInviteOpen={teamInviteOpen}
+        onTeamInviteOpenChange={setTeamInviteOpen}
+        teamMembers={teamMembers}
+        onTeamMembersChange={setTeamMembers}
+        newTeamInvite={newTeamInvite}
+        onNewTeamInviteChange={setNewTeamInvite}
       />
     </div>
   )

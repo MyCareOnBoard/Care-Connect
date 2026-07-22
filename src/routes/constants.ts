@@ -7,6 +7,7 @@ export const Routes = {
             jobs: "/user/jobs",
             applications: "/user/applications",
             marketplace: "/user/market-place",
+            schedule: "/user/schedule",
             telehealth: "/user/tele-health",
             profile: "/user/profile",
             viewProfile: (id: string) => `/user/profile/${id}`,
