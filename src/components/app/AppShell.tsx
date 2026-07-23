@@ -16,6 +16,7 @@ const userNavItems = [
   { label: "Jobs", href: Routes.app.user.jobs },
   { label: "Applications", href: Routes.app.user.applications },
   { label: "Market place", href: Routes.app.user.marketplace },
+  { label: "Schedule", href: Routes.app.user.schedule },
   { label: "Tele health", href: Routes.app.user.telehealth },
 ]
 

@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { format } from "date-fns"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -9,6 +10,7 @@ import { PhoneNumberField } from "@/components/auth/PhoneNumberField"
 import { FileDropzone } from "@/components/auth/FileDropzone"
 import { PasswordField } from "@/components/auth/PasswordField"
 import CustomDatePicker from "@/components/ui/datePicker"
+import { Routes } from "@/routes/constants"
 
 type NotificationKey = "jobMatches" | "certificationExpiring" | "newMessages" | "mentorInvitations" | "appointmentReminders" | "pushNotifications" | "emailDigestWeekly" | "smsAlerts"
 type PrivacyKey = "publicProfile" | "showEmailAddress" | "showPhoneNumber" | "showLocation" | "allowMessages" | "showOnlineStatus"
@@ -51,6 +53,12 @@ type ProfileModalsProps = {
   onCertificationsChange: (value: Array<{ title: string; provider: string; date: string; status: string }>) => void
   newCertification: { title: string; provider: string; date: string; file: string }
   onNewCertificationChange: (value: { title: string; provider: string; date: string; file: string }) => void
+  teamInviteOpen?: boolean
+  onTeamInviteOpenChange?: (open: boolean) => void
+  teamMembers?: Array<{ id: string; name: string; role: string; status: "active" | "invited"; avatarBg: string }>
+  onTeamMembersChange?: (value: Array<{ id: string; name: string; role: string; status: "active" | "invited"; avatarBg: string }>) => void
+  newTeamInvite?: { phone: string; email: string; fullName: string }
+  onNewTeamInviteChange?: (value: { phone: string; email: string; fullName: string }) => void
 }
 
 function parseDurationDate(value: string) {
@@ -94,6 +102,12 @@ export function ProfileModals({
   onCertificationsChange,
   newCertification,
   onNewCertificationChange,
+  teamInviteOpen = false,
+  onTeamInviteOpenChange = () => {},
+  teamMembers = [],
+  onTeamMembersChange = () => {},
+  newTeamInvite = { phone: "", email: "", fullName: "" },
+  onNewTeamInviteChange = () => {},
 }: ProfileModalsProps) {
   const [accountTab, setAccountTab] = useState<AccountTab>("Account info")
   const [passwords, setPasswords] = useState({ current: "", next: "", confirm: "" })
@@ -422,6 +436,63 @@ export function ProfileModals({
               Update certificate
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={teamInviteOpen} onOpenChange={onTeamInviteOpenChange}>
+        <DialogContent showCloseButton className="p-0 max-w-130">
+          <DialogHeader className="px-6 pt-6 text-left">
+            <DialogTitle className="text-xl font-semibold text-[#151922]">Team invitation</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="px-6 pt-4 pb-6 space-y-5">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-[#151922]">Phone number</label>
+              <PhoneNumberField value={newTeamInvite.phone} onChange={(value) => onNewTeamInviteChange({ ...newTeamInvite, phone: value })} />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-[#151922]">Email</label>
+              <Input
+                value={newTeamInvite.email}
+                onChange={(event) => onNewTeamInviteChange({ ...newTeamInvite, email: event.target.value })}
+                placeholder="Enter your email  here"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-[#151922]">Full name</label>
+              <Input
+                value={newTeamInvite.fullName}
+                onChange={(event) => onNewTeamInviteChange({ ...newTeamInvite, fullName: event.target.value })}
+                placeholder="Enter your full name here"
+              />
+            </div>
+            <Button
+              className="w-full bg-[#087fff] text-white hover:opacity-90"
+              onClick={() => {
+                if (newTeamInvite.fullName.trim()) {
+                  onTeamMembersChange([
+                    ...teamMembers,
+                    {
+                      id: `tm-${Date.now()}`,
+                      name: newTeamInvite.fullName.trim(),
+                      role: "Unknown",
+                      status: "invited",
+                      avatarBg: "bg-[#8a94a6]",
+                    },
+                  ])
+
+                  const inviteUrl = new URL(Routes.auth.professionalInvite, window.location.origin)
+                  inviteUrl.searchParams.set("name", newTeamInvite.fullName.trim())
+                  if (newTeamInvite.email.trim()) inviteUrl.searchParams.set("email", newTeamInvite.email.trim())
+                  navigator.clipboard?.writeText(inviteUrl.toString()).catch(() => undefined)
+                  toast.success("Invite link copied — send it to the new team member to set up their dashboard.")
+
+                  onNewTeamInviteChange({ phone: "", email: "", fullName: "" })
+                  onTeamInviteOpenChange(false)
+                }
+              }}
+            >
+              Send invitation
+            </Button>
+          </DialogBody>
         </DialogContent>
       </Dialog>
     </>

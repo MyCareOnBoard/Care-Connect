@@ -10,7 +10,7 @@ export async function listProfiles(
   params: ListProfilesParams = {},
 ): Promise<CareConnectProfile[]> {
   const { data } = await axiosClient.get("/careconnectProfiles", { params })
-  return data.data
+  return Array.isArray(data?.data) ? data.data : []
 }
 
 /**

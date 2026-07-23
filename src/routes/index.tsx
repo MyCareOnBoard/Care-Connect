@@ -17,6 +17,8 @@ const OrganizationInterestsPage = lazy(() => import("@/pages/auth/organization-i
 const ProfessionPage = lazy(() => import("@/pages/auth/profession"));
 const CertificationsPage = lazy(() => import("@/pages/auth/certifications"));
 const DocumentsPage = lazy(() => import("@/pages/auth/documents"));
+const ProfessionalInvitePage = lazy(() => import("@/pages/auth/professional/invite"));
+const ProfessionalAvailabilityPage = lazy(() => import("@/pages/auth/professional/availability"));
 const WelcomePage = lazy(() => import("@/pages/auth/welcome"));
 const ForgotPasswordPage = lazy(() => import("@/pages/auth/forgot-password"));
 const ResetPasswordPage = lazy(() => import("@/pages/auth/reset-password"));
@@ -28,6 +30,7 @@ const AgencyJobsPage = lazy(() => import("@/pages/app/agency/jobs"));
 const MessagesPage = lazy(() => import("@/pages/app/messages"));
 const ApplicationsPage = lazy(() => import("@/pages/app/applications"));
 const MarketplacePage = lazy(() => import("@/pages/app/marketplace"));
+const SchedulePage = lazy(() => import("@/pages/app/schedule"));
 const TelehealthPage = lazy(() => import("@/pages/app/telehealth"));
 const ProfilePage = lazy(() => import("@/pages/app/profile"));
 const ViewProfilePage = lazy(() => import("@/pages/app/view-profile"));
@@ -59,6 +62,8 @@ export const router = createBrowserRouter([
           { path: Routes.auth.profession, Component: ProfessionPage },
           { path: Routes.auth.certifications, Component: CertificationsPage },
           { path: Routes.auth.documents, Component: DocumentsPage },
+          { path: Routes.auth.professionalInvite, Component: ProfessionalInvitePage },
+          { path: Routes.auth.professionalAvailability, Component: ProfessionalAvailabilityPage },
           { path: Routes.auth.welcome, Component: WelcomePage },
           { path: Routes.auth.forgotPassword, Component: ForgotPasswordPage },
           { path: Routes.auth.resetPassword, Component: ResetPasswordPage },
@@ -72,6 +77,7 @@ export const router = createBrowserRouter([
           { path: Routes.app.user.jobs, Component: UserJobsPage },
           { path: Routes.app.user.applications, Component: ApplicationsPage },
           { path: Routes.app.user.marketplace, Component: MarketplacePage },
+          { path: Routes.app.user.schedule, Component: SchedulePage },
           { path: Routes.app.user.telehealth, Component: TelehealthPage },
           { path: Routes.app.user.profile, Component: ProfilePage },
           { path: `${Routes.app.user.profile}/:id`, Component: ViewProfilePage },

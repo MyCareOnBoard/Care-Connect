@@ -20,7 +20,7 @@ const professions = [
 
 export default function ProfessionPage() {
   const navigate = useNavigate()
-  const { setProfession: setWizardProfession } = useSignupWizard()
+  const { isProfessional, setProfession: setWizardProfession } = useSignupWizard()
   const [profession, setProfession] = useState("")
   const [saving, setSaving] = useState(false)
 
@@ -68,7 +68,7 @@ export default function ProfessionPage() {
       </form>
 
       <div className="flex justify-end gap-2 py-6 mt-auto">
-          <Button type="button" variant="outline" onClick={() => navigate(Routes.auth.joinType)} className="h-11 rounded-md border-[#d9d9d9] hover:bg-[#2937ff4b] cursor-pointer">
+          <Button type="button" variant="outline" onClick={() => navigate(isProfessional ? Routes.auth.verifyContact : Routes.auth.joinType)} className="h-11 rounded-md border-[#d9d9d9] hover:bg-[#2937ff4b] cursor-pointer">
             Go back
           </Button>
         </div>
