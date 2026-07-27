@@ -6,6 +6,10 @@
  * matching how the auth service colocates its own backend types.
  */
 
+import type { WeeklyAvailability } from "@/utils/professional/availabilityStore"
+
+export type { WeeklyAvailability, DaySlot } from "@/utils/professional/availabilityStore"
+
 export type EmploymentType = "full_time" | "part_time" | "contract" | "per_diem"
 export type JobStatus = "open" | "closed" | "draft"
 export type ApplicationStatus =
@@ -259,4 +263,123 @@ export function formatSalary(job: Pick<Job, "salary" | "salaryCurrency">): strin
     // Unknown currency code — fall back to a plain number with the code.
     return `${job.salaryCurrency || ""} ${job.salary.toLocaleString()}`.trim()
   }
+}
+
+/* ── Telehealth: team members, services, bookings ─────────────────────────── */
+
+export type ServiceMode = "online" | "in_person"
+export type ServiceStatus = "active" | "archived"
+export type BookingStatus = "requested" | "confirmed" | "completed" | "cancelled"
+export type PaymentStatus = "pending" | "not_collected"
+
+/** A professional on an agency's roster (careconnectTeamMembers). */
+export interface TeamMember {
+  id: string
+  agencyId: string
+  agencyName: string | null
+  uid: string | null
+  name: string
+  role: string
+  email?: string
+  phone?: string
+  avatarBg: string
+  status: "invited" | "active"
+  availability: WeeklyAvailability
+  inviteToken: string
+  createdAt?: Timestampish
+  updatedAt?: Timestampish
+}
+
+/** Denormalized roster entry stored on a service. */
+export interface ServiceTeamMember {
+  id: string
+  name: string
+  role: string
+  avatarBg: string
+  uid: string | null
+}
+
+export interface TelehealthService {
+  id: string
+  posterId: string
+  agencyName: string | null
+  agencyLocation: string | null
+  title: string
+  description: string
+  modes: ServiceMode[]
+  durationMinutes: number
+  price: number
+  currency: string
+  imageUrl?: string
+  includes: string[]
+  suitableFor: string[]
+  teamMemberIds: string[]
+  teamMembers: ServiceTeamMember[]
+  status: ServiceStatus
+  bookingsCount: number
+  createdAt?: Timestampish
+  updatedAt?: Timestampish
+}
+
+export interface TelehealthBooking {
+  id: string
+  serviceId: string
+  serviceTitle: string
+  mode: ServiceMode
+  posterId: string
+  agencyName: string | null
+  teamMemberId: string
+  professionalUid: string | null
+  professionalName: string
+  clientId: string
+  clientName: string
+  dateKey: string
+  startMinutes: number
+  endMinutes: number
+  durationMinutes: number
+  startAt?: Timestampish
+  note: string
+  price: number
+  currency: string
+  paymentMethod: string
+  paymentStatus: PaymentStatus
+  status: BookingStatus
+  bookingCode: string
+  createdAt?: Timestampish
+  updatedAt?: Timestampish
+}
+
+/** An open booking slot — `value` is minutes-from-midnight, `label` is display. */
+export interface BookingSlot {
+  value: number
+  label: string
+}
+
+export const SERVICE_MODE_LABELS: Record<ServiceMode, string> = {
+  online: "Online",
+  in_person: "In-person",
+}
+
+export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
+  requested: "Requested",
+  confirmed: "Confirmed",
+  completed: "Completed",
+  cancelled: "Cancelled",
+}
+
+/** "9:00 AM" from minutes-from-midnight. */
+export function minutesToLabel(total: number): string {
+  const hours24 = Math.floor(total / 60)
+  const minutes = total % 60
+  const meridiem = hours24 >= 12 ? "PM" : "AM"
+  const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12
+  return `${hours12}:${String(minutes).padStart(2, "0")} ${meridiem}`
+}
+
+/** Local "YYYY-MM-DD" key for a Date (no UTC shift). */
+export function toDateKey(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
 }

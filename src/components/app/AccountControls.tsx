@@ -14,7 +14,7 @@ import { useAuth, useAuthUser } from "@/utils/auth"
 import { getInitials } from "@/lib/utils"
 import { ProfileModals } from "@/components/profile/ProfileModals"
 import { AvailabilityModal } from "@/components/professional/AvailabilityModal"
-import { isProfessionalAccount } from "@/utils/professional/professionalAccount"
+import { useProfessionalMembership } from "@/utils/professional/useProfessionalMembership"
 import type { CareFlow } from "./useCareFlow"
 
 type AccountControlsProps = {
@@ -34,7 +34,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
     (isCompany ? (user?.profile?.organizationName as string | undefined) : undefined) ||
     (isCompany ? "Company" : "Professional")
 
-  const isProfessional = isProfessionalAccount(user?.uid)
+  const { isProfessional } = useProfessionalMembership()
 
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)

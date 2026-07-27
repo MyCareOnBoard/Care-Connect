@@ -7,15 +7,15 @@ import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
 import { AuthStepHeader } from "@/components/auth/AuthStepHeader"
 import { AvailabilityEditor } from "@/components/professional/AvailabilityEditor"
 import { Routes } from "@/routes/constants"
-import { useAuthUser } from "@/utils/auth"
 import { completeOnboarding } from "@/utils/auth/services/authService"
 import { getAuthErrorMessage } from "@/utils/auth/helpers/errorMessages"
-import { DEFAULT_AVAILABILITY, saveAvailability, type WeeklyAvailability } from "@/utils/professional/availabilityStore"
-import { markProfessionalAccount } from "@/utils/professional/professionalAccount"
+import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
+import { DEFAULT_AVAILABILITY, type WeeklyAvailability } from "@/utils/professional/availabilityStore"
+import { acceptInvite } from "@/utils/careconnect/services/teamService"
 
 export default function ProfessionalAvailabilityPage() {
   const navigate = useNavigate()
-  const { user } = useAuthUser()
+  const { inviteToken } = useSignupWizard()
   const [availability, setAvailability] = useState<WeeklyAvailability>(DEFAULT_AVAILABILITY)
   const [finishing, setFinishing] = useState(false)
 
@@ -23,9 +23,10 @@ export default function ProfessionalAvailabilityPage() {
     setFinishing(true)
     try {
       await completeOnboarding()
-      if (user?.uid) {
-        markProfessionalAccount(user.uid)
-        saveAvailability(user.uid, availability)
+      // Attach this professional to the inviting agency's roster (backend).
+      // Availability editing is wired in a later phase; the member stays open-all for now.
+      if (inviteToken) {
+        await acceptInvite(inviteToken).catch(() => undefined)
       }
       navigate(Routes.auth.welcome)
     } catch (error: unknown) {
