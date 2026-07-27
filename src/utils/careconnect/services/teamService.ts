@@ -11,7 +11,12 @@ export interface InviteTeamMemberInput {
   role?: string
   email?: string
   phone?: string
+  /** Origin + invite path (no query); the backend appends the token and emails the link. */
+  inviteUrlBase?: string
 }
+
+/** A newly-invited member, plus whether the backend emailed the invite. */
+export type InvitedTeamMember = TeamMember & { emailed?: boolean }
 
 export interface MyMembership {
   isProfessional: boolean
@@ -24,7 +29,7 @@ export async function listMyTeam(): Promise<TeamMember[]> {
   return data.data
 }
 
-export async function inviteTeamMember(input: InviteTeamMemberInput): Promise<TeamMember> {
+export async function inviteTeamMember(input: InviteTeamMemberInput): Promise<InvitedTeamMember> {
   const { data } = await axiosClient.post("/careconnectTeam", input)
   return data.data
 }

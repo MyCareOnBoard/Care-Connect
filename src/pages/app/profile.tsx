@@ -240,17 +240,29 @@ export default function ProfilePage() {
 
   const handleInviteTeamMember = async (input: { fullName: string; email: string; phone: string }) => {
     try {
+      const email = input.email.trim()
+      const inviteUrlBase = new URL(Routes.auth.professionalInvite, window.location.origin).toString()
       const member = await inviteTeamMember({
         name: input.fullName.trim(),
-        email: input.email.trim() || undefined,
+        email: email || undefined,
         phone: input.phone.trim() || undefined,
+        inviteUrlBase,
       })
       setTeamMembers((current) => [member, ...current])
+
+      // Always copy the link as a fallback; the backend also emails it when an address is given.
       const inviteUrl = new URL(Routes.auth.professionalInvite, window.location.origin)
       inviteUrl.searchParams.set("invite", member.inviteToken)
       inviteUrl.searchParams.set("name", member.name)
       await navigator.clipboard?.writeText(inviteUrl.toString()).catch(() => undefined)
-      toast.success("Invite link copied — send it to the new team member to set up their dashboard.")
+
+      if (member.emailed) {
+        toast.success(`Invitation emailed to ${email} — link also copied.`)
+      } else if (email) {
+        toast.success("Invite link copied. (Email delivery is unavailable — send the link directly.)")
+      } else {
+        toast.success("Invite link copied — send it to the new team member to set up their dashboard.")
+      }
     } catch (error) {
       toast.error(getAuthErrorMessage(error))
     }
