@@ -1,10 +1,11 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { format, addDays, isSameDay } from "date-fns"
 import { ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { getInitials } from "@/lib/utils"
-import { useAuthUser } from "@/utils/auth"
-import { isProfessionalAccount } from "@/utils/professional/professionalAccount"
+import { useProfessionalMembership } from "@/utils/professional/useProfessionalMembership"
+import { listBookings } from "@/utils/careconnect/services/telehealthService"
+import { minutesToLabel, toDateKey, type TelehealthBooking } from "@/utils/careconnect/types"
 import { BookingsTab } from "@/components/professional/BookingsTab"
 
 const HOUR_HEIGHT = 96
@@ -20,10 +21,6 @@ function formatHourLabel(hour: number) {
   return `${displayHour}:00 ${period}`
 }
 
-function minutesFromStart(hour: number, minute: number) {
-  return (hour - START_HOUR) * 60 + minute
-}
-
 type Appointment = {
   id: string
   title: string
@@ -37,58 +34,27 @@ type Appointment = {
   column: "wide" | "narrow"
 }
 
-const appointments: Appointment[] = [
-  {
-    id: "apt-1",
-    title: "Morning physical therapy.",
-    startLabel: "8:00 am",
-    endLabel: "9:10am",
-    personName: "Bobby afriye",
-    avatarBg: "bg-[#6b9cca]",
-    accentColor: "#10ad58",
-    top: minutesFromStart(8, 0) * PX_PER_MIN,
-    height: minutesFromStart(9, 10) * PX_PER_MIN,
-    column: "wide",
-  },
-  {
-    id: "apt-2",
-    title: "Care giver visit",
-    startLabel: "10:00 am",
-    endLabel: "2:00 pm",
-    personName: "Arlene McCoy",
-    avatarBg: "bg-[#c99b9b]",
-    accentColor: "#087fff",
-    top: minutesFromStart(10, 0) * PX_PER_MIN,
-    height: (minutesFromStart(14, 0) - minutesFromStart(10, 0)) * PX_PER_MIN,
-    column: "wide",
-  },
-  {
-    id: "apt-3",
-    title: "Noon physical therapy",
-    startLabel: "11:00 am",
-    endLabel: "12:00 am",
-    personName: "Jerome Bell",
-    avatarBg: "bg-[#f5a623]",
-    accentColor: "#087fff",
-    top: minutesFromStart(11, 0) * PX_PER_MIN,
-    height: (minutesFromStart(12, 0) - minutesFromStart(11, 0)) * PX_PER_MIN,
-    column: "narrow",
-  },
-  {
-    id: "apt-4",
-    title: "Care giver visit",
-    startLabel: "2:30 pm",
-    endLabel: "5:00 pm",
-    personName: "Sarah K.",
-    avatarBg: "bg-[#3a3a3a]",
-    accentColor: "#c7ccd4",
-    top: minutesFromStart(14, 30) * PX_PER_MIN,
-    height: (minutesFromStart(17, 0) - minutesFromStart(14, 30)) * PX_PER_MIN,
-    column: "wide",
-  },
-]
+const APPT_PALETTE = ["bg-[#6b9cca]", "bg-[#c99b9b]", "bg-[#f5a623]", "bg-[#87c9a8]", "bg-[#a782d8]"]
+const avatarForId = (id: string) =>
+  APPT_PALETTE[[...id].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % APPT_PALETTE.length]
 
-const currentTimeOffset = minutesFromStart(11, 15) * PX_PER_MIN
+/** Map a booking into a positioned calendar block. */
+function toAppointment(booking: TelehealthBooking, isProfessional: boolean): Appointment {
+  const top = Math.max((booking.startMinutes - START_HOUR * 60) * PX_PER_MIN, 0)
+  const height = Math.max((booking.endMinutes - booking.startMinutes) * PX_PER_MIN, 28)
+  return {
+    id: booking.id,
+    title: booking.serviceTitle,
+    startLabel: minutesToLabel(booking.startMinutes),
+    endLabel: minutesToLabel(booking.endMinutes),
+    personName: isProfessional ? booking.clientName : booking.professionalName,
+    avatarBg: avatarForId(booking.id),
+    accentColor: "#087fff",
+    top,
+    height,
+    column: "wide",
+  }
+}
 
 const views = ["Day", "Week", "Month"] as const
 type ScheduleView = (typeof views)[number]
@@ -97,14 +63,36 @@ const pageTabs = ["Calendar", "Bookings"] as const
 type PageTab = (typeof pageTabs)[number]
 
 export default function SchedulePage() {
-  const { user } = useAuthUser()
-  const isProfessional = isProfessionalAccount(user?.uid)
+  const { isProfessional } = useProfessionalMembership()
   const [pageTab, setPageTab] = useState<PageTab>("Calendar")
   const [view, setView] = useState<ScheduleView>("Day")
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [search, setSearch] = useState("")
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+
+  // Load bookings for the visible day (as professional or as client).
+  useEffect(() => {
+    let active = true
+    const dateKey = toDateKey(currentDate)
+    listBookings({ scope: isProfessional ? "professional" : "client", from: dateKey, to: dateKey })
+      .then((list) => {
+        if (active) setAppointments(list.map((booking) => toAppointment(booking, isProfessional)))
+      })
+      .catch(() => {
+        if (active) setAppointments([])
+      })
+    return () => {
+      active = false
+    }
+  }, [currentDate, isProfessional])
 
   const dateLabel = isSameDay(currentDate, new Date()) ? "Today" : format(currentDate, "MMM d")
+
+  const now = new Date()
+  const nowMinutes = now.getHours() * 60 + now.getMinutes()
+  const showNowLine =
+    isSameDay(currentDate, now) && nowMinutes >= START_HOUR * 60 && nowMinutes <= END_HOUR * 60
+  const currentTimeOffset = (nowMinutes - START_HOUR * 60) * PX_PER_MIN
 
   return (
     <div className="p-5 sm:p-8">
@@ -197,13 +185,15 @@ export default function SchedulePage() {
               <div key={hour} className="border-b border-[#f2f5f8]" style={{ height: HOUR_HEIGHT }} />
             ))}
 
-            <div className="absolute inset-x-0 z-10 flex items-center gap-2" style={{ top: currentTimeOffset }}>
-              <span className="rounded-md bg-[#087fff] px-2 py-0.5 text-xs font-semibold text-white">
-                {formatHourLabel(11).replace(":00", ":15")}
-              </span>
-              <span className="h-px flex-1 bg-[#087fff]" />
-              <span className="size-2 rounded-full bg-[#087fff]" />
-            </div>
+            {showNowLine && (
+              <div className="absolute inset-x-0 z-10 flex items-center gap-2" style={{ top: currentTimeOffset }}>
+                <span className="rounded-md bg-[#087fff] px-2 py-0.5 text-xs font-semibold text-white">
+                  {minutesToLabel(nowMinutes)}
+                </span>
+                <span className="h-px flex-1 bg-[#087fff]" />
+                <span className="size-2 rounded-full bg-[#087fff]" />
+              </div>
+            )}
 
             {appointments.map((appointment) => (
               <div

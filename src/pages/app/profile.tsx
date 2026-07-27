@@ -7,10 +7,11 @@ import { PortfolioPost, type PortfolioPostData } from "@/components/profile/Port
 import { useCareFlow } from "@/components/app/useCareFlow"
 import { Routes } from "@/routes/constants"
 import { toast } from "sonner"
-import { useAuthUser } from "@/utils/auth"
+import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
 import { getProfile } from "@/utils/careconnect/services/profilesService"
 import { listMyJobs } from "@/utils/careconnect/services/jobsService"
-import { EMPLOYMENT_TYPE_LABELS, formatRelative, formatSalary, type Job } from "@/utils/careconnect/types"
+import { inviteTeamMember, listMyTeam, removeTeamMember } from "@/utils/careconnect/services/teamService"
+import { EMPLOYMENT_TYPE_LABELS, formatRelative, formatSalary, type Job, type TeamMember } from "@/utils/careconnect/types"
 
 const initialExperience = [
   {
@@ -99,18 +100,6 @@ function toPostedJob(job: Job): AgencyPostedJob {
   }
 }
 
-type TeamMember = {
-  id: string
-  name: string
-  role: string
-  status: "active" | "invited"
-  avatarBg: string
-}
-
-const initialTeamMembers: TeamMember[] = [
-  { id: "tm-1", name: "Jerome Bell", role: "Registered Nurse | Mental Health Advocate", status: "active", avatarBg: "bg-[#f5a623]" },
-  { id: "tm-2", name: "Darrell Steward", role: "Registered Nurse | Mental Health Advocate", status: "active", avatarBg: "bg-[#6b9cca]" },
-]
 
 const initialPortfolio: PortfolioPostData[] = [
   {
@@ -214,15 +203,57 @@ export default function ProfilePage() {
   const [experience, setExperience] = useState(initialExperience)
   const [skills, setSkills] = useState(initialSkills)
   const [certifications, setCertifications] = useState(initialCertifications)
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(initialTeamMembers)
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [portfolio, setPortfolio] = useState(initialPortfolio)
   const [newSkill, setNewSkill] = useState("")
   const [newExperience, setNewExperience] = useState({ role: "", company: "", duration: "", description: "" })
   const [newCertification, setNewCertification] = useState({ title: "", provider: "", date: "", file: "" })
   const [newTeamInvite, setNewTeamInvite] = useState({ phone: "", email: "", fullName: "" })
 
-  const withdrawInvite = (id: string) => {
+  // Load the agency's roster (Team tab).
+  useEffect(() => {
+    if (!isAgency || !user?.uid) return
+    let active = true
+    ;(async () => {
+      try {
+        const members = await listMyTeam()
+        if (active) setTeamMembers(members)
+      } catch {
+        // roster is non-critical; leave empty on failure
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [isAgency, user?.uid])
+
+  const withdrawInvite = async (id: string) => {
+    const previous = teamMembers
     setTeamMembers((current) => current.filter((member) => member.id !== id))
+    try {
+      await removeTeamMember(id)
+    } catch (error) {
+      setTeamMembers(previous)
+      toast.error(getAuthErrorMessage(error))
+    }
+  }
+
+  const handleInviteTeamMember = async (input: { fullName: string; email: string; phone: string }) => {
+    try {
+      const member = await inviteTeamMember({
+        name: input.fullName.trim(),
+        email: input.email.trim() || undefined,
+        phone: input.phone.trim() || undefined,
+      })
+      setTeamMembers((current) => [member, ...current])
+      const inviteUrl = new URL(Routes.auth.professionalInvite, window.location.origin)
+      inviteUrl.searchParams.set("invite", member.inviteToken)
+      inviteUrl.searchParams.set("name", member.name)
+      await navigator.clipboard?.writeText(inviteUrl.toString()).catch(() => undefined)
+      toast.success("Invite link copied — send it to the new team member to set up their dashboard.")
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    }
   }
   const [notificationOptions, setNotificationOptions] = useState({
     jobMatches: true,
@@ -642,10 +673,9 @@ export default function ProfilePage() {
         onNewCertificationChange={setNewCertification}
         teamInviteOpen={teamInviteOpen}
         onTeamInviteOpenChange={setTeamInviteOpen}
-        teamMembers={teamMembers}
-        onTeamMembersChange={setTeamMembers}
         newTeamInvite={newTeamInvite}
         onNewTeamInviteChange={setNewTeamInvite}
+        onInviteTeamMember={handleInviteTeamMember}
       />
     </div>
   )
