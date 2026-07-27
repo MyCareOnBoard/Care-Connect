@@ -254,6 +254,8 @@ export default function ProfilePage() {
       const inviteUrl = new URL(Routes.auth.professionalInvite, window.location.origin)
       inviteUrl.searchParams.set("invite", member.inviteToken)
       inviteUrl.searchParams.set("name", member.name)
+      if (member.email) inviteUrl.searchParams.set("email", member.email)
+      if (member.phone) inviteUrl.searchParams.set("phone", member.phone)
       await navigator.clipboard?.writeText(inviteUrl.toString()).catch(() => undefined)
 
       if (member.emailed) {

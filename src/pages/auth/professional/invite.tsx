@@ -12,14 +12,16 @@ import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
 export default function ProfessionalInvitePage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { setJoinType, setIsProfessional, setFullName, setEmail, setInviteToken } = useSignupWizard()
+  const { setJoinType, setIsProfessional, setFullName, setEmail, setPhone, setInviteToken } = useSignupWizard()
 
   useEffect(() => {
     const name = searchParams.get("name")
     const email = searchParams.get("email")
+    const phone = searchParams.get("phone")
     const invite = searchParams.get("invite")
     if (name) setFullName(name)
     if (email) setEmail(email)
+    if (phone) setPhone(phone)
     if (invite) setInviteToken(invite)
     setJoinType("individual")
     setIsProfessional(true)

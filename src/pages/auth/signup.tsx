@@ -21,13 +21,15 @@ export default function SignUpPage() {
   const {
     fullName: wizardFullName,
     email: wizardEmail,
+    phone: wizardPhone,
     isProfessional,
     setFullName: setWizardFullName,
     setEmail: setWizardEmail,
+    setPhone: setWizardPhone,
   } = useSignupWizard()
   const [fullName, setFullName] = useState(wizardFullName)
   const [email, setEmail] = useState(wizardEmail)
-  const [phone, setPhone] = useState("")
+  const [phone, setPhone] = useState(wizardPhone)
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -40,6 +42,7 @@ export default function SignUpPage() {
       await signup(email, password, fullName)
       setWizardFullName(fullName)
       setWizardEmail(email)
+      setWizardPhone(phone)
 
       if (isProfessional) {
         // Invite-link signups skip join-type.tsx (there's no card to pick) — they're
