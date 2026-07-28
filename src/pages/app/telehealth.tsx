@@ -366,12 +366,12 @@ function ServiceCard({ service }: { service: TelehealthService }) {
           {service.bookingsCount} Bookings · Posted {formatRelative(service.createdAt)}
         </span>
         <Button
+          asChild
           variant="outline"
           size="sm"
           className="rounded-lg border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
-          onClick={() => toast("Analytics are coming soon.")}
         >
-          View analytics
+          <Link to={Routes.app.agency.serviceAnalytics(service.id)}>View analytics</Link>
         </Button>
       </div>
     </div>
