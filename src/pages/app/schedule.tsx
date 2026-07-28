@@ -3,13 +3,14 @@ import { Link } from "react-router"
 import { format, addDays, isSameDay, isWithinInterval, startOfWeek, endOfWeek } from "date-fns"
 import { Calendar, ChevronLeft, ChevronRight, List, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { toast } from "sonner"
 import { Routes } from "@/routes/constants"
 import { getInitials } from "@/lib/utils"
 import { useProfessionalMembership } from "@/utils/professional/useProfessionalMembership"
 import { listBookings } from "@/utils/careconnect/services/telehealthService"
-import { BOOKING_STATUS_LABELS, SERVICE_MODE_LABELS, minutesToLabel, toDateKey, type TelehealthBooking } from "@/utils/careconnect/types"
+import { minutesToLabel, toDateKey, type TelehealthBooking } from "@/utils/careconnect/types"
+import { ROW_STATUS_PILL, bookingStart, formatDurationLabel, rowStatusFor } from "@/utils/careconnect/bookingStatus"
+import { BookingDetailsDialog } from "@/components/professional/BookingDetailsDialog"
+import { BookingRowAction } from "@/components/professional/BookingRowAction"
 
 const HOUR_HEIGHT = 96
 const START_HOUR = 8
@@ -22,31 +23,6 @@ function formatHourLabel(hour: number) {
   const period = hour >= 12 ? "pm" : "am"
   const displayHour = hour % 12 === 0 ? 12 : hour % 12
   return `${displayHour}:00 ${period}`
-}
-
-function formatDurationLabel(minutes: number): string {
-  if (minutes % 60 === 0) {
-    const hrs = minutes / 60
-    return `${hrs} hr${hrs > 1 ? "s" : ""}`
-  }
-  if (minutes > 60) {
-    return `${Math.floor(minutes / 60)} hr ${minutes % 60} min`
-  }
-  return `${minutes} mins`
-}
-
-function formatPrice(price: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(price)
-  } catch {
-    return `${currency} ${price}`
-  }
-}
-
-/** Booking instant from its dateKey + startMinutes (local). */
-function bookingStart(booking: TelehealthBooking): Date {
-  const [year, month, day] = booking.dateKey.split("-").map(Number)
-  return new Date(year, month - 1, day, Math.floor(booking.startMinutes / 60), booking.startMinutes % 60)
 }
 
 type Appointment = {
@@ -88,136 +64,6 @@ const views = ["Day", "Week", "Month"] as const
 type ScheduleView = (typeof views)[number]
 
 type ViewMode = "calendar" | "table"
-
-type RowStatus = "completed" | "cancelled" | "in_progress" | "upcoming"
-
-function rowStatusFor(booking: TelehealthBooking): RowStatus {
-  if (booking.status === "completed") return "completed"
-  if (booking.status === "cancelled") return "cancelled"
-  const start = bookingStart(booking)
-  const end = new Date(start.getTime() + booking.durationMinutes * 60000)
-  const now = new Date()
-  if (now >= start && now <= end) return "in_progress"
-  return "upcoming"
-}
-
-const ROW_STATUS_PILL: Record<RowStatus, { label: string; className: string }> = {
-  completed: { label: "Completed", className: "border border-[#10ad58] bg-white text-[#10ad58]" },
-  in_progress: { label: "In-progress", className: "bg-[#1f2430] text-white" },
-  cancelled: { label: "Cancelled", className: "border border-[#ff3e66] bg-white text-[#ff3e66]" },
-  upcoming: { label: "Upcoming", className: "border border-[#00b4b8] bg-white text-[#00b4b8]" },
-}
-
-/** Read-only booking details — backs "View"/"Details" actions (no dedicated detail page yet). */
-function BookingDetailsDialog({
-  booking,
-  isProfessional,
-  onOpenChange,
-}: {
-  booking: TelehealthBooking | null
-  isProfessional: boolean
-  onOpenChange: (open: boolean) => void
-}) {
-  return (
-    <Dialog open={booking != null} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton className="p-0 max-w-120">
-        <DialogHeader className="px-6 pt-6 text-left">
-          <DialogTitle className="text-xl font-semibold text-[#151922]">{booking?.serviceTitle}</DialogTitle>
-        </DialogHeader>
-        {booking && (
-          <DialogBody className="px-6 pt-4 pb-6 space-y-4 text-sm">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-[#8a8f98]">{isProfessional ? "Client" : "Care professional"}</p>
-                <p className="font-semibold text-[#151922]">{isProfessional ? booking.clientName : booking.professionalName}</p>
-              </div>
-              <div>
-                <p className="text-[#8a8f98]">Status</p>
-                <p className="font-semibold text-[#151922]">{BOOKING_STATUS_LABELS[booking.status]}</p>
-              </div>
-              <div>
-                <p className="text-[#8a8f98]">Date & time</p>
-                <p className="font-semibold text-[#151922]">
-                  {format(bookingStart(booking), "MMM d, yyyy")} · {minutesToLabel(booking.startMinutes)}
-                </p>
-              </div>
-              <div>
-                <p className="text-[#8a8f98]">Duration</p>
-                <p className="font-semibold text-[#151922]">{formatDurationLabel(booking.durationMinutes)}</p>
-              </div>
-              <div>
-                <p className="text-[#8a8f98]">Mode</p>
-                <p className="font-semibold text-[#151922]">{SERVICE_MODE_LABELS[booking.mode]}</p>
-              </div>
-              <div>
-                <p className="text-[#8a8f98]">Price</p>
-                <p className="font-semibold text-[#151922]">{formatPrice(booking.price, booking.currency)}</p>
-              </div>
-            </div>
-            {booking.note && (
-              <div>
-                <p className="text-[#8a8f98]">Note</p>
-                <p className="mt-1 text-[#151922]">{booking.note}</p>
-              </div>
-            )}
-          </DialogBody>
-        )}
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function RowAction({
-  booking,
-  rowStatus,
-  isProfessional,
-  onDetails,
-}: {
-  booking: TelehealthBooking
-  rowStatus: RowStatus
-  isProfessional: boolean
-  onDetails: (booking: TelehealthBooking) => void
-}) {
-  const linkClass = "text-sm font-semibold text-[#151922] hover:underline cursor-pointer"
-
-  if (rowStatus === "in_progress") {
-    return (
-      <button type="button" className={linkClass} onClick={() => toast("Joining video call...")}>
-        Join call
-      </button>
-    )
-  }
-
-  if (rowStatus === "completed") {
-    return isProfessional ? (
-      <button type="button" className={linkClass} onClick={() => toast("Downloading notes...")}>
-        Download notes
-      </button>
-    ) : (
-      <button type="button" className={linkClass} onClick={() => onDetails(booking)}>
-        View
-      </button>
-    )
-  }
-
-  if (rowStatus === "cancelled") {
-    return isProfessional ? (
-      <button type="button" className={linkClass} onClick={() => onDetails(booking)}>
-        Details
-      </button>
-    ) : (
-      <Link to={Routes.app.user.telehealth} className={linkClass}>
-        Reschedule
-      </Link>
-    )
-  }
-
-  return (
-    <button type="button" className={linkClass} onClick={() => onDetails(booking)}>
-      Details
-    </button>
-  )
-}
 
 function OverviewCard({ value, label }: { value: string; label: string }) {
   return (
@@ -349,7 +195,7 @@ function ScheduleTable({
                       <span className={`rounded-full px-3 py-1 text-xs font-semibold ${pill.className}`}>{pill.label}</span>
                     </td>
                     <td className="py-4 pr-4 whitespace-nowrap text-right">
-                      <RowAction booking={booking} rowStatus={rowStatus} isProfessional={isProfessional} onDetails={setDetailsBooking} />
+                      <BookingRowAction booking={booking} rowStatus={rowStatus} isProfessional={isProfessional} onDetails={setDetailsBooking} />
                     </td>
                   </tr>
                 )
@@ -359,7 +205,7 @@ function ScheduleTable({
         </div>
       )}
 
-      <BookingDetailsDialog booking={detailsBooking} isProfessional={isProfessional} onOpenChange={(open) => !open && setDetailsBooking(null)} />
+      <BookingDetailsDialog booking={detailsBooking} onOpenChange={(open) => !open && setDetailsBooking(null)} />
     </div>
   )
 }

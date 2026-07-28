@@ -20,6 +20,7 @@ export const Routes = {
             applications: "/agency/applications",
             marketplace: "/agency/market-place",
             telehealth: "/agency/tele-health",
+            serviceAnalytics: (id: string) => `/agency/tele-health/${id}/analytics`,
             profile: "/agency/profile",
             viewProfile: (id: string) => `/agency/profile/${id}`,
             settings: "/agency/settings",
