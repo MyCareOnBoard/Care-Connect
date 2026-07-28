@@ -41,13 +41,13 @@ export function PostComposer() {
   return (
     <section className="rounded-[30px] border border-white/60 bg-white/80 px-4 py-4 shadow-[0_8px_28px_rgba(16,20,26,0.06)] backdrop-blur-md">
       <div className="flex items-start gap-4">
-        <Avatar className="mt-0.5 border border-[#d8d8d8] bg-[#087fff]" initials={getInitials(user?.fullName)} />
+        <Avatar className="mt-0.5 border border-[#d8d8d8] bg-[#00b4b8]" initials={getInitials(user?.fullName)} />
         <Textarea
           value={text}
           onChange={(event) => setText(event.target.value)}
           placeholder="Share some highlights"
           rows={1}
-          className="min-h-13.5 flex-1 resize-none rounded-2xl border-[#d6d6d6] bg-white/70 px-4 py-3.5 text-sm text-[#20242c] shadow-none transition-colors duration-200 focus-visible:border-[#087fff] focus-visible:ring-[#087fff]/20"
+          className="min-h-13.5 flex-1 resize-none rounded-2xl border-[#d6d6d6] bg-white/70 px-4 py-3.5 text-sm text-[#20242c] shadow-none transition-colors duration-200 focus-visible:border-[#00b4b8] focus-visible:ring-[#00b4b8]/20"
         />
       </div>
 
@@ -114,7 +114,7 @@ export function PostComposer() {
           className={cn(
             "h-10 rounded-lg px-3 text-white transition-all duration-200",
             canPost
-              ? "bg-linear-to-r from-[#087fff] to-[#3d9bff] shadow-[0_4px_14px_rgba(8,127,255,0.35)] hover:scale-105 hover:shadow-[0_6px_18px_rgba(8,127,255,0.45)] active:scale-95"
+              ? "bg-linear-to-r from-[#00b4b8] to-[#2dd4d8] shadow-[0_4px_14px_rgba(0,180,184,0.35)] hover:scale-105 hover:shadow-[0_6px_18px_rgba(0,180,184,0.45)] active:scale-95"
               : "bg-[#d8d8d8] opacity-100"
           )}
         >

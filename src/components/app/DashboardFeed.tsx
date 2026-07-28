@@ -16,7 +16,7 @@ import {
 } from "@/utils/careconnect/services/postsService"
 import { listConnections } from "@/utils/careconnect/services/connectionsService"
 
-const AVATAR_PALETTE = ["bg-[#087fff]", "bg-[#ffa33d]", "bg-[#a782d8]", "bg-[#d193ce]", "bg-[#ffc95c]"]
+const AVATAR_PALETTE = ["bg-[#00b4b8]", "bg-[#ffa33d]", "bg-[#a782d8]", "bg-[#d193ce]", "bg-[#ffc95c]"]
 
 /** Map a backend feed post into the presentational PortfolioPostData shape. */
 function toPortfolioData(post: FeedPost): PortfolioPostData {

@@ -16,7 +16,7 @@ import { listConnections } from "@/utils/careconnect/services/connectionsService
 import { listMyJobs } from "@/utils/careconnect/services/jobsService"
 import type { CareConnectProfile, Job } from "@/utils/careconnect/types"
 
-const AVATAR_PALETTE = ["bg-[#087fff]", "bg-[#ffa33d]", "bg-[#a782d8]", "bg-[#d193ce]", "bg-[#ffc95c]", "bg-[#33b6a6]"]
+const AVATAR_PALETTE = ["bg-[#00b4b8]", "bg-[#ffa33d]", "bg-[#a782d8]", "bg-[#d193ce]", "bg-[#ffc95c]", "bg-[#33b6a6]"]
 
 /** Map a directory profile into the presentational Connection shape. */
 function toConnection(profile: CareConnectProfile, index: number): Connection {
@@ -36,7 +36,7 @@ function JobOverviewCard({ job, style }: { job: Job; style?: CSSProperties }) {
     <Link
       to={Routes.app.agency.jobs}
       style={style}
-      className="animate-fade-in-up block rounded-xl border border-white/60 bg-white/80 p-4 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#087fff]/30 hover:shadow-[0_12px_28px_rgba(8,127,255,0.12)]"
+      className="animate-fade-in-up block rounded-xl border border-white/60 bg-white/80 p-4 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00b4b8]/30 hover:shadow-[0_12px_28px_rgba(0,180,184,0.12)]"
     >
       <h3 className="text-base font-semibold leading-[1.35] line-clamp-1">{job.title}</h3>
       <div className="grid grid-cols-3 gap-2 mt-4 text-center">

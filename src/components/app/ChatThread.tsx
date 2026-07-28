@@ -92,7 +92,7 @@ export function ChatThread({ messages, onSend, onAttach, header, className = "",
                 <div
                   className={cn(
                     "max-w-[90%] rounded-2xl px-4 py-2.5 text-sm",
-                    message.from === "me" ? "bg-[#087fff] text-white" : "bg-[#f2f4f6] text-[#20242c]"
+                    message.from === "me" ? "bg-[#00b4b8] text-white" : "bg-[#f2f4f6] text-[#20242c]"
                   )}
                 >
                   {message.text && <p className="whitespace-pre-wrap wrap-break-word">{message.text}</p>}
@@ -142,12 +142,12 @@ export function ChatThread({ messages, onSend, onAttach, header, className = "",
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           placeholder="Write a message here"
-          className="h-10 flex-1 rounded-lg bg-[#f2f4f6] px-4 text-sm outline-none placeholder:text-[#8a8f98] focus-visible:ring-2 focus-visible:ring-[#087fff]/20"
+          className="h-10 flex-1 rounded-lg bg-[#f2f4f6] px-4 text-sm outline-none placeholder:text-[#8a8f98] focus-visible:ring-2 focus-visible:ring-[#00b4b8]/20"
         />
         <button
           type="submit"
           aria-label="Send message"
-          className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#087fff] text-white transition hover:scale-105 active:scale-95"
+          className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#00b4b8] text-white transition hover:scale-105 active:scale-95"
         >
           <Send className="size-4" />
         </button>

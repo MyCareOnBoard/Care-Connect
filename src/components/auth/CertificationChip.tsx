@@ -17,8 +17,8 @@ export function CertificationChip({ label, selected = false, onClick }: Certific
       className={cn(
         "inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-full border px-3 text-sm transition",
         selected
-          ? "border-[#087fff] bg-[#eaf4ff] text-[#087fff]"
-          : "border-[#d6d6d6] bg-white text-[#2c3038] hover:border-[#087fff] hover:text-[#087fff]"
+          ? "border-[#00b4b8] bg-[#eaf4ff] text-[#00b4b8]"
+          : "border-[#d6d6d6] bg-white text-[#2c3038] hover:border-[#00b4b8] hover:text-[#00b4b8]"
       )}
     >
       <span>{label}</span>

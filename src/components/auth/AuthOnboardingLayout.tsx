@@ -46,10 +46,10 @@ export function AuthOnboardingLayout({
           </div>
           {showFooter && (
             <footer className="flex flex-wrap justify-center gap-6 px-5 pb-4 text-sm text-[#3b3f48] sm:justify-end sm:px-8">
-              <Link to="#" className="hover:text-[#087fff]">
+              <Link to="#" className="hover:text-[#00b4b8]">
                 Privacy policy
               </Link>
-              <Link to="#" className="hover:text-[#087fff]">
+              <Link to="#" className="hover:text-[#00b4b8]">
                 Terms &amp; Agreement
               </Link>
             </footer>

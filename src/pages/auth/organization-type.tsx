@@ -66,7 +66,7 @@ export default function OrganizationTypePage() {
         <select
           value={organizationType}
           onChange={(event) => setOrganizationType(event.target.value)}
-          className="h-11 w-full rounded-md pr-6 border border-[#e2e2e2] bg-white px-4 text-sm text-[#151922] outline-none focus:border-[#087fff] focus:ring-2 focus:ring-[#087fff]/20 cursor-pointer"
+          className="h-11 w-full rounded-md pr-6 border border-[#e2e2e2] bg-white px-4 text-sm text-[#151922] outline-none focus:border-[#00b4b8] focus:ring-2 focus:ring-[#00b4b8]/20 cursor-pointer"
           required
         >
           <option value="">-- Select your organization type here --</option>
@@ -80,7 +80,7 @@ export default function OrganizationTypePage() {
         <Button
           type="submit"
           disabled={!organizationType || saving}
-          className="mx-auto mt-8 h-11 w-[92%] bg-[#087fff] disabled:bg-[#d5d5d5] disabled:text-white"
+          className="mx-auto mt-8 h-11 w-[92%] bg-[#00b4b8] disabled:bg-[#d5d5d5] disabled:text-white"
         >
           {saving ? "Saving..." : "Continue"}
         </Button>

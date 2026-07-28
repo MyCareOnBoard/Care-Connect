@@ -28,7 +28,7 @@ function InterestTag({ label, selected, onClick }: { label: string; selected: bo
       type="button"
       onClick={onClick}
       className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
-        selected ? "border-[#087fff] bg-white text-[#087fff]" : "border-[#e2e2e2] text-[#141922] hover:border-[#087fff]"
+        selected ? "border-[#00b4b8] bg-white text-[#00b4b8]" : "border-[#e2e2e2] text-[#141922] hover:border-[#00b4b8]"
       }`}
     >
       {label}
@@ -67,7 +67,7 @@ export default function OrganizationInterestsPage() {
         <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
           <div className="flex w-full items-center justify-center gap-4">
             <h1 className="text-[22px] font-normal leading-none">What would you like to do on CareConnect?</h1>
-            <span className="rounded-full border border-[#087fff] px-3 py-1 text-sm font-medium text-[#151922]">3 of 3</span>
+            <span className="rounded-full border border-[#00b4b8] px-3 py-1 text-sm font-medium text-[#151922]">3 of 3</span>
           </div>
           <p className="mb-4 text-sm text-[#657080]">Select all if they apply</p>
 
@@ -79,14 +79,14 @@ export default function OrganizationInterestsPage() {
         </div>
 
         <div className="mt-auto flex justify-end gap-2 pt-6">
-          <Button type="button" variant="outline" onClick={() => navigate(Routes.auth.organizationType)} className="h-11 rounded-md border-[#d9d9d9] hover:bg-[#2937ff4b] cursor-pointer">
+          <Button type="button" variant="outline" onClick={() => navigate(Routes.auth.organizationType)} className="h-11 rounded-md border-[#d9d9d9] hover:bg-[#00b4b84b] cursor-pointer">
             Go back
           </Button>
           <Button
             type="button"
             disabled={selected.length === 0 || finishing}
             onClick={() => void finishSignup()}
-            className="h-11 rounded-md bg-[#087fff] px-6 hover:bg-[#2937ff4b] cursor-pointer"
+            className="h-11 rounded-md bg-[#00b4b8] px-6 hover:bg-[#00b4b84b] cursor-pointer"
           >
             {finishing ? (
               <span className="flex items-center justify-center gap-2">

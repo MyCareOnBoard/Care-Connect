@@ -88,11 +88,11 @@ function ProductCard({ product, onOpen }: { product: Product; onOpen: () => void
       <div className="p-4">
         <h3 className="font-bold leading-snug">{product.name}</h3>
         <p className="mt-1 text-sm text-[#657080]">
-          Brief description on what the product .. <span className="font-semibold text-[#087fff]">Read more</span>
+          Brief description on what the product .. <span className="font-semibold text-[#00b4b8]">Read more</span>
         </p>
         <div className="mt-3 flex items-center justify-between">
-          <span className="font-bold text-[#087fff]">${product.price}</span>
-          <span className="flex size-8 items-center justify-center rounded-full border border-[#087fff]/30 text-[#087fff]">
+          <span className="font-bold text-[#00b4b8]">${product.price}</span>
+          <span className="flex size-8 items-center justify-center rounded-full border border-[#00b4b8]/30 text-[#00b4b8]">
             <ShoppingBag className="size-4" />
           </span>
         </div>
@@ -116,14 +116,14 @@ function ProductDetailsPanel({ product, onClose, onEnquire }: { product: Product
         </div>
         <p className="text-sm leading-6 text-[#565656]">
           {expanded ? product.description : `${product.description.slice(0, 70)}.. `}
-          <button type="button" onClick={() => setExpanded((current) => !current)} className="font-semibold text-[#087fff] hover:underline">
+          <button type="button" onClick={() => setExpanded((current) => !current)} className="font-semibold text-[#00b4b8] hover:underline">
             {expanded ? "Show less" : "Read more"}
           </button>
         </p>
-        <p className="text-2xl font-bold text-[#087fff]">${product.price}</p>
+        <p className="text-2xl font-bold text-[#00b4b8]">${product.price}</p>
       </div>
 
-      <Button type="button" className="mt-8 w-full bg-[#087fff]" onClick={onEnquire}>
+      <Button type="button" className="mt-8 w-full bg-[#00b4b8]" onClick={onEnquire}>
         Enquire
       </Button>
     </SidePanel>
@@ -173,7 +173,7 @@ function AddProductPanel({ open, onClose, onSubmit }: { open: boolean; onClose: 
       onClose={onClose}
       title="Add product"
       footer={
-        <Button type="button" className="w-full bg-[#087fff]" disabled={saving} onClick={handleSubmit}>
+        <Button type="button" className="w-full bg-[#00b4b8]" disabled={saving} onClick={handleSubmit}>
           Upload product
         </Button>
       }
@@ -290,7 +290,7 @@ export default function MarketplacePage() {
     <div className="animate-fade-in-up space-y-6 p-5 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-xl font-bold">Healthcare marketplace</h1>
-        <Button type="button" className="bg-[#087fff]" onClick={() => setIsAddOpen(true)}>
+        <Button type="button" className="bg-[#00b4b8]" onClick={() => setIsAddOpen(true)}>
           <Plus className="size-4" />
           Add product
         </Button>
@@ -308,7 +308,7 @@ export default function MarketplacePage() {
               type="button"
               onClick={() => setActiveFilter(filter)}
               className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
-                activeFilter === filter ? "border-[#087fff] bg-[#087fff] text-white" : "border-[#e2e2e2] text-[#141922] hover:border-[#087fff]"
+                activeFilter === filter ? "border-[#00b4b8] bg-[#00b4b8] text-white" : "border-[#e2e2e2] text-[#141922] hover:border-[#00b4b8]"
               }`}
             >
               {filter}

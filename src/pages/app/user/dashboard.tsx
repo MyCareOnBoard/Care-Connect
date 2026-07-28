@@ -23,7 +23,7 @@ import { listConnections } from "@/utils/careconnect/services/connectionsService
 import { formatSalary, type CareConnectProfile, type Job } from "@/utils/careconnect/types"
 
 const AVATAR_PALETTE = [
-  "bg-[#087fff]",
+  "bg-[#00b4b8]",
   "bg-[#ffa33d]",
   "bg-[#a782d8]",
   "bg-[#d193ce]",
@@ -58,7 +58,7 @@ function JobCard({
   return (
     <article
       style={style}
-      className="animate-fade-in-up group rounded-xl border border-white/60 bg-white/80 p-4 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#087fff]/30 hover:shadow-[0_12px_28px_rgba(8,127,255,0.12)]"
+      className="animate-fade-in-up group rounded-xl border border-white/60 bg-white/80 p-4 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00b4b8]/30 hover:shadow-[0_12px_28px_rgba(0,180,184,0.12)]"
     >
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-base font-semibold leading-[1.35]">{job.title}</h3>
@@ -78,7 +78,7 @@ function JobCard({
       <p className="mt-4 text-sm text-[#20242c]">{job.company}</p>
       <p className="mt-2 text-sm leading-6 text-[#20242c]">{job.location}</p>
       {formatSalary(job) && (
-        <p className="mt-2 text-sm font-semibold text-[#087fff]">{formatSalary(job)}</p>
+        <p className="mt-2 text-sm font-semibold text-[#00b4b8]">{formatSalary(job)}</p>
       )}
       {job.tags && job.tags.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">
@@ -239,7 +239,7 @@ export default function DashboardPage() {
 
   return (
     <div className="animate-fade-in-up grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-4 sm:px-8 sm:w-full pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,1fr)_326px] w-full">
-      <aside className="space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
+      <aside className="order-2 xl:order-0 space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
         <section className="rounded-lg border border-white/60 bg-white/80 px-4 py-3 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md">
           <div className="space-y-5">
             <StatRow label="Profile views" value={String(profileViews)} />
@@ -286,12 +286,12 @@ export default function DashboardPage() {
         </section>
       </aside>
 
-      <main className="space-y-8">
+      <main className="order-1 xl:order-0 space-y-8">
         <PostComposer />
         <DashboardFeed />
       </main>
 
-      <aside className="space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
+      <aside className="order-3 xl:order-0 space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
         {companies.length > 0 && (
           <ConnectionsSection title="Top agencies around you" items={companies} actionLabel="Subscribe" activeLabel="Subscribed" relation="subscribe" targetType="company" />
         )}

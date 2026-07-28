@@ -35,7 +35,7 @@ export function AvailabilityModal({ open, onOpenChange, uid }: AvailabilityModal
           <AvailabilityEditor value={value} onChange={setValue} />
         </DialogBody>
         <DialogFooter className="px-6 pb-6">
-          <Button onClick={handleSave} className="bg-[#087fff] text-white hover:opacity-90">
+          <Button onClick={handleSave} className="bg-[#00b4b8] text-white hover:opacity-90">
             Save changes
           </Button>
         </DialogFooter>
