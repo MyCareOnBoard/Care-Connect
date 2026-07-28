@@ -16,7 +16,7 @@ export default function WelcomePage() {
   useEffect(() => {
     if (!canvasRef.current) return
     const fire = confetti.create(canvasRef.current, { resize: true, useWorker: true })
-    const colors = ["#087fff", "#5a4ee0", "#10ad58", "#ffc95c"]
+    const colors = ["#00b4b8", "#5a4ee0", "#10ad58", "#ffc95c"]
     const end = Date.now() + 1500
 
     const frame = () => {
@@ -34,8 +34,8 @@ export default function WelcomePage() {
       <canvas ref={canvasRef} className="pointer-events-none fixed inset-0 z-50 h-full w-full" />
       <div className="flex flex-1 flex-col items-center justify-center px-5 py-10 text-center sm:px-10">
         <div className="relative flex items-center justify-center">
-          <span className="absolute size-16 rounded-full bg-[#087fff] animate-check-ring" />
-          <CheckCircle2 className="relative size-16 text-[#087fff] animate-check-pop" />
+          <span className="absolute size-16 rounded-full bg-[#00b4b8] animate-check-ring" />
+          <CheckCircle2 className="relative size-16 text-[#00b4b8] animate-check-pop" />
         </div>
         <h1 className="mt-6 text-[26px] font-medium leading-none">You&apos;re all set, {firstName}!</h1>
         <p className="mt-3 max-w-md text-sm text-[#565656]">
@@ -45,7 +45,7 @@ export default function WelcomePage() {
         <Button
           type="button"
           onClick={() => navigate(Routes.app.user.dashboard)}
-          className="mt-8 h-11 w-full max-w-70 bg-[#087fff]"
+          className="mt-8 h-11 w-full max-w-70 bg-[#00b4b8]"
         >
           Go to dashboard
         </Button>

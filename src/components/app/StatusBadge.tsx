@@ -5,7 +5,7 @@ const STATUS_STYLES: Record<string, string> = {
   negative: "border-[#ff3e66] bg-[#ffeef2] text-[#ff3e66]",
   neutral: "border-transparent bg-black text-white",
   pending: "border-transparent bg-[#eef1f3] text-[#141922]",
-  active: "border-[#087fff] bg-[#eaf4ff] text-[#087fff]",
+  active: "border-[#00b4b8] bg-[#eaf4ff] text-[#00b4b8]",
 }
 
 const KEYWORD_MAP: { keywords: string[]; style: keyof typeof STATUS_STYLES }[] = [

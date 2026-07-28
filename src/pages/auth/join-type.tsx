@@ -56,7 +56,7 @@ export default function JoinTypePage() {
           type="button"
           disabled={!joinType || submitting}
           onClick={() => void continueFlow()}
-          className="mt-6 h-11 w-full bg-[#087fff] disabled:bg-[#e7eef0] disabled:text-white"
+          className="mt-6 h-11 w-full bg-[#00b4b8] disabled:bg-[#e7eef0] disabled:text-white"
         >
           {submitting ? (
             <span className="flex items-center justify-center gap-2">

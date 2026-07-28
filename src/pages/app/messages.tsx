@@ -19,7 +19,7 @@ import {
 } from "@/utils/careconnect/services/messagesService"
 
 const CONVERSATIONS = "careconnectConversations"
-const AVATAR_COLORS = ["bg-[#087fff]", "bg-[#0d8de0]", "bg-[#ffc95c]", "bg-[#a782d8]", "bg-[#10ad58]", "bg-[#ff3e66]"]
+const AVATAR_COLORS = ["bg-[#00b4b8]", "bg-[#0d8de0]", "bg-[#ffc95c]", "bg-[#a782d8]", "bg-[#10ad58]", "bg-[#ff3e66]"]
 const colorFor = (id: string) => AVATAR_COLORS[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length]
 
 function formatTime(value: unknown): string {
@@ -206,7 +206,7 @@ export default function MessagesPage() {
                   <p className="mt-1 truncate text-sm text-[#657080]">{conversation.lastMessage || "No messages yet"}</p>
                 </div>
                 {conversation.unread > 0 && (
-                  <span className="mt-1 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#087fff] text-xs font-semibold text-white">
+                  <span className="mt-1 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#00b4b8] text-xs font-semibold text-white">
                     {conversation.unread}
                   </span>
                 )}

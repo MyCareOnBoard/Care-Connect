@@ -145,7 +145,7 @@ export default function SignUpPage() {
             </div>
           </div>
 
-          <Button type="submit" disabled={loading} className="mt-2 h-11 w-full text-white bg-[#087fff]">
+          <Button type="submit" disabled={loading} className="mt-2 h-11 w-full text-white bg-[#00b4b8]">
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <ButtonLoader />
@@ -157,7 +157,7 @@ export default function SignUpPage() {
           </Button>
         </form>
 
-        <p className="mt-5 text-center text-sm text-[#087fff]">
+        <p className="mt-5 text-center text-sm text-[#00b4b8]">
           Already have an account?{" "}
           <Link to={Routes.auth.login} className="font-semibold hover:underline">
             Sign in here

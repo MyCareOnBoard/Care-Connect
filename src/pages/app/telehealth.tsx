@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react"
-import { useNavigate } from "react-router"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { Link, useNavigate } from "react-router"
 import { format, addDays } from "date-fns"
 import {
   Banknote,
@@ -12,6 +12,7 @@ import {
   CreditCard,
   Heart,
   MapPin,
+  MessageSquare,
   Plus,
   Search,
   Share2,
@@ -81,7 +82,7 @@ const STATUS_PILL: Record<TelehealthService["status"], { label: string; classNam
   archived: { label: "Archive", className: "bg-[#1f2430] text-white" },
 }
 
-const MODE_CHECKBOX_CLASS = "rounded-md border-2 border-[#087fff] peer-checked:border-[#087fff] peer-checked:bg-[#087fff]"
+const MODE_CHECKBOX_CLASS = "rounded-md border-2 border-[#00b4b8] peer-checked:border-[#00b4b8] peer-checked:bg-[#00b4b8]"
 
 /** Compose a display date from a booking's dateKey + startMinutes. */
 function bookingWhen(booking: TelehealthBooking): string {
@@ -145,7 +146,7 @@ function TeamMemberPicker({
                 {visible.map((member) => (
                   <label
                     key={member.id}
-                    className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 hover:bg-[#f5f8ff]"
+                    className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 hover:bg-[#eafbfb]"
                   >
                     <span className="flex items-center gap-3">
                       <span className={`flex size-10 items-center justify-center rounded-full text-sm font-semibold text-white ${member.avatarBg}`}>
@@ -160,7 +161,7 @@ function TeamMemberPicker({
                       type="checkbox"
                       checked={selected.has(member.id)}
                       onChange={() => onToggle(member.id)}
-                      className="size-5 shrink-0 cursor-pointer rounded border-2 border-[#087fff] text-[#087fff] accent-[#087fff]"
+                      className="size-5 shrink-0 cursor-pointer rounded border-2 border-[#00b4b8] text-[#00b4b8] accent-[#00b4b8]"
                     />
                   </label>
                 ))}
@@ -327,7 +328,7 @@ function ServiceCreationDialog({
           </div>
 
           <div className="flex justify-end">
-            <Button className="bg-[#087fff] text-white hover:opacity-90" disabled={saving} onClick={submit}>
+            <Button className="bg-[#00b4b8] text-white hover:opacity-90" disabled={saving} onClick={submit}>
               {saving ? "Creating..." : "Create service"}
             </Button>
           </div>
@@ -351,11 +352,11 @@ function ServiceCard({ service }: { service: TelehealthService }) {
           {service.modes.map((mode) => SERVICE_MODE_LABELS[mode]).join(" · ")}
         </span>
         <span className="inline-flex items-center gap-2">
-          <CalendarCheck className="size-4" />
+          <Clock className="size-4" />
           {formatDuration(service.durationMinutes)}
         </span>
         <span className="inline-flex items-center gap-2 font-semibold text-[#0f8a4d]">
-          <Banknote className="size-4" />
+          <CreditCard className="size-4" />
           {formatPrice(service.price, service.currency)}
         </span>
       </div>
@@ -364,11 +365,87 @@ function ServiceCard({ service }: { service: TelehealthService }) {
           <CalendarCheck className="size-4" />
           {service.bookingsCount} Bookings · Posted {formatRelative(service.createdAt)}
         </span>
-        <span className="text-sm text-[#656f80]">
-          {service.teamMembers.length} professional{service.teamMembers.length === 1 ? "" : "s"}
-        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-lg border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
+          onClick={() => toast("Analytics are coming soon.")}
+        >
+          View analytics
+        </Button>
       </div>
     </div>
+  )
+}
+
+function OverviewStatCard({
+  label,
+  value,
+  action,
+}: {
+  label: string
+  value: string
+  action?: ReactNode
+}) {
+  return (
+    <div className="rounded-2xl border border-[#e5ecf5] bg-white p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-2xl font-bold text-[#151922]">{value}</p>
+        {action}
+      </div>
+      <p className="mt-1 text-sm text-[#656f80]">{label}</p>
+    </div>
+  )
+}
+
+function AgencyOverview({ services, team, bookings }: { services: TelehealthService[]; team: TeamMember[]; bookings: TelehealthBooking[] }) {
+  const stats = useMemo(() => {
+    const today = toDateKey(new Date())
+    const now = new Date()
+    const nonCancelled = bookings.filter((booking) => booking.status !== "cancelled")
+    const completed = nonCancelled.filter((booking) => booking.status === "completed")
+    const amountMade = completed.reduce((sum, booking) => sum + booking.price, 0)
+    const currency = bookings[0]?.currency || services[0]?.currency || "USD"
+    const todaysShifts = nonCancelled.filter((booking) => booking.dateKey === today).length
+    const completedThisMonth = completed.filter((booking) => {
+      const [year, month] = booking.dateKey.split("-").map(Number)
+      return year === now.getFullYear() && month === now.getMonth() + 1
+    }).length
+    const activeStaff = team.filter((member) => member.status === "active").length
+    const completionRate = nonCancelled.length > 0 ? Math.round((completed.length / nonCancelled.length) * 100) : 0
+
+    return {
+      amountMade: formatPrice(amountMade, currency),
+      todaysShifts: String(todaysShifts),
+      completedThisMonth: String(completedThisMonth),
+      activeStaff: String(activeStaff),
+      completionRate: `${completionRate}%`,
+    }
+  }, [services, team, bookings])
+
+  return (
+    <section className="mt-6">
+      <h2 className="mb-3 text-sm font-semibold text-[#151922]">Overview</h2>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+        <OverviewStatCard
+          label="Amount made"
+          value={stats.amountMade}
+          action={
+            <Button
+              size="sm"
+              className="rounded-lg bg-[#00b4b8] text-white hover:opacity-90"
+              onClick={() => toast("Withdrawals are coming soon.")}
+            >
+              Withdraw
+            </Button>
+          }
+        />
+        <OverviewStatCard label="Today's Shifts" value={stats.todaysShifts} />
+        <OverviewStatCard label="Completed This Month" value={stats.completedThisMonth} />
+        <OverviewStatCard label="Active Staff" value={stats.activeStaff} />
+        <OverviewStatCard label="Service Completion Rate" value={stats.completionRate} />
+      </div>
+    </section>
   )
 }
 
@@ -399,6 +476,13 @@ function BookingsSidebar({ bookings }: { bookings: TelehealthBooking[] }) {
                     </p>
                   </div>
                 </div>
+                <Link
+                  to={Routes.app.agency.messages}
+                  aria-label={`Message ${booking.clientName}`}
+                  className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-[#eef1f3] text-[#656f80] transition hover:border-[#00b4b8] hover:text-[#00b4b8]"
+                >
+                  <MessageSquare className="size-4" />
+                </Link>
               </div>
               <p className="mt-3 text-sm text-[#656f80]">Hosted by: {booking.professionalName}</p>
               <p className="mt-1 inline-flex items-center gap-2 text-sm text-[#656f80]">
@@ -473,8 +557,8 @@ function PaymentMethodDialog({
                       </span>
                       <span className="text-sm font-medium text-[#151922]">{option.label}</span>
                     </span>
-                    <span className="flex size-5 items-center justify-center rounded-full border-2 border-[#087fff]">
-                      {localSelected === option.label && <span className="size-2.5 rounded-full bg-[#087fff]" />}
+                    <span className="flex size-5 items-center justify-center rounded-full border-2 border-[#00b4b8]">
+                      {localSelected === option.label && <span className="size-2.5 rounded-full bg-[#00b4b8]" />}
                     </span>
                     <input
                       type="radio"
@@ -488,7 +572,7 @@ function PaymentMethodDialog({
             </div>
           ))}
           <Button
-            className="w-full bg-[#087fff] text-white hover:opacity-90"
+            className="w-full bg-[#00b4b8] text-white hover:opacity-90"
             disabled={!localSelected}
             onClick={() => {
               if (!localSelected) return
@@ -561,7 +645,7 @@ function ProfessionalPicker({
                   onSelect(member.id)
                   setOpen(false)
                 }}
-                className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 text-left hover:bg-[#f5f8ff]"
+                className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 text-left hover:bg-[#eafbfb]"
               >
                 <span className="flex items-center gap-3">
                   <span className={`flex size-10 items-center justify-center rounded-full text-sm font-semibold text-white ${member.avatarBg}`}>
@@ -572,8 +656,8 @@ function ProfessionalPicker({
                     <span className="block text-sm text-[#656f80]">{member.role || "Professional"}</span>
                   </span>
                 </span>
-                <span className="flex size-5 shrink-0 items-center justify-center rounded-full border-2 border-[#087fff]">
-                  {selectedId === member.id && <span className="size-2.5 rounded-full bg-[#087fff]" />}
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-full border-2 border-[#00b4b8]">
+                  {selectedId === member.id && <span className="size-2.5 rounded-full bg-[#00b4b8]" />}
                 </span>
               </button>
             ))}
@@ -721,7 +805,7 @@ function BookServiceDialog({
 
                 <div className="flex justify-end">
                   <Button
-                    className="bg-[#087fff] text-white hover:opacity-90"
+                    className="bg-[#00b4b8] text-white hover:opacity-90"
                     disabled={!professionalId}
                     onClick={() => setStep("schedule")}
                   >
@@ -758,7 +842,7 @@ function BookServiceDialog({
                         type="button"
                         onClick={() => setDateIndex(index)}
                         className={`flex shrink-0 flex-col items-center rounded-xl border px-3 py-2 text-sm transition ${
-                          index === dateIndex ? "border-[#087fff] bg-[#eef5ff] text-[#087fff]" : "border-[#eef1f3] text-[#656f80]"
+                          index === dateIndex ? "border-[#00b4b8] bg-[#e3f8f8] text-[#00b4b8]" : "border-[#eef1f3] text-[#656f80]"
                         }`}
                       >
                         <span className="font-semibold">{format(date, "d")}</span>
@@ -789,7 +873,7 @@ function BookServiceDialog({
                           type="button"
                           onClick={() => setStartMinutes(slot.value)}
                           className={`rounded-xl border px-4 py-2 text-sm font-semibold transition ${
-                            startMinutes === slot.value ? "border-[#087fff] bg-[#eef5ff] text-[#087fff]" : "border-[#eef1f3] text-[#151922]"
+                            startMinutes === slot.value ? "border-[#00b4b8] bg-[#e3f8f8] text-[#00b4b8]" : "border-[#eef1f3] text-[#151922]"
                           }`}
                         >
                           {slot.label}
@@ -822,7 +906,7 @@ function BookServiceDialog({
                 </div>
 
                 <Button
-                  className="w-full bg-[#087fff] text-white hover:opacity-90"
+                  className="w-full bg-[#00b4b8] text-white hover:opacity-90"
                   disabled={startMinutes == null || (service.price > 0 && !paymentMethod) || booking}
                   onClick={checkout}
                 >
@@ -847,7 +931,7 @@ function BookServiceDialog({
                 <h3 className="mt-4 text-xl font-semibold text-[#151922]">You&apos;re all set</h3>
                 <p className="mt-2 text-sm text-[#656f80]">Your appointment is booked. We can&apos;t wait to see you!</p>
                 <Button
-                  className="mt-6 w-full bg-[#087fff] text-white hover:opacity-90"
+                  className="mt-6 w-full bg-[#00b4b8] text-white hover:opacity-90"
                   onClick={() => {
                     onOpenChange(false)
                     navigate(Routes.app.user.schedule)
@@ -942,7 +1026,7 @@ function UserServiceBrowser() {
                 type="button"
                 onClick={() => setSelectedId(service.id)}
                 className={`w-full rounded-2xl border p-4 text-left transition ${
-                  selectedId === service.id ? "border-[#087fff] bg-[#f7fbff]" : "border-[#e5ecf5] hover:border-[#087fff]/40"
+                  selectedId === service.id ? "border-[#00b4b8] bg-[#f0fbfb]" : "border-[#e5ecf5] hover:border-[#00b4b8]/40"
                 }`}
               >
                 <h3 className="text-sm font-semibold text-[#151922]">{service.title}</h3>
@@ -1013,7 +1097,7 @@ function UserServiceBrowser() {
             </div>
 
             <div className="mt-4 flex items-center gap-2">
-              <Button className="bg-[#087fff] text-white hover:opacity-90" onClick={() => setBookingOpen(true)}>
+              <Button className="bg-[#00b4b8] text-white hover:opacity-90" onClick={() => setBookingOpen(true)}>
                 Book service
               </Button>
               <button type="button" aria-label="Save" className="flex size-11 items-center justify-center rounded-xl border border-[#e5ecf5] text-[#565656] hover:bg-[#f2f6f8]">
@@ -1110,26 +1194,30 @@ function AgencyTelehealthPage() {
 
   return (
     <div className="p-5 sm:p-8">
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div>
-          <div className="flex flex-wrap items-center gap-4">
-            <h1 className="text-2xl font-bold text-[#151922]">Telehealth</h1>
-            <div className="relative w-full max-w-sm">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Title, keywords, or company"
-                className="pl-9"
-              />
-            </div>
-            <Button className="rounded-full bg-[#087fff] text-white hover:opacity-90" onClick={() => setCreateOpen(true)}>
-              <Plus className="size-4" />
-              Create service
-            </Button>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold text-[#151922]">Telehealth</h1>
+        <div className="flex flex-1 flex-wrap items-center justify-end gap-4">
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Title, keywords, or company"
+              className="pl-9"
+            />
           </div>
+          <Button className="rounded-full bg-[#00b4b8] text-white hover:opacity-90" onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" />
+            Create service
+          </Button>
+        </div>
+      </div>
 
-          <div className="mt-6 space-y-4">
+      <AgencyOverview services={services} team={team} bookings={bookings} />
+
+      <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div>
+          <div className="space-y-4">
             {visibleServices.length === 0 ? (
               <p className="rounded-3xl border border-dashed border-[#e5ecf5] p-10 text-center text-sm text-[#657080]">
                 No services yet. Click &quot;Create service&quot; to add your first one.

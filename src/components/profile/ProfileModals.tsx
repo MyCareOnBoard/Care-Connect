@@ -163,7 +163,7 @@ export function ProfileModals({
             ))}
           </DialogBody>
           <DialogFooter>
-            <Button className="bg-[#087fff] text-white hover:opacity-90" variant="secondary" onClick={() => onNotificationsOpenChange(false)}>
+            <Button className="bg-[#00b4b8] text-white hover:opacity-90" variant="secondary" onClick={() => onNotificationsOpenChange(false)}>
               Save changes
             </Button>
           </DialogFooter>
@@ -194,7 +194,7 @@ export function ProfileModals({
             ))}
           </DialogBody>
           <DialogFooter>
-            <Button className="bg-[#087fff] text-white hover:opacity-90" variant="secondary" onClick={() => onPrivacyOpenChange(false)}>
+            <Button className="bg-[#00b4b8] text-white hover:opacity-90" variant="secondary" onClick={() => onPrivacyOpenChange(false)}>
               Save changes
             </Button>
           </DialogFooter>
@@ -211,7 +211,7 @@ export function ProfileModals({
                   key={tab}
                   type="button"
                   onClick={() => setAccountTab(tab)}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${accountTab === tab ? "bg-[#eef4ff] text-[#0f4fe3]" : "text-[#6b7280] hover:bg-[#f5f8ff]"}`}
+                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${accountTab === tab ? "bg-[#e3f8f8] text-[#00898c]" : "text-[#6b7280] hover:bg-[#eafbfb]"}`}
                 >
                   {tab}
                 </button>
@@ -286,7 +286,7 @@ export function ProfileModals({
           </DialogBody>
           <DialogFooter>
             {accountTab !== "Danger zone" ? (
-              <Button className="bg-[#087fff] text-white hover:opacity-90" onClick={() => onSettingsOpenChange(false)}>Save changes</Button>
+              <Button className="bg-[#00b4b8] text-white hover:opacity-90" onClick={() => onSettingsOpenChange(false)}>Save changes</Button>
             ) : (
               <Button className="bg-[#868686] text-white hover:opacity-90" variant="secondary" onClick={() => onSettingsOpenChange(false)}>
                 Close
@@ -316,7 +316,7 @@ export function ProfileModals({
                 value={newExperience.description}
                 onChange={(event) => onNewExperienceChange({ ...newExperience, description: event.target.value })}
                 placeholder="Describe the role of the applicant here"
-                className="min-h-30 border border-[#d6e6f2] text-[#151922]"
+                className="min-h-30 border border-[#d3f2f2] text-[#151922]"
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -338,7 +338,7 @@ export function ProfileModals({
           </DialogBody>
           <DialogFooter>
             <Button
-              className="bg-[#087fff] text-white hover:opacity-90"
+              className="bg-[#00b4b8] text-white hover:opacity-90"
               onClick={() => {
                 if (newExperience.role) {
                   onExperienceChange([...experience, { ...newExperience, company: "New employer", duration: newExperience.duration || "Apr 2026 – Present" }])
@@ -366,7 +366,7 @@ export function ProfileModals({
           </DialogBody>
           <DialogFooter>
             <Button
-              className="bg-[#087fff] text-white hover:opacity-90"
+              className="bg-[#00b4b8] text-white hover:opacity-90"
               onClick={() => {
                 if (newSkill.trim()) {
                   onSkillsChange([...skills, newSkill.trim()])
@@ -411,7 +411,7 @@ export function ProfileModals({
           </DialogBody>
           <DialogFooter>
             <Button
-              className="bg-[#087fff] text-white hover:opacity-90"
+              className="bg-[#00b4b8] text-white hover:opacity-90"
               onClick={() => {
                 if (newCertification.title.trim()) {
                   onCertificationsChange([
@@ -461,7 +461,7 @@ export function ProfileModals({
               />
             </div>
             <Button
-              className="w-full bg-[#087fff] text-white hover:opacity-90"
+              className="w-full bg-[#00b4b8] text-white hover:opacity-90"
               onClick={async () => {
                 if (!newTeamInvite.fullName.trim()) return
                 await onInviteTeamMember({

@@ -41,7 +41,7 @@ export default function ProfessionalAvailabilityPage() {
       <div className="flex flex-col flex-1 min-h-0 px-5 py-7 sm:px-10">
         <div className="flex items-center justify-between gap-4 mb-5">
           <h1 className="text-[22px] font-semibold leading-none">One more thing!</h1>
-          <span className="rounded-full border border-[#087fff] px-3 py-1 text-sm font-medium text-[#151922]">4 of 4</span>
+          <span className="rounded-full border border-[#00b4b8] px-3 py-1 text-sm font-medium text-[#151922]">4 of 4</span>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto rounded-2xl border border-[#eef1f3] px-5 py-4">
@@ -53,10 +53,10 @@ export default function ProfessionalAvailabilityPage() {
         </div>
 
         <div className="flex justify-end gap-2 pt-6 mt-auto">
-          <Button type="button" variant="outline" onClick={() => navigate(Routes.auth.documents)} className="h-11 rounded-md border-[#d9d9d9] hover:bg-[#2937ff4b] cursor-pointer">
+          <Button type="button" variant="outline" onClick={() => navigate(Routes.auth.documents)} className="h-11 rounded-md border-[#d9d9d9] hover:bg-[#00b4b84b] cursor-pointer">
             Go back
           </Button>
-          <Button type="button" disabled={finishing} onClick={() => void finishSetup()} className="h-11 rounded-md bg-[#087fff] px-6">
+          <Button type="button" disabled={finishing} onClick={() => void finishSetup()} className="h-11 rounded-md bg-[#00b4b8] px-6">
             {finishing ? (
               <span className="flex items-center justify-center gap-2">
                 <ButtonLoader />

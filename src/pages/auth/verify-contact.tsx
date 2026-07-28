@@ -110,14 +110,14 @@ export default function VerifyContactPage() {
                 }}
                 value={digit}
                 onChange={(event) => updateDigit(index, event.target.value)}
-                className="h-15.5 rounded-xl border border-[#d7d7d8] text-center text-3xl font-bold outline-none focus:border-[#087fff] focus:ring-2 focus:ring-[#087fff]/20"
+                className="h-15.5 rounded-xl border border-[#d7d7d8] text-center text-3xl font-bold outline-none focus:border-[#00b4b8] focus:ring-2 focus:ring-[#00b4b8]/20"
                 inputMode="numeric"
                 aria-label={`Verification digit ${index + 1}`}
                 required
               />
             ))}
           </div>
-          <Button type="submit" disabled={verifying} className="mt-6 h-11 w-full bg-[#087fff]">
+          <Button type="submit" disabled={verifying} className="mt-6 h-11 w-full bg-[#00b4b8]">
             {verifying ? (
               <span className="flex items-center justify-center gap-2">
                 <ButtonLoader />
@@ -133,7 +133,7 @@ export default function VerifyContactPage() {
           type="button"
           disabled={resendSeconds > 0 || sending}
           onClick={() => void handleResend()}
-          className="mt-5 text-center text-sm font-medium text-[#087fff] disabled:text-[#a3c9f0]"
+          className="mt-5 text-center text-sm font-medium text-[#00b4b8] disabled:text-[#a3c9f0]"
         >
           {sending
             ? "Resending..."

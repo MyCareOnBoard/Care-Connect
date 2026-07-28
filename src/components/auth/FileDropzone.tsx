@@ -38,7 +38,7 @@ export function FileDropzone({
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
         className={`flex flex-col items-center justify-center gap-2 rounded-b-lg border-2 border-dashed px-4 py-10 text-center transition-colors cursor-pointer ${
-          isDragging ? "border-[#087fff] bg-[#eaf4ff]" : "border-transparent bg-[#f4f4f5]"
+          isDragging ? "border-[#00b4b8] bg-[#eaf4ff]" : "border-transparent bg-[#f4f4f5]"
         }`}
       >
         <input
@@ -52,7 +52,7 @@ export function FileDropzone({
         {file ? (
           <>
             <span className="flex items-center justify-center bg-white rounded-full size-4">
-              <FileIcon className="size-5 text-[#087fff]" />
+              <FileIcon className="size-5 text-[#00b4b8]" />
             </span>
             <p className="flex items-center gap-2 text-sm">
               <span className="font-medium truncate max-w-70">{file.name}</span>
@@ -75,7 +75,7 @@ export function FileDropzone({
               <CloudUpload className="size-5 text-[#151922]" />
             </span>
             <p className="text-sm">
-              <span className="font-semibold text-[#087fff]">Click to upload</span>{" "}
+              <span className="font-semibold text-[#00b4b8]">Click to upload</span>{" "}
               <span className="text-[#151922]">or drag and drop</span>
             </p>
             <p className="text-xs text-[#8a8a8a]">{hint}</p>

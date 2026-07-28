@@ -195,7 +195,7 @@ export function PortfolioPost({
               aria-pressed={showComments}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
-                showComments ? "border-[#087fff] bg-[#eaf4ff] text-[#087fff]" : "border-[#e2e2e2] text-[#565656] hover:border-[#087fff]/40"
+                showComments ? "border-[#00b4b8] bg-[#eaf4ff] text-[#00b4b8]" : "border-[#e2e2e2] text-[#565656] hover:border-[#00b4b8]/40"
               )}
             >
               <MessageSquare className="size-4" />

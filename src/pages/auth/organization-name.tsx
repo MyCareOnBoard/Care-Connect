@@ -49,10 +49,10 @@ export default function OrganizationNamePage() {
         </div>
 
         <div className="flex justify-end gap-2 pt-6 mt-auto">
-          <Button type="button" variant="outline" onClick={() => navigate(Routes.auth.joinType)} className="h-11 rounded-md border-[#d9d9d9] hover:bg-[#2937ff4b] cursor-pointer">
+          <Button type="button" variant="outline" onClick={() => navigate(Routes.auth.joinType)} className="h-11 rounded-md border-[#d9d9d9] hover:bg-[#00b4b84b] cursor-pointer">
             Go back
           </Button>
-          <Button type="submit" disabled={!name.trim() || saving} className="h-11 rounded-md bg-[#087fff] px-6 hover:bg-[#2937ff4b] cursor-pointer">
+          <Button type="submit" disabled={!name.trim() || saving} className="h-11 rounded-md bg-[#00b4b8] px-6 hover:bg-[#00b4b84b] cursor-pointer">
             {saving ? "Saving..." : "Continue"}
           </Button>
         </div>
