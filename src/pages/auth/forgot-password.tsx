@@ -38,7 +38,7 @@ export default function ForgotPasswordPage() {
           <p className="mt-4 text-sm text-[#565656]">
             We&apos;ve sent password reset instructions to {email}.
           </p>
-          <Link to={Routes.auth.login} className="mt-7 text-sm font-semibold text-[#087fff] hover:underline">
+          <Link to={Routes.auth.login} className="mt-7 text-sm font-semibold text-[#00b4b8] hover:underline">
             Back to login
           </Link>
         </div>
@@ -69,7 +69,7 @@ export default function ForgotPasswordPage() {
             />
           </div>
 
-          <Button type="submit" disabled={loading} className="h-11 w-full bg-[#087fff]">
+          <Button type="submit" disabled={loading} className="h-11 w-full bg-[#00b4b8]">
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <ButtonLoader />
@@ -82,7 +82,7 @@ export default function ForgotPasswordPage() {
         </form>
 
         <p className="text-sm text-center mt-7">
-          <Link to={Routes.auth.login} className="font-semibold text-[#087fff] hover:underline">
+          <Link to={Routes.auth.login} className="font-semibold text-[#00b4b8] hover:underline">
             Back to login
           </Link>
         </p>

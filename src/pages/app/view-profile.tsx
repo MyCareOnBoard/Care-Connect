@@ -109,7 +109,7 @@ export default function ViewProfilePage() {
           <div className="relative px-6 pt-6 pb-6 sm:px-8">
             <div className="absolute -top-16 left-6">
               <div className="h-28 w-28 rounded-[30px] border-4 border-white bg-white p-2 shadow-xl">
-                <div className="flex h-full w-full items-center justify-center rounded-full bg-[#087fff] text-2xl font-bold text-white">
+                <div className="flex h-full w-full items-center justify-center rounded-full bg-[#00b4b8] text-2xl font-bold text-white">
                   {profile.photo ? (
                     <img src={profile.photo} alt={profile.name} className="h-full w-full rounded-full object-cover" />
                   ) : (
@@ -135,7 +135,7 @@ export default function ViewProfilePage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <Button asChild className="h-10 rounded-full bg-[#087fff] px-5 text-white hover:opacity-90">
+                  <Button asChild className="h-10 rounded-full bg-[#00b4b8] px-5 text-white hover:opacity-90">
                     <Link to={`${messagesPath}?to=${profile.uid}`}>Message</Link>
                   </Button>
                   <FollowButton
@@ -173,7 +173,7 @@ export default function ViewProfilePage() {
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-2 text-sm font-medium transition cursor-pointer ${
                   activeTab === tab
-                    ? "bg-white text-[#087fff] border-b-4 hover:border-[#087fff]"
+                    ? "bg-white text-[#00b4b8] border-b-4 hover:border-[#00b4b8]"
                     : "text-[#6b7280] hover:bg-white/80"
                 }`}
               >
@@ -201,7 +201,7 @@ export default function ViewProfilePage() {
                   <h3 className="text-sm font-bold">Interests</h3>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {profile.organizationInterests.map((interest) => (
-                      <span key={interest} className="inline-flex items-center rounded-full bg-[#eef5ff] px-4 py-2 text-sm font-semibold text-[#087fff] border border-[#087fff]">
+                      <span key={interest} className="inline-flex items-center rounded-full bg-[#e3f8f8] px-4 py-2 text-sm font-semibold text-[#00b4b8] border border-[#00b4b8]">
                         {interest}
                       </span>
                     ))}
@@ -228,7 +228,7 @@ export default function ViewProfilePage() {
                   <div>
                     <p className="text-sm font-semibold text-[#151922]">{cert.title}</p>
                     {(cert.provider || cert.date) && (
-                      <p className="mt-1 text-sm text-[#0f4fe3]">{[cert.provider, cert.date].filter(Boolean).join(" · ")}</p>
+                      <p className="mt-1 text-sm text-[#00898c]">{[cert.provider, cert.date].filter(Boolean).join(" · ")}</p>
                     )}
                   </div>
                   {cert.status && (

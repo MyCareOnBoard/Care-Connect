@@ -5,6 +5,7 @@ export type JoinType = "individual" | "company" | ""
 interface SignupWizardState {
   fullName: string
   email: string
+  phone: string
   joinType: JoinType
   organizationName: string
   organizationType: string
@@ -20,6 +21,7 @@ interface SignupWizardState {
 interface SignupWizardContextType extends SignupWizardState {
   setFullName: (value: string) => void
   setEmail: (value: string) => void
+  setPhone: (value: string) => void
   setJoinType: (value: JoinType) => void
   setOrganizationName: (value: string) => void
   setOrganizationType: (value: string) => void
@@ -34,6 +36,7 @@ interface SignupWizardContextType extends SignupWizardState {
 const initialState: SignupWizardState = {
   fullName: "",
   email: "",
+  phone: "",
   joinType: "",
   organizationName: "",
   organizationType: "",
@@ -59,6 +62,7 @@ export function SignupWizardProvider({ children }: { children: ReactNode }) {
     ...state,
     setFullName: (fullName) => setState((s) => ({ ...s, fullName })),
     setEmail: (email) => setState((s) => ({ ...s, email })),
+    setPhone: (phone) => setState((s) => ({ ...s, phone })),
     setJoinType: (joinType) => setState((s) => ({ ...s, joinType })),
     setOrganizationName: (organizationName) => setState((s) => ({ ...s, organizationName })),
     setOrganizationType: (organizationType) => setState((s) => ({ ...s, organizationType })),

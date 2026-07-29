@@ -65,7 +65,7 @@ export default function SettingsPage() {
               {isAgency ? "Manage your agency workspace preferences." : "Manage your CareConnect preferences."}
             </p>
           </div>
-          <Button className="h-11 bg-[#087fff] px-6">Save changes</Button>
+          <Button className="h-11 bg-[#00b4b8] px-6">Save changes</Button>
         </div>
 
         <div className="space-y-3 mt-7">
@@ -85,7 +85,7 @@ export default function SettingsPage() {
                 className="flex w-full items-center justify-between rounded-xl border border-[#d6d6d6] bg-white px-4 py-4 text-left text-sm font-semibold"
               >
                 {item}
-                <span className="text-[#087fff]">Open</span>
+                <span className="text-[#00b4b8]">Open</span>
               </button>
             )
           })}

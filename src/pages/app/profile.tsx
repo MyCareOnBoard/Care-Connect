@@ -254,6 +254,8 @@ export default function ProfilePage() {
       const inviteUrl = new URL(Routes.auth.professionalInvite, window.location.origin)
       inviteUrl.searchParams.set("invite", member.inviteToken)
       inviteUrl.searchParams.set("name", member.name)
+      if (member.email) inviteUrl.searchParams.set("email", member.email)
+      if (member.phone) inviteUrl.searchParams.set("phone", member.phone)
       await navigator.clipboard?.writeText(inviteUrl.toString()).catch(() => undefined)
 
       if (member.emailed) {
@@ -325,14 +327,14 @@ export default function ProfilePage() {
       <section className="relative mx-auto max-w-250">
         <div className="overflow-hidden rounded-[28px] border border-[#d6d6d6] bg-white shadow-sm">
           <div
-            className="relative h-56 bg-linear-to-r from-[#02266e] via-[#003289] to-[#0459E9] bg-cover bg-center"
+            className="relative h-56 bg-linear-to-r from-[#02e0e4] via-[#00b4b8] to-[#006668] bg-cover bg-center"
             style={coverSrc ? { backgroundImage: `url(${coverSrc})` } : undefined}
           >
             <div className="absolute z-10 right-6 top-6">
               <button
                 type="button"
                 onClick={() => coverInputRef.current?.click()}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white transition bg-[#ffffff31] border rounded-full shadow-sm border-white/80 hover:bg-[#0459E9] cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white transition bg-[#ffffff31] border rounded-full shadow-sm border-white/80 hover:bg-[#03362f] cursor-pointer"
               >
                 <Camera className="size-5" />
                 Change cover
@@ -343,9 +345,9 @@ export default function ProfilePage() {
           <div className="relative px-6 pt-6 pb-6 sm:px-8">
             <div className="absolute -top-16 left-6">
               <div className="relative h-28 w-28 rounded-[30px] border-4 border-white bg-white p-2 shadow-xl">
-                <div className="h-full w-full overflow-hidden rounded-full flex items-center justify-center bg-[#003289]">
+                <div className="h-full w-full overflow-hidden rounded-full flex items-center justify-center bg-[#00b4b8]">
                   {avatarSrc ? (
-                    <img src={avatarSrc} alt="Profile" className="h-full w-full object-cover" />
+                    <img src={avatarSrc} alt="Profile" className="object-cover w-full h-full" />
                   ) : (
                     <UserRound className="size-30 text-[#ffffff]" />
                   )}
@@ -354,7 +356,7 @@ export default function ProfilePage() {
                   type="button"
                   onClick={() => avatarInputRef.current?.click()}
                   aria-label="Change profile photo"
-                  className="absolute -bottom-1 -right-1 flex size-9 items-center justify-center rounded-full border-2 border-white bg-[#087fff] text-white shadow-md transition hover:bg-[#0665cc] cursor-pointer"
+                  className="absolute -bottom-1 -right-1 flex size-9 items-center justify-center rounded-full border-2 border-white bg-[#00b4b8] text-white shadow-md transition hover:bg-[#00595a] cursor-pointer"
                 >
                   <Pencil className="size-4" />
                 </button>
@@ -406,7 +408,7 @@ export default function ProfilePage() {
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-2 text-sm font-medium transition cursor-pointer ${
                   activeTab === tab
-                    ? "bg-white text-[#087fff] border-b-4 hover:border-[#087fff]"
+                    ? "bg-white text-[#00b4b8] border-b-4 hover:border-[#00b4b8]"
                     : "text-[#6b7280] hover:bg-white/80"
                 }`}
               >
@@ -430,7 +432,7 @@ export default function ProfilePage() {
                   <h3 className="text-sm font-bold">Specialties</h3>
                   <div className="flex flex-wrap gap-2 mt-4">
                     {specialties.map((item) => (
-                      <span key={item} className="inline-flex items-center justify-center rounded-full bg-[#eef5ff] px-4 py-2 text-sm text-[#087fff] font-semibold border border-[#087fff]">
+                      <span key={item} className="inline-flex items-center justify-center rounded-full bg-[#e3f8f8] px-4 py-2 text-sm text-[#00b4b8] font-semibold border border-[#00b4b8]">
                         {item}
                       </span>
                     ))}
@@ -519,7 +521,7 @@ export default function ProfilePage() {
                       <Users className="size-4" />
                       {job.applicants} applicants · {job.postedAgo}
                     </span>
-                    <Button variant="outline" className="text-[#087fff]" onClick={() => navigate(Routes.app.agency.jobs)}>
+                    <Button variant="outline" className="text-[#00b4b8]" onClick={() => navigate(Routes.app.agency.jobs)}>
                       View applicants
                     </Button>
                   </div>
@@ -545,13 +547,13 @@ export default function ProfilePage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="rounded-full border-[#087fff] text-[#087fff] hover:bg-[#eef5ff]"
+                      className="rounded-full border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
                       onClick={() => withdrawInvite(member.id)}
                     >
                       Withdraw invite
                     </Button>
                   ) : (
-                    <Button variant="outline" size="sm" className="rounded-full border-[#087fff] text-[#087fff] hover:bg-[#eef5ff]">
+                    <Button variant="outline" size="sm" className="rounded-full border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]">
                       Message
                     </Button>
                   )}
@@ -560,7 +562,7 @@ export default function ProfilePage() {
               <button
                 type="button"
                 onClick={() => setTeamInviteOpen(true)}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-[#087fff] cursor-pointer"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[#00b4b8] cursor-pointer"
               >
                 <UserPlus className="size-4" />
                 Invite team members
@@ -575,14 +577,14 @@ export default function ProfilePage() {
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-lg font-semibold text-[#151922]">{item.role}</p>
-                      <p className="text-sm text-[#0f4fe3]">{item.company}</p>
+                      <p className="text-sm text-[#00898c]">{item.company}</p>
                     </div>
                     <span className="text-sm text-[#6b7280]">{item.duration}</span>
                   </div>
                   <p className="mt-4 text-sm leading-7 text-[#505964]">{item.description}</p>
                 </div>
               ))}
-              <Button className="text-[#087fff] border-0 hover:border-2" variant="outline" onClick={() => setExperienceOpen(true)}>
+              <Button className="text-[#00b4b8] border-0 hover:border-2" variant="outline" onClick={() => setExperienceOpen(true)}>
                 + Add experience
               </Button>
             </div>
@@ -592,12 +594,12 @@ export default function ProfilePage() {
             <div className="space-y-6">
               <div className="flex flex-wrap gap-2">
                 {skills.map((skill) => (
-                  <span key={skill} className="inline-flex items-center justify-center rounded-full bg-[#eef5ff] px-4 py-2 text-sm text-[#087fff] font-semibold border border-[#087fff]">
+                  <span key={skill} className="inline-flex items-center justify-center rounded-full bg-[#e3f8f8] px-4 py-2 text-sm text-[#00b4b8] font-semibold border border-[#00b4b8]">
                     {skill}
                   </span>
                 ))}
               </div>
-              <Button className="text-[#087fff] border-0 hover:border-2" variant="outline" onClick={() => setSkillOpen(true)}>
+              <Button className="text-[#00b4b8] border-0 hover:border-2" variant="outline" onClick={() => setSkillOpen(true)}>
                 + Add skills
               </Button>
             </div>
@@ -609,14 +611,14 @@ export default function ProfilePage() {
                 <div key={cert.title} className="flex flex-col gap-3 rounded-3xl border border-[#e5ecf5] p-5 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm font-semibold text-[#151922]">{cert.title}</p>
-                    <p className="mt-1 text-sm text-[#0f4fe3]">{cert.provider} · {cert.date}</p>
+                    <p className="mt-1 text-sm text-[#00898c]">{cert.provider} · {cert.date}</p>
                   </div>
                   <span className={`rounded-full px-3 py-1 text-sm ${cert.status === "Active" ? "bg-[#e9f9f0] text-[#0f8a4d]" : "bg-[#fff2f0] text-[#d8442a]"}`}>
                     {cert.status}
                   </span>
                 </div>
               ))}
-              <Button className="text-[#087fff] border-0 hover:border-2" variant="outline" onClick={() => setCertificationOpen(true)}>
+              <Button className="text-[#00b4b8] border-0 hover:border-2" variant="outline" onClick={() => setCertificationOpen(true)}>
                 + Add certification
               </Button>
             </div>

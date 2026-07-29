@@ -121,12 +121,12 @@ export default function LoginPage() {
           </div>
 
           <div className="flex justify-end">
-            <Link to={Routes.auth.forgotPassword} className="text-sm font-semibold text-[#087fff] hover:underline">
+            <Link to={Routes.auth.forgotPassword} className="text-sm font-semibold text-[#00b4b8] hover:underline">
               Forgot password?
             </Link>
           </div>
 
-          <Button type="submit" disabled={loading} className="h-11 w-full bg-[#087fff]">
+          <Button type="submit" disabled={loading} className="h-11 w-full bg-[#00b4b8]">
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <ButtonLoader />
@@ -138,7 +138,7 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="mt-7 text-center text-sm text-[#087fff]">
+        <p className="mt-7 text-center text-sm text-[#00b4b8]">
           Don&apos;t have an account?{" "}
           <Link to={Routes.auth.signup} className="font-semibold hover:underline">
             Sign up

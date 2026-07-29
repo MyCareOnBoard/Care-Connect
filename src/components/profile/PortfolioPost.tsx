@@ -19,11 +19,17 @@ export type PostComment = {
   text: string
 }
 
+export type PostMedia = {
+  type: "image" | "video"
+  url: string
+}
+
 export type PortfolioPostData = {
   id: string
   paragraphs: string[]
   hashtags?: string
   statement: string
+  media?: PostMedia[]
   likes: number
   comments: PostComment[]
   reposts?: number
@@ -170,6 +176,28 @@ export function PortfolioPost({
 
           {post.hashtags && <p className="mt-4 text-sm font-bold text-[#151922]">{post.hashtags}</p>}
 
+          {post.media && post.media.length > 0 && (
+            <div className={cn("mt-4 grid gap-2", post.media.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+              {post.media.map((item, index) =>
+                item.type === "video" ? (
+                  <video
+                    key={index}
+                    src={item.url}
+                    controls
+                    className="max-h-96 w-full rounded-xl bg-black object-contain"
+                  />
+                ) : (
+                  <img
+                    key={index}
+                    src={item.url}
+                    alt=""
+                    className="max-h-96 w-full rounded-xl object-cover"
+                  />
+                ),
+              )}
+            </div>
+          )}
+
           <div className="mt-4 flex min-h-40 items-center justify-center rounded-xl bg-black px-8 py-10 text-white">
             <p className="max-w-xl text-center text-2xl font-black uppercase leading-tight sm:text-3xl">
               {post.statement}
@@ -195,7 +223,7 @@ export function PortfolioPost({
               aria-pressed={showComments}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
-                showComments ? "border-[#087fff] bg-[#eaf4ff] text-[#087fff]" : "border-[#e2e2e2] text-[#565656] hover:border-[#087fff]/40"
+                showComments ? "border-[#00b4b8] bg-[#eaf4ff] text-[#00b4b8]" : "border-[#e2e2e2] text-[#565656] hover:border-[#00b4b8]/40"
               )}
             >
               <MessageSquare className="size-4" />

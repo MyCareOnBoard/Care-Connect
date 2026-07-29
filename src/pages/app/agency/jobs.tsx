@@ -99,7 +99,7 @@ function BenefitTag({ label, selected, onClick }: { label: string; selected: boo
       type="button"
       onClick={onClick}
       className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
-        selected ? "border-[#087fff] bg-[#eaf4ff] text-[#087fff]" : "border-[#e2e2e2] text-[#141922] hover:border-[#087fff]"
+        selected ? "border-[#00b4b8] bg-[#eaf4ff] text-[#00b4b8]" : "border-[#e2e2e2] text-[#141922] hover:border-[#00b4b8]"
       }`}
     >
       {label}
@@ -194,7 +194,7 @@ function ScreeningQuestionsBuilder({
             <div className="space-y-2">
               {question.options.map((option, optionIndex) => (
                 <div key={optionIndex} className="flex items-center gap-2">
-                  <span className="size-3.5 shrink-0 rounded-full border-2 border-[#087fff]" />
+                  <span className="size-3.5 shrink-0 rounded-full border-2 border-[#00b4b8]" />
                   <Input
                     value={option}
                     onChange={(event) =>
@@ -219,7 +219,7 @@ function ScreeningQuestionsBuilder({
               <button
                 type="button"
                 onClick={() => update(question.id, { options: [...question.options, ""] })}
-                className="flex items-center gap-2 text-sm font-medium text-[#087fff] hover:underline"
+                className="flex items-center gap-2 text-sm font-medium text-[#00b4b8] hover:underline"
               >
                 <Plus className="size-4" />
                 Add another option
@@ -394,7 +394,7 @@ function UploadJobPanel({
               </Button>
               <Button
                 type="button"
-                className="bg-[#087fff]"
+                className="bg-[#00b4b8]"
                 disabled={saving}
                 onClick={() => submit(job?.status ?? "open")}
               >
@@ -406,7 +406,7 @@ function UploadJobPanel({
               <Button type="button" variant="outline" disabled={saving} onClick={() => submit("draft")}>
                 Save as draft
               </Button>
-              <Button type="button" className="bg-[#087fff]" disabled={saving} onClick={() => submit("open")}>
+              <Button type="button" className="bg-[#00b4b8]" disabled={saving} onClick={() => submit("open")}>
                 Upload job
               </Button>
             </div>
@@ -563,7 +563,7 @@ function ApplicantDetailsPanel({
     <SidePanel open={true} onClose={onClose} title="Applicant details" widthClassName="max-w-[520px]">
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <span className="flex size-12 items-center justify-center rounded-full bg-[#e8f1f7] text-sm font-bold text-[#087fff]">
+          <span className="flex size-12 items-center justify-center rounded-full bg-[#e8f1f7] text-sm font-bold text-[#00b4b8]">
             {(application.applicantName ?? "?").slice(0, 2).toUpperCase()}
           </span>
           <div>
@@ -589,8 +589,8 @@ function ApplicantDetailsPanel({
           {answers.map((entry) => (
             <div key={entry.question}>
               <p className="text-sm">{entry.question}</p>
-              <p className="mt-1 flex items-center gap-2 text-sm text-[#087fff]">
-                <span className="size-2 rounded-full bg-[#087fff]" />
+              <p className="mt-1 flex items-center gap-2 text-sm text-[#00b4b8]">
+                <span className="size-2 rounded-full bg-[#00b4b8]" />
                 {entry.answer}
               </p>
             </div>
@@ -611,7 +611,7 @@ function ApplicantDetailsPanel({
         </Button>
         <Button
           type="button"
-          className="bg-[#087fff]"
+          className="bg-[#00b4b8]"
           onClick={() => {
             onStatusChange(application.id, "shortlisted")
             onClose()
@@ -815,7 +815,7 @@ export default function AgencyJobsPage() {
                         <StatusBadge status={APPLICATION_STATUS_LABELS[application.status]} />
                       </td>
                       <td className="px-4 py-3">
-                        <button type="button" onClick={() => setSelectedApplication(application)} className="font-semibold text-[#087fff] hover:underline">
+                        <button type="button" onClick={() => setSelectedApplication(application)} className="font-semibold text-[#00b4b8] hover:underline">
                           View
                         </button>
                       </td>
@@ -855,7 +855,7 @@ export default function AgencyJobsPage() {
         </div>
         <Button
           type="button"
-          className="bg-[#087fff]"
+          className="bg-[#00b4b8]"
           onClick={() => {
             setEditingJob(null)
             setPanelOpen(true)
@@ -926,7 +926,7 @@ export default function AgencyJobsPage() {
                   <div className="flex items-center gap-2">
                     <StatusPill status={posting.status} />
                     {formatSalary(posting) && (
-                      <span className="text-xs font-semibold text-[#087fff]">{formatSalary(posting)}</span>
+                      <span className="text-xs font-semibold text-[#00b4b8]">{formatSalary(posting)}</span>
                     )}
                   </div>
                   <h3 className="mt-2 font-bold">{posting.title}</h3>

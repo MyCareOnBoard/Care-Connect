@@ -68,8 +68,8 @@ function ApplicationDetailPanel({
           {answers.map((entry, index) => (
             <div key={`${entry.question}-${index}`}>
               <p className="text-sm">{entry.question}</p>
-              <p className="mt-1 flex items-center gap-2 text-sm text-[#087fff]">
-                <span className="size-2 rounded-full bg-[#087fff]" />
+              <p className="mt-1 flex items-center gap-2 text-sm text-[#00b4b8]">
+                <span className="size-2 rounded-full bg-[#00b4b8]" />
                 {entry.answer}
               </p>
             </div>
@@ -181,7 +181,7 @@ function UserApplications() {
                       <button
                         type="button"
                         onClick={() => setSelectedApplication(application)}
-                        className="font-semibold text-[#087fff] hover:underline"
+                        className="font-semibold text-[#00b4b8] hover:underline"
                       >
                         View
                       </button>
@@ -200,7 +200,7 @@ function UserApplications() {
               <button type="button" disabled className="flex size-8 items-center justify-center rounded-lg border border-[#e2e2e2] text-[#c4c9d0]">
                 <ChevronLeft className="size-4" />
               </button>
-              <button type="button" className="flex size-8 items-center justify-center rounded-lg border border-[#087fff] bg-[#087fff] text-sm font-semibold text-white">
+              <button type="button" className="flex size-8 items-center justify-center rounded-lg border border-[#00b4b8] bg-[#00b4b8] text-sm font-semibold text-white">
                 1
               </button>
               <button type="button" disabled className="flex size-8 items-center justify-center rounded-lg border border-[#e2e2e2] text-[#c4c9d0]">
@@ -267,7 +267,7 @@ function AgencyApplications() {
       <PageHeader
         title="Applications"
         description="Track applicants from screening through offer, with credential status visible at every stage."
-        actions={<Button className="bg-[#087fff]">Export pipeline</Button>}
+        actions={<Button className="bg-[#00b4b8]">Export pipeline</Button>}
       />
 
       {loading ? (

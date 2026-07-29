@@ -123,9 +123,9 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
       <Link
         to={profilePath}
         aria-label="Profile image"
-        className="ml-1 flex size-9 items-center justify-center rounded-full bg-[#d6e6f2] transition hover:ring-2 hover:ring-[#087fff]/30"
+        className="ml-1 flex size-9 items-center justify-center rounded-full bg-[#d3f2f2] transition hover:ring-2 hover:ring-[#00b4b8]/30"
       >
-        <UserRound className="size-5 rounded-full text-[#6b9cca]" />
+        <UserRound className="size-5 rounded-full text-[#00898c]" />
       </Link>
 
       <DropdownMenu>
@@ -141,7 +141,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
         <DropdownMenuContent align="end" className="w-64 rounded-2xl border-[#dce2e6] bg-white p-0 overflow-hidden shadow-lg">
           <div className="bg-[#f7fafb] px-4 py-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#d6e6f2] text-sm font-bold text-[#087fff]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#d3f2f2] text-sm font-bold text-[#00b4b8]">
                 {initials}
               </div>
               <div className="min-w-0">
@@ -154,7 +154,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
             <DropdownMenuItem asChild className="rounded-lg hover:bg-[#edf3f5] cursor-pointer">
               <Link to={profilePath} className="flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-xl">
                 <span className="flex items-center gap-2">
-                  <UserRound className="size-4 text-[#087fff]" />
+                  <UserRound className="size-4 text-[#00b4b8]" />
                   View profile
                 </span>
                 <ChevronRight className="size-4 text-[#8b97a8]" />
@@ -164,7 +164,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
               <DropdownMenuItem asChild className="rounded-lg hover:bg-[#edf3f5]">
                 <button type="button" onClick={() => setAvailabilityOpen(true)} className="flex items-center justify-between w-full gap-2 px-3 py-2 text-sm text-left rounded-xl">
                   <span className="flex items-center gap-2">
-                    <CalendarClock className="size-4 text-[#087fff]" />
+                    <CalendarClock className="size-4 text-[#00b4b8]" />
                     Availability
                   </span>
                   <ChevronRight className="size-4 text-[#8b97a8]" />
@@ -174,7 +174,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
             <DropdownMenuItem asChild className="rounded-lg hover:bg-[#edf3f5]">
               <button type="button" onClick={() => setSettingsOpen(true)} className="flex items-center justify-between w-full gap-2 px-3 py-2 text-sm text-left rounded-xl">
                 <span className="flex items-center gap-2">
-                  <Settings className="size-4 text-[#087fff]" />
+                  <Settings className="size-4 text-[#00b4b8]" />
                   Account settings
                 </span>
                 <ChevronRight className="size-4 text-[#8b97a8]" />
@@ -183,7 +183,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
             <DropdownMenuItem asChild className="rounded-lg hover:bg-[#edf3f5]">
               <button type="button" onClick={() => setPrivacyOpen(true)} className="flex items-center justify-between w-full gap-2 px-3 py-2 text-sm text-left rounded-xl">
                 <span className="flex items-center gap-2">
-                  <Settings className="size-4 text-[#087fff]" />
+                  <Settings className="size-4 text-[#00b4b8]" />
                   Privacy & security
                 </span>
                 <ChevronRight className="size-4 text-[#8b97a8]" />
@@ -192,7 +192,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
             <DropdownMenuItem asChild className="rounded-lg hover:bg-[#edf3f5]">
               <button type="button" onClick={() => setNotificationsOpen(true)} className="flex items-center justify-between w-full gap-2 px-3 py-2 text-sm text-left rounded-xl">
                 <span className="flex items-center gap-2">
-                  <Bell className="size-4 text-[#087fff]" />
+                  <Bell className="size-4 text-[#00b4b8]" />
                   Notification preference
                 </span>
                 <ChevronRight className="size-4 text-[#8b97a8]" />
@@ -242,7 +242,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
         onNewCertificationChange={setNewCertification}
       />
       {isProfessional ? (
-        <AvailabilityModal open={availabilityOpen} onOpenChange={setAvailabilityOpen} uid={user?.uid} />
+        <AvailabilityModal open={availabilityOpen} onOpenChange={setAvailabilityOpen} />
       ) : null}
     </div>
   )

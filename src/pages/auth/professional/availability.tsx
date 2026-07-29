@@ -11,7 +11,7 @@ import { completeOnboarding } from "@/utils/auth/services/authService"
 import { getAuthErrorMessage } from "@/utils/auth/helpers/errorMessages"
 import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
 import { DEFAULT_AVAILABILITY, type WeeklyAvailability } from "@/utils/professional/availabilityStore"
-import { acceptInvite } from "@/utils/careconnect/services/teamService"
+import { acceptInvite, updateMyAvailability } from "@/utils/careconnect/services/teamService"
 
 export default function ProfessionalAvailabilityPage() {
   const navigate = useNavigate()
@@ -23,11 +23,12 @@ export default function ProfessionalAvailabilityPage() {
     setFinishing(true)
     try {
       await completeOnboarding()
-      // Attach this professional to the inviting agency's roster (backend).
-      // Availability editing is wired in a later phase; the member stays open-all for now.
+      // Attach this professional to the inviting agency's roster, then persist the
+      // availability they just set (both best-effort — onboarding still completes).
       if (inviteToken) {
         await acceptInvite(inviteToken).catch(() => undefined)
       }
+      await updateMyAvailability(availability).catch(() => undefined)
       navigate(Routes.auth.welcome)
     } catch (error: unknown) {
       toast.error(getAuthErrorMessage(error))
@@ -41,7 +42,7 @@ export default function ProfessionalAvailabilityPage() {
       <div className="flex flex-col flex-1 min-h-0 px-5 py-7 sm:px-10">
         <div className="flex items-center justify-between gap-4 mb-5">
           <h1 className="text-[22px] font-semibold leading-none">One more thing!</h1>
-          <span className="rounded-full border border-[#087fff] px-3 py-1 text-sm font-medium text-[#151922]">4 of 4</span>
+          <span className="rounded-full border border-[#00b4b8] px-3 py-1 text-sm font-medium text-[#151922]">4 of 4</span>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto rounded-2xl border border-[#eef1f3] px-5 py-4">
@@ -53,10 +54,10 @@ export default function ProfessionalAvailabilityPage() {
         </div>
 
         <div className="flex justify-end gap-2 pt-6 mt-auto">
-          <Button type="button" variant="outline" onClick={() => navigate(Routes.auth.documents)} className="h-11 rounded-md border-[#d9d9d9] hover:bg-[#2937ff4b] cursor-pointer">
+          <Button type="button" variant="outline" onClick={() => navigate(Routes.auth.documents)} className="h-11 rounded-md border-[#d9d9d9] hover:bg-[#00b4b84b] cursor-pointer">
             Go back
           </Button>
-          <Button type="button" disabled={finishing} onClick={() => void finishSetup()} className="h-11 rounded-md bg-[#087fff] px-6">
+          <Button type="button" disabled={finishing} onClick={() => void finishSetup()} className="h-11 rounded-md bg-[#00b4b8] px-6">
             {finishing ? (
               <span className="flex items-center justify-center gap-2">
                 <ButtonLoader />

@@ -85,7 +85,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <CareConnectLogo />
         </Link>
 
-        <nav className="mx-auto hidden max-w-full gap-2 overflow-x-auto px-2 lg:flex">
+        <nav className="hidden max-w-full gap-2 px-2 mx-auto overflow-x-auto lg:flex">
           {navItems.map((item) => {
             const isActive = location.pathname === item.href
 
@@ -94,17 +94,17 @@ export function AppShell({ children }: { children: ReactNode }) {
                 key={item.href}
                 to={item.href}
                 className={cn(
-                  "flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border px-5 text-sm font-medium transition",
+                  "flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border px-5 text-xs font-semibold transition",
                   isActive
-                    ? "border-[#087fff] bg-[#087fff] text-white shadow-[0_4px_12px_rgba(8,127,255,0.22)]"
-                    : "border-[#d8d8d8] bg-white text-[#141922] hover:border-[#087fff] hover:text-[#087fff]"
+                    ? "border-[#00b4b8] bg-[#00b4b8] text-white shadow-[0_4px_12px_rgba(0,180,184,0.22)]"
+                    : "border-[#d8d8d8] bg-white text-[#141922] hover:border-[#00b4b8] hover:text-[#00b4b8]"
                 )}
               >
                 {item.label}
                 {item.label === "Messages" && unreadMessages > 0 && (
                   <span className={cn(
                     "ml-2 flex min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold",
-                    isActive ? "bg-white text-[#087fff]" : "bg-[#087fff] text-white"
+                    isActive ? "bg-white text-[#00b4b8]" : "bg-[#00b4b8] text-white"
                   )}>
                     {unreadMessages}
                   </span>
@@ -128,7 +128,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             className="absolute inset-0 bg-black/40 animate-fadeIn"
           />
           <aside className="animate-slide-in-left relative z-10 flex h-full w-72 max-w-[80vw] flex-col gap-1 overflow-y-auto bg-white p-4 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center justify-between mb-4">
               <CareConnectLogo compact />
               <button
                 type="button"
@@ -149,14 +149,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                   to={item.href}
                   className={cn(
                     "flex h-12 items-center rounded-xl px-4 text-base font-medium transition",
-                    isActive ? "bg-[#087fff] text-white" : "text-[#141922] hover:bg-[#f2f6f8]"
+                    isActive ? "bg-[#00b4b8] text-white" : "text-[#141922] hover:bg-[#f2f6f8]"
                   )}
                 >
                   {item.label}
                   {item.label === "Messages" && unreadMessages > 0 && (
                     <span className={cn(
                       "ml-2 flex min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold",
-                      isActive ? "bg-white text-[#087fff]" : "bg-[#087fff] text-white"
+                      isActive ? "bg-white text-[#00b4b8]" : "bg-[#00b4b8] text-white"
                     )}>
                       {unreadMessages}
                     </span>

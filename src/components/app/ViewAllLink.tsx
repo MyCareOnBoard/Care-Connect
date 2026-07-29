@@ -3,7 +3,7 @@ import { Link } from "react-router"
 import { cn } from "@/lib/utils"
 
 const baseClassName =
-  "group mt-4 flex w-full items-center justify-between px-1 text-sm font-semibold text-[#087fff] transition-colors hover:text-[#0665cc]"
+  "group mt-4 flex w-full items-center justify-between px-1 text-sm font-semibold text-[#00b4b8] transition-colors hover:text-[#0665cc]"
 
 function Contents() {
   return (

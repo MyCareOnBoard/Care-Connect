@@ -31,10 +31,11 @@ export interface CreatePostInput {
   statement: string
   paragraphs?: string[]
   hashtags?: string
-  media?: File | null
+  /** Image and/or video files; falsy entries are ignored. Uploaded before the post is created. */
+  media?: Array<File | null | undefined>
 }
 
-/** Upload a single image, returning its public URL (two-step create). */
+/** Upload a single media file (image or video), returning its public URL (two-step create). */
 export async function uploadPostMedia(file: File): Promise<string> {
   const formData = new FormData()
   formData.append("file", file)
@@ -48,8 +49,8 @@ export async function listFeed(): Promise<FeedPost[]> {
 }
 
 export async function createPost(input: CreatePostInput): Promise<FeedPost> {
-  const mediaUrls: string[] = []
-  if (input.media) mediaUrls.push(await uploadPostMedia(input.media))
+  const files = (input.media ?? []).filter((file): file is File => Boolean(file))
+  const mediaUrls = await Promise.all(files.map((file) => uploadPostMedia(file)))
   const { data } = await axiosClient.post("/careconnectPosts", {
     statement: input.statement,
     paragraphs: input.paragraphs ?? [],

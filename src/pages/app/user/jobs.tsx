@@ -86,7 +86,7 @@ function QuickScreeningPanel({
       onClose={onClose}
       title="Quick screening question"
       footer={
-        <Button type="button" className="w-full bg-[#087fff]" onClick={handleSubmit}>
+        <Button type="button" className="w-full bg-[#00b4b8]" onClick={handleSubmit}>
           Apply
         </Button>
       }
@@ -97,7 +97,7 @@ function QuickScreeningPanel({
           <div className="flex gap-6">
             {(["No", "Yes"] as const).map((option) => (
               <label key={option} className="flex items-center gap-2 text-sm">
-                <input type="radio" checked={relocate === option} onChange={() => setRelocate(option)} className="accent-[#087fff]" />
+                <input type="radio" checked={relocate === option} onChange={() => setRelocate(option)} className="accent-[#00b4b8]" />
                 {option}
               </label>
             ))}
@@ -109,7 +109,7 @@ function QuickScreeningPanel({
           <div className="flex gap-6">
             {(["No", "Yes"] as const).map((option) => (
               <label key={option} className="flex items-center gap-2 text-sm">
-                <input type="radio" checked={certifications === option} onChange={() => setCertifications(option)} className="accent-[#087fff]" />
+                <input type="radio" checked={certifications === option} onChange={() => setCertifications(option)} className="accent-[#00b4b8]" />
                 {option}
               </label>
             ))}
@@ -121,7 +121,7 @@ function QuickScreeningPanel({
           <div className="flex flex-wrap gap-x-6 gap-y-2">
             {["Immediately", "Within 2 weeks", "Within 1 month", "More than 1 month"].map((option) => (
               <label key={option} className="flex items-center gap-2 text-sm">
-                <input type="radio" checked={availability === option} onChange={() => setAvailability(option)} className="accent-[#087fff]" />
+                <input type="radio" checked={availability === option} onChange={() => setAvailability(option)} className="accent-[#00b4b8]" />
                 {option}
               </label>
             ))}
@@ -159,7 +159,7 @@ function QuickScreeningPanel({
                       name={`q-${question.id}`}
                       checked={answers[question.id] === option}
                       onChange={() => setAnswer(question.id, option)}
-                      className="accent-[#087fff]"
+                      className="accent-[#00b4b8]"
                     />
                     {option}
                   </label>
@@ -176,7 +176,7 @@ function QuickScreeningPanel({
                       name={`q-${question.id}`}
                       checked={answers[question.id] === option}
                       onChange={() => setAnswer(question.id, option)}
-                      className="accent-[#087fff]"
+                      className="accent-[#00b4b8]"
                     />
                     {option}
                   </label>
@@ -327,7 +327,7 @@ export default function UserJobsPage() {
                 onClick={() => setSelectedJobId(job.id)}
                 onKeyDown={(event) => event.key === "Enter" && setSelectedJobId(job.id)}
                 className={`cursor-pointer rounded-xl border p-4 transition-colors ${
-                  job.id === selectedJob?.id ? "border-[#087fff] bg-[#eaf4ff]" : "border-[#e2e2e2] bg-white hover:border-[#087fff]/40"
+                  job.id === selectedJob?.id ? "border-[#00b4b8] bg-[#eaf4ff]" : "border-[#e2e2e2] bg-white hover:border-[#00b4b8]/40"
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -372,7 +372,7 @@ export default function UserJobsPage() {
               </p>
               <p className="mt-1 text-sm text-[#565656]">{selectedJob.location}</p>
               {formatSalary(selectedJob) && (
-                <p className="mt-1 text-sm font-semibold text-[#087fff]">{formatSalary(selectedJob)}</p>
+                <p className="mt-1 text-sm font-semibold text-[#00b4b8]">{formatSalary(selectedJob)}</p>
               )}
             </div>
           </div>
@@ -392,7 +392,7 @@ export default function UserJobsPage() {
           <div className="flex items-center gap-3">
             <Button
               type="button"
-              className="bg-[#087fff]"
+              className="bg-[#00b4b8]"
               disabled={appliedJobIds.has(selectedJob.id)}
               onClick={() => setIsApplyOpen(true)}
             >
@@ -412,7 +412,7 @@ export default function UserJobsPage() {
               aria-label={savedJobIds.has(selectedJob.id) ? "Remove from saved" : "Save job"}
               className="flex size-11 items-center justify-center rounded-full border border-[#e2e2e2] transition hover:bg-[#f2f6f8]"
             >
-              <Bookmark className={`size-4 transition-colors ${savedJobIds.has(selectedJob.id) ? "fill-[#087fff] text-[#087fff]" : ""}`} />
+              <Bookmark className={`size-4 transition-colors ${savedJobIds.has(selectedJob.id) ? "fill-[#00b4b8] text-[#00b4b8]" : ""}`} />
             </button>
           </div>
 
