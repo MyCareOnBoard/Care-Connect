@@ -11,7 +11,7 @@ import { completeOnboarding } from "@/utils/auth/services/authService"
 import { getAuthErrorMessage } from "@/utils/auth/helpers/errorMessages"
 import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
 import { DEFAULT_AVAILABILITY, type WeeklyAvailability } from "@/utils/professional/availabilityStore"
-import { acceptInvite } from "@/utils/careconnect/services/teamService"
+import { acceptInvite, updateMyAvailability } from "@/utils/careconnect/services/teamService"
 
 export default function ProfessionalAvailabilityPage() {
   const navigate = useNavigate()
@@ -23,11 +23,12 @@ export default function ProfessionalAvailabilityPage() {
     setFinishing(true)
     try {
       await completeOnboarding()
-      // Attach this professional to the inviting agency's roster (backend).
-      // Availability editing is wired in a later phase; the member stays open-all for now.
+      // Attach this professional to the inviting agency's roster, then persist the
+      // availability they just set (both best-effort — onboarding still completes).
       if (inviteToken) {
         await acceptInvite(inviteToken).catch(() => undefined)
       }
+      await updateMyAvailability(availability).catch(() => undefined)
       navigate(Routes.auth.welcome)
     } catch (error: unknown) {
       toast.error(getAuthErrorMessage(error))

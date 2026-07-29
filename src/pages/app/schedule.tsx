@@ -77,9 +77,11 @@ function OverviewCard({ value, label }: { value: string; label: string }) {
 function ScheduleTable({
   bookings,
   isProfessional,
+  onBookingUpdated,
 }: {
   bookings: TelehealthBooking[]
   isProfessional: boolean
+  onBookingUpdated: (updated: TelehealthBooking) => void
 }) {
   const [tableSearch, setTableSearch] = useState("")
   const [detailsBooking, setDetailsBooking] = useState<TelehealthBooking | null>(null)
@@ -205,7 +207,12 @@ function ScheduleTable({
         </div>
       )}
 
-      <BookingDetailsDialog booking={detailsBooking} onOpenChange={(open) => !open && setDetailsBooking(null)} />
+      <BookingDetailsDialog
+        booking={detailsBooking}
+        onOpenChange={(open) => !open && setDetailsBooking(null)}
+        canManage={isProfessional}
+        onStatusChanged={onBookingUpdated}
+      />
     </div>
   )
 }
@@ -249,6 +256,16 @@ export default function SchedulePage() {
       active = false
     }
   }, [isProfessional])
+
+  // Reflect a status change (from the details dialog) in the table's list + the calendar block.
+  const handleBookingUpdated = (updated: TelehealthBooking) => {
+    setAllBookings((current) => current.map((booking) => (booking.id === updated.id ? updated : booking)))
+    setAppointments((current) =>
+      current.some((appointment) => appointment.id === updated.id)
+        ? current.map((appointment) => (appointment.id === updated.id ? toAppointment(updated, isProfessional) : appointment))
+        : current,
+    )
+  }
 
   const dateLabel = isSameDay(currentDate, new Date()) ? "Today" : format(currentDate, "MMM d")
 
@@ -343,7 +360,7 @@ export default function SchedulePage() {
       </div>
 
       {viewMode === "table" ? (
-        <ScheduleTable bookings={allBookings} isProfessional={isProfessional} />
+        <ScheduleTable bookings={allBookings} isProfessional={isProfessional} onBookingUpdated={handleBookingUpdated} />
       ) : view !== "Day" ? (
         <p className="mt-10 rounded-3xl border border-dashed border-[#e5ecf5] p-10 text-center text-sm text-[#657080]">
           {view} view is coming soon.

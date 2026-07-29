@@ -1,5 +1,10 @@
+import { useState } from "react"
 import { format } from "date-fns"
+import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { getAuthErrorMessage } from "@/utils/auth"
+import { updateBookingStatus } from "@/utils/careconnect/services/telehealthService"
 import { BOOKING_STATUS_LABELS, SERVICE_MODE_LABELS, minutesToLabel, type TelehealthBooking } from "@/utils/careconnect/types"
 import { bookingStart, formatDurationLabel } from "@/utils/careconnect/bookingStatus"
 
@@ -11,14 +16,40 @@ function formatPrice(price: number, currency: string): string {
   }
 }
 
-/** Read-only booking details — backs "View"/"Details" actions (no dedicated detail page yet). */
+/**
+ * Booking details — backs "View"/"Details" actions. When `canManage` is set (the
+ * owning agency or assigned professional), it also offers Cancel / Mark-complete,
+ * which call the backend status endpoint and report the updated booking upward.
+ */
 export function BookingDetailsDialog({
   booking,
   onOpenChange,
+  canManage = false,
+  onStatusChanged,
 }: {
   booking: TelehealthBooking | null
   onOpenChange: (open: boolean) => void
+  canManage?: boolean
+  onStatusChanged?: (updated: TelehealthBooking) => void
 }) {
+  const [pending, setPending] = useState(false)
+  const isTerminal = booking?.status === "completed" || booking?.status === "cancelled"
+
+  const changeStatus = async (status: "completed" | "cancelled") => {
+    if (!booking) return
+    setPending(true)
+    try {
+      const updated = await updateBookingStatus(booking.id, status)
+      onStatusChanged?.(updated)
+      toast.success(status === "completed" ? "Booking marked complete" : "Booking cancelled")
+      onOpenChange(false)
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setPending(false)
+    }
+  }
+
   return (
     <Dialog open={booking != null} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton className="p-0 max-w-120">
@@ -63,6 +94,28 @@ export function BookingDetailsDialog({
               <div>
                 <p className="text-[#8a8f98]">Note</p>
                 <p className="mt-1 text-[#151922]">{booking.note}</p>
+              </div>
+            )}
+
+            {canManage && !isTerminal && (
+              <div className="flex justify-end gap-2 border-t border-[#eef1f3] pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={pending}
+                  className="border-[#ff3e66] text-[#ff3e66] hover:bg-[#fff1f4]"
+                  onClick={() => changeStatus("cancelled")}
+                >
+                  Cancel booking
+                </Button>
+                <Button
+                  type="button"
+                  disabled={pending}
+                  className="bg-[#00b4b8] text-white hover:opacity-90"
+                  onClick={() => changeStatus("completed")}
+                >
+                  Mark complete
+                </Button>
               </div>
             )}
           </DialogBody>

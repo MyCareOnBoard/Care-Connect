@@ -24,8 +24,7 @@ export function PostComposer() {
     if (!canPost || posting) return
     setPosting(true)
     try {
-      if (video) toast("Video posts are coming soon — sharing text and image only.")
-      const post = await createPost({ statement: text.trim(), media: image })
+      const post = await createPost({ statement: text.trim(), media: [image, video] })
       window.dispatchEvent(new CustomEvent(POST_CREATED_EVENT, { detail: post }))
       toast.success("Post shared!")
       setText("")

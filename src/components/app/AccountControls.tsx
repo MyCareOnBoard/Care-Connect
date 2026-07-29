@@ -242,7 +242,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
         onNewCertificationChange={setNewCertification}
       />
       {isProfessional ? (
-        <AvailabilityModal open={availabilityOpen} onOpenChange={setAvailabilityOpen} uid={user?.uid} />
+        <AvailabilityModal open={availabilityOpen} onOpenChange={setAvailabilityOpen} />
       ) : null}
     </div>
   )

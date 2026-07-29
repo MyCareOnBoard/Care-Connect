@@ -216,7 +216,14 @@ export default function ServiceAnalyticsPage() {
         )}
       </section>
 
-      <BookingDetailsDialog booking={detailsBooking} onOpenChange={(open) => !open && setDetailsBooking(null)} />
+      <BookingDetailsDialog
+        booking={detailsBooking}
+        onOpenChange={(open) => !open && setDetailsBooking(null)}
+        canManage
+        onStatusChanged={(updated) =>
+          setBookings((current) => current.map((booking) => (booking.id === updated.id ? updated : booking)))
+        }
+      />
     </div>
   )
 }
