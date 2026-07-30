@@ -128,154 +128,147 @@ export function PortfolioPost({
 
   return (
     <article className="rounded-2xl border border-white/60 bg-white/80 p-5 shadow-[0_4px_20px_rgba(16,20,26,0.05)] backdrop-blur-md">
-      <div className="flex items-start gap-3">
-        {authorHref ? (
-          <Link to={authorHref}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center min-w-0 gap-3">
+          {authorHref ? (
+            <Link to={authorHref}>
+              <Avatar className={avatarClassName} initials={initials} />
+            </Link>
+          ) : (
             <Avatar className={avatarClassName} initials={initials} />
-          </Link>
-        ) : (
-          <Avatar className={avatarClassName} initials={initials} />
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-4">
-            {authorHref ? <Link to={authorHref}>{authorBlock}</Link> : authorBlock}
-
-            {editable ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label="Post options"
-                    className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[#e2e2e2] bg-white transition hover:bg-[#f2f6f8]"
-                  >
-                    <MoreHorizontal className="size-5" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52 rounded-xl border-[#dce2e6] bg-white p-1 shadow-lg">
-                  <DropdownMenuItem onSelect={onEdit} className="rounded-lg px-3 py-2 text-sm">
-                    Edit post
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="rounded-lg px-3 py-2 text-sm">
-                    View engagements
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={onRemove} variant="destructive" className="rounded-lg px-3 py-2 text-sm">
-                    Remove post
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              action
-            )}
-          </div>
-
-          <div className="mt-4 space-y-1 text-sm leading-6 text-[#20242c]">
-            {post.paragraphs.map((paragraph, index) => (
-              <p key={index}>{paragraph}</p>
-            ))}
-          </div>
-
-          {post.hashtags && <p className="mt-4 text-sm font-bold text-[#151922]">{post.hashtags}</p>}
-
-          {post.media && post.media.length > 0 && (
-            <div className={cn("mt-4 grid gap-2", post.media.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
-              {post.media.map((item, index) =>
-                item.type === "video" ? (
-                  <video
-                    key={index}
-                    src={item.url}
-                    controls
-                    className="max-h-96 w-full rounded-xl bg-black object-contain"
-                  />
-                ) : (
-                  <img
-                    key={index}
-                    src={item.url}
-                    alt=""
-                    className="max-h-96 w-full rounded-xl object-cover"
-                  />
-                ),
-              )}
-            </div>
           )}
+          {authorHref ? <Link to={authorHref}>{authorBlock}</Link> : authorBlock}
+        </div>
 
-          <div className="mt-4 flex min-h-40 items-center justify-center rounded-xl bg-black px-8 py-10 text-white">
-            <p className="max-w-xl text-center text-2xl font-black uppercase leading-tight sm:text-3xl">
-              {post.statement}
-            </p>
-          </div>
+        {editable ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="Post options"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[#e2e2e2] bg-white transition hover:bg-[#f2f6f8]"
+              >
+                <MoreHorizontal className="size-5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52 rounded-xl border-[#dce2e6] bg-white p-1 shadow-lg">
+              <DropdownMenuItem onSelect={onEdit} className="px-3 py-2 text-sm rounded-lg">
+                Edit post
+              </DropdownMenuItem>
+              <DropdownMenuItem className="px-3 py-2 text-sm rounded-lg">
+                View engagements
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={onRemove} variant="destructive" className="px-3 py-2 text-sm rounded-lg">
+                Remove post
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          action
+        )}
+      </div>
 
-          <div className="mt-4 flex items-center gap-3">
-            <button
-              type="button"
-              onClick={toggleLike}
-              aria-pressed={liked}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
-                liked ? "border-[#ff3e66] bg-[#fff1f4] text-[#ff3e66]" : "border-[#e2e2e2] text-[#565656] hover:border-[#ff3e66]/40"
-              )}
-            >
-              <Heart className={cn("size-4", liked && "fill-[#ff3e66] animate-heart-pop")} />
-              {likeCount}
-            </button>
-            <button
-              type="button"
-              onClick={toggleComments}
-              aria-pressed={showComments}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
-                showComments ? "border-[#00b4b8] bg-[#eaf4ff] text-[#00b4b8]" : "border-[#e2e2e2] text-[#565656] hover:border-[#00b4b8]/40"
-              )}
-            >
-              <MessageSquare className="size-4" />
-              {commentCount}
-            </button>
-            <button
-              type="button"
-              onClick={toggleRepost}
-              aria-pressed={reposted}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
-                reposted ? "border-[#0f8a4d] bg-[#e9f9f0] text-[#0f8a4d]" : "border-[#e2e2e2] text-[#565656] hover:border-[#0f8a4d]/40"
-              )}
-            >
-              <Repeat2 className="size-4" />
-              {repostCount}
-            </button>
-          </div>
+      <div className="mt-4 space-y-2 text-sm leading-6 text-[#20242c]">
+        {post.statement && <p>{post.statement}</p>}
+        {post.paragraphs.map((paragraph, index) => (
+          <p key={index}>{paragraph}</p>
+        ))}
+      </div>
 
-          {showComments && (
-            <div className="mt-4 space-y-3 border-t border-[#eef1f3] pt-4">
-              {comments.map((comment) => (
-                <div key={comment.id} className="flex items-start gap-2">
-                  <Avatar className="bg-[#e8f1f7] shrink-0" initials={comment.author.slice(0, 2).toUpperCase()} />
-                  <div className="min-w-0 flex-1 rounded-xl bg-[#f7fafc] px-3 py-2">
-                    <p className="text-sm font-semibold text-[#151922]">{comment.author}</p>
-                    <p className="text-sm text-[#505964]">{comment.text}</p>
-                  </div>
-                </div>
-              ))}
+      {post.hashtags && <p className="mt-2 text-sm font-bold text-[#0e44c2]">{post.hashtags}</p>}
 
-              <div className="flex items-center gap-2">
-                <Input
-                  value={commentText}
-                  onChange={(event) => setCommentText(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault()
-                      submitComment()
-                    }
-                  }}
-                  placeholder="Add a comment..."
-                  className="flex-1"
-                />
-                <Button type="button" size="sm" onClick={submitComment}>
-                  Post
-                </Button>
-              </div>
-            </div>
+      {post.media && post.media.length > 0 && (
+        <div className={cn("mt-3 grid gap-2", post.media.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+          {post.media.map((item, index) =>
+            item.type === "video" ? (
+              <video
+                key={index}
+                src={item.url}
+                controls
+                className="object-contain w-full bg-black max-h-96 rounded-xl"
+              />
+            ) : (
+              <img
+                key={index}
+                src={item.url}
+                alt=""
+                className="object-cover w-full max-h-96 rounded-xl"
+              />
+            ),
           )}
         </div>
+      )}
+
+      <div className="flex items-center gap-3 mt-4">
+        <button
+          type="button"
+          onClick={toggleLike}
+          aria-pressed={liked}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
+            liked ? "border-[#ff3e66] bg-[#fff1f4] text-[#ff3e66]" : "border-[#e2e2e2] text-[#565656] hover:border-[#ff3e66]/40"
+          )}
+        >
+          <Heart className={cn("size-4", liked && "fill-[#ff3e66] animate-heart-pop")} />
+          {likeCount}
+        </button>
+        <button
+          type="button"
+          onClick={toggleComments}
+          aria-pressed={showComments}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
+            showComments ? "border-[#00b4b8] bg-[#eaf4ff] text-[#00b4b8]" : "border-[#e2e2e2] text-[#565656] hover:border-[#00b4b8]/40"
+          )}
+        >
+          <MessageSquare className="size-4" />
+          {commentCount}
+        </button>
+        <button
+          type="button"
+          onClick={toggleRepost}
+          aria-pressed={reposted}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
+            reposted ? "border-[#0f8a4d] bg-[#e9f9f0] text-[#0f8a4d]" : "border-[#e2e2e2] text-[#565656] hover:border-[#0f8a4d]/40"
+          )}
+        >
+          <Repeat2 className="size-4" />
+          {repostCount}
+        </button>
       </div>
+
+      {showComments && (
+        <div className="mt-4 space-y-3 border-t border-[#eef1f3] pt-4">
+          {comments.map((comment) => (
+            <div key={comment.id} className="flex items-start gap-2">
+              <Avatar className="bg-[#e8f1f7] shrink-0" initials={comment.author.slice(0, 2).toUpperCase()} />
+              <div className="min-w-0 flex-1 rounded-xl bg-[#f7fafc] px-3 py-2">
+                <p className="text-sm font-semibold text-[#151922]">{comment.author}</p>
+                <p className="text-sm text-[#505964]">{comment.text}</p>
+              </div>
+            </div>
+          ))}
+
+          <div className="flex items-center gap-2">
+            <Input
+              value={commentText}
+              onChange={(event) => setCommentText(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault()
+                  submitComment()
+                }
+              }}
+              placeholder="Add a comment..."
+              className="flex-1"
+            />
+            <Button type="button" size="sm" onClick={submitComment}>
+              Post
+            </Button>
+          </div>
+        </div>
+      )}
     </article>
   )
 }

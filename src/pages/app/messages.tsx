@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "react-router"
 import { collection, limit as fsLimit, onSnapshot, orderBy, query, where, type DocumentData } from "firebase/firestore"
-import { MoreHorizontal, Search } from "lucide-react"
+import { ChevronLeft, MoreHorizontal, Search } from "lucide-react"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -69,7 +69,14 @@ export default function MessagesPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(true)
+  // Below lg, list and chat are mutually exclusive full-screen views; at lg+ both show side-by-side regardless.
+  const [mobileView, setMobileView] = useState<"list" | "chat">("list")
   const handledToRef = useRef(false)
+
+  const openConversation = (id: string) => {
+    setSelectedId(id)
+    setMobileView("chat")
+  }
 
   const mapMessage = useCallback(
     (id: string, m: DocumentData): ChatMessage => ({
@@ -114,7 +121,7 @@ export default function MessagesPage() {
     ;(async () => {
       try {
         const conv = await startConversation(toUid)
-        setSelectedId(conv.id)
+        openConversation(conv.id)
       } catch (error) {
         toast.error(getAuthErrorMessage(error))
       }
@@ -173,50 +180,69 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="animate-fade-in-up flex h-[calc(100vh-72px)] flex-col lg:flex-row p-8">
-      <aside className="w-full lg:max-w-sm shrink-0 space-y-1 overflow-y-auto border-b border-[#eef1f3] p-4 lg:border-b-0 lg:border-r">
-        <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
-          <Input placeholder="Search here" className="pl-9" />
+    <div
+      className={cn(
+        "animate-fade-in-up flex h-[calc(100vh-72px)] flex-col lg:flex-row lg:gap-4 lg:p-8",
+        mobileView === "chat" ? "gap-0 p-0" : "gap-4 p-5 sm:p-8"
+      )}
+    >
+      <aside
+        className={cn(
+          "w-full shrink-0 flex-col overflow-hidden border-white/60 bg-white/80 backdrop-blur-md lg:flex lg:max-w-sm lg:rounded-2xl lg:border lg:shadow-[0_4px_20px_rgba(16,20,26,0.05)]",
+          mobileView === "chat" ? "hidden" : "flex rounded-2xl border shadow-[0_4px_20px_rgba(16,20,26,0.05)]"
+        )}
+      >
+        <div className="relative p-4 pb-3">
+          <Search className="absolute left-7 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
+          <Input placeholder="Search here" className="border-[#e2e2e2] bg-white pl-9 shadow-[0_1px_4px_rgba(16,20,26,0.04)]" />
         </div>
 
-        {conversations.length === 0 ? (
-          <p className="px-2 py-6 text-center text-sm text-[#657080]">No conversations yet.</p>
-        ) : (
-          conversations.map((conversation) => {
-            const name = conversation.participant?.name || "Care Connect user"
-            return (
-              <button
-                key={conversation.id}
-                type="button"
-                onClick={() => setSelectedId(conversation.id)}
-                className={cn(
-                  "flex w-full items-start gap-3 rounded-xl p-3 text-left transition-colors",
-                  conversation.id === selectedId ? "bg-[#f2f6f8]" : "hover:bg-[#f7f9fa]"
-                )}
-              >
-                <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white", colorFor(conversation.id))}>
-                  {getInitials(name)}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-bold truncate">{name}</p>
-                    <span className="shrink-0 text-xs text-[#8a8f98]">{formatTime(conversation.lastMessageAt)}</span>
-                  </div>
-                  <p className="mt-1 truncate text-sm text-[#657080]">{conversation.lastMessage || "No messages yet"}</p>
-                </div>
-                {conversation.unread > 0 && (
-                  <span className="mt-1 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#00b4b8] text-xs font-semibold text-white">
-                    {conversation.unread}
+        <div className="flex-1 min-h-0 px-2 pb-2 space-y-1 overflow-y-auto">
+          {conversations.length === 0 ? (
+            <p className="px-2 py-6 text-center text-sm text-[#657080]">No conversations yet.</p>
+          ) : (
+            conversations.map((conversation) => {
+              const name = conversation.participant?.name || "Care Connect user"
+              return (
+                <button
+                  key={conversation.id}
+                  type="button"
+                  onClick={() => openConversation(conversation.id)}
+                  className={cn(
+                    "flex w-full items-start gap-3 rounded-xl p-3 text-left transition-all duration-200",
+                    conversation.id === selectedId
+                      ? "bg-white shadow-[0_4px_14px_rgba(16,20,26,0.1)] hover:-translate-y-0.5 hover:bg-[#e0f7fa] active:bg-[#b2f5f8] cursor-pointer"
+                      : "hover:-translate-y-0.5 hover:bg-[#e0f7fa] active:bg-[#b2f5f8] cursor-pointer transition-colors hover:shadow-[0_4px_12px_rgba(16,20,26,0.06)]"
+                  )}
+                >
+                  <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow-[0_2px_6px_rgba(16,20,26,0.15)]", colorFor(conversation.id))}>
+                    {getInitials(name)}
                   </span>
-                )}
-              </button>
-            )
-          })
-        )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-bold truncate">{name}</p>
+                      <span className="shrink-0 text-xs text-[#8a8f98]">{formatTime(conversation.lastMessageAt)}</span>
+                    </div>
+                    <p className="mt-1 truncate text-sm text-[#657080]">{conversation.lastMessage || "No messages yet"}</p>
+                  </div>
+                  {conversation.unread > 0 && (
+                    <span className="mt-1 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#00b4b8] text-xs font-semibold text-white shadow-[0_2px_6px_rgba(0,180,184,0.4)]">
+                      {conversation.unread}
+                    </span>
+                  )}
+                </button>
+              )
+            })
+          )}
+        </div>
       </aside>
 
-      <main className="flex-1 min-h-0">
+      <main
+        className={cn(
+          "min-h-0 flex-1 overflow-hidden bg-white/80 backdrop-blur-md lg:block lg:rounded-2xl lg:border lg:border-white/60 lg:shadow-[0_4px_20px_rgba(16,20,26,0.05)]",
+          mobileView === "list" ? "hidden" : "block"
+        )}
+      >
         {selected ? (
           <ChatThread
             messages={messages}
@@ -224,9 +250,17 @@ export default function MessagesPage() {
             onAttach={handleAttach}
             className="h-full"
             header={
-              <header className="flex items-center justify-between border-b border-[#eef1f3] p-4">
+              <header className="flex items-center justify-between border-b border-[#eef1f3] bg-white/60 p-4 backdrop-blur-sm">
                 <div className="flex items-center gap-3">
-                  <span className={cn("flex size-10 items-center justify-center rounded-full text-sm font-bold text-white", colorFor(selected.id))}>
+                  <button
+                    type="button"
+                    aria-label="Back to conversations"
+                    onClick={() => setMobileView("list")}
+                    className="flex size-9 shrink-0 items-center justify-center rounded-full transition hover:bg-[#f2f6f8] hover:shadow-[0_2px_8px_rgba(16,20,26,0.08)] lg:hidden"
+                  >
+                    <ChevronLeft className="cursor-pointer size-5" />
+                  </button>
+                  <span className={cn("flex size-10 items-center justify-center rounded-full text-sm font-bold text-white shadow-[0_2px_6px_rgba(16,20,26,0.15)]", colorFor(selected.id))}>
                     {getInitials(selected.participant?.name || "?")}
                   </span>
                   <div>
@@ -234,7 +268,7 @@ export default function MessagesPage() {
                     <p className="text-sm text-[#657080]">{selected.participant?.subtitle || ""}</p>
                   </div>
                 </div>
-                <button type="button" aria-label="More options" className="flex size-9 items-center justify-center rounded-full transition hover:bg-[#f2f6f8]">
+                <button type="button" aria-label="More options" className="flex size-9 items-center justify-center rounded-full transition hover:bg-[#f2f6f8] hover:shadow-[0_2px_8px_rgba(16,20,26,0.08)]">
                   <MoreHorizontal className="size-5" />
                 </button>
               </header>
