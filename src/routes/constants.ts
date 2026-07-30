@@ -3,6 +3,7 @@ export const Routes = {
     app: {
         user: {
             dashboard: "/user/dashboard",
+            network: "/user/network",
             messages: "/user/messages",
             jobs: "/user/jobs",
             applications: "/user/applications",
@@ -15,6 +16,7 @@ export const Routes = {
         },
         agency: {
             dashboard: "/agency/dashboard",
+            network: "/agency/network",
             messages: "/agency/messages",
             jobs: "/agency/jobs",
             applications: "/agency/applications",

@@ -12,6 +12,7 @@ import { AccountControls } from "./AccountControls"
 
 const userNavItems = [
   { label: "Home", href: Routes.app.user.dashboard },
+  { label: "My network", href: Routes.app.user.network },
   { label: "Messages", href: Routes.app.user.messages },
   { label: "Jobs", href: Routes.app.user.jobs },
   { label: "Applications", href: Routes.app.user.applications },
@@ -94,7 +95,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 key={item.href}
                 to={item.href}
                 className={cn(
-                  "flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border px-5 text-xs font-semibold transition",
+                  "flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-full border px-3 text-xs font-semibold transition",
                   isActive
                     ? "border-[#00b4b8] bg-[#00b4b8] text-white shadow-[0_4px_12px_rgba(0,180,184,0.22)]"
                     : "border-[#d8d8d8] bg-white text-[#141922] hover:border-[#00b4b8] hover:text-[#00b4b8]"
