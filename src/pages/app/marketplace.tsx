@@ -26,6 +26,9 @@ const CATEGORY_STYLES: Record<string, string> = {
   Equipment: "bg-[#e0f2ff] text-[#0d8de0]",
   Templates: "bg-[#ffe9d6] text-[#d97a2b]",
   Uniforms: "bg-[#e2f7e8] text-[#1f9c4c]",
+  Books: "bg-[#e2f7e8] text-[#1f9c4c]",
+  Services: "bg-[#e2f7e8] text-[#1f9c4c]",
+  Consulting: "bg-[#e2f7e8] text-[#1f9c4c]",
 }
 
 const CATEGORY_GRADIENTS: Record<string, string> = {
@@ -33,6 +36,9 @@ const CATEGORY_GRADIENTS: Record<string, string> = {
   Equipment: "from-[#1c4e80] to-[#3d9bff]",
   Templates: "from-[#8a5a2b] to-[#c98f4f]",
   Uniforms: "from-[#1c5a6b] to-[#3daac1]",
+   Books: "bg-[#e2f7e8] text-[#1f9c4c]",
+  Services: "bg-[#1c4e80] text-[#3d9bff]",
+  Consulting: "bg-[#e2f7e8] text-[#1f9c4c]",
 }
 
 type Product = {
@@ -66,7 +72,10 @@ function normalize(value: string) {
   return value.toLowerCase().replace(/s$/, "")
 }
 
-function ProductImage({ category, className = "" }: { category: string; className?: string }) {
+function ProductImage({ category, imageUrl, className = "" }: { category: string; imageUrl?: string; className?: string }) {
+  if (imageUrl) {
+    return <img src={imageUrl} alt="" loading="lazy" decoding="async" className={`object-cover ${className}`} />
+  }
   return <div className={`bg-linear-to-br ${CATEGORY_GRADIENTS[category] ?? "from-[#3b3f48] to-[#6b7280]"} ${className}`} />
 }
 
@@ -80,7 +89,7 @@ function ProductCard({ product, onOpen }: { product: Product; onOpen: () => void
       className="group cursor-pointer overflow-hidden rounded-xl border border-white/60 bg-white/80 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(16,20,26,0.1)]"
     >
       <div className="relative">
-        <ProductImage category={product.category} className="h-36 w-full transition-transform duration-300 group-hover:scale-105" />
+        <ProductImage category={product.category} imageUrl={product.imageUrl} className="w-full transition-transform duration-300 h-36 group-hover:scale-105" />
         <span className={`absolute right-3 top-3 rounded-full px-3 py-1 text-xs font-semibold ${CATEGORY_STYLES[product.category] ?? "bg-white text-[#141922]"}`}>
           {product.category}
         </span>
@@ -90,7 +99,7 @@ function ProductCard({ product, onOpen }: { product: Product; onOpen: () => void
         <p className="mt-1 text-sm text-[#657080]">
           Brief description on what the product .. <span className="font-semibold text-[#00b4b8]">Read more</span>
         </p>
-        <div className="mt-3 flex items-center justify-between">
+        <div className="flex items-center justify-between mt-3">
           <span className="font-bold text-[#00b4b8]">${product.price}</span>
           <span className="flex size-8 items-center justify-center rounded-full border border-[#00b4b8]/30 text-[#00b4b8]">
             <ShoppingBag className="size-4" />
@@ -109,7 +118,7 @@ function ProductDetailsPanel({ product, onClose, onEnquire }: { product: Product
   return (
     <SidePanel open onClose={onClose} title="Product details">
       <div className="space-y-5">
-        <ProductImage category={product.category} className="h-48 w-full rounded-xl" />
+        <ProductImage category={product.category} imageUrl={product.imageUrl} className="w-full h-48 rounded-xl" />
         <div className="flex items-start justify-between gap-4">
           <h3 className="text-lg font-bold">{product.name}</h3>
           <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${CATEGORY_STYLES[product.category] ?? ""}`}>{product.category}</span>
@@ -203,6 +212,9 @@ function AddProductPanel({ open, onClose, onSubmit }: { open: boolean; onClose: 
               <SelectItem value="Equipment">Equipment</SelectItem>
               <SelectItem value="Templates">Templates</SelectItem>
               <SelectItem value="Uniforms">Uniforms</SelectItem>
+              <SelectItem value="Books">Books</SelectItem>
+              <SelectItem value="Services">Services</SelectItem>
+              <SelectItem value="Consulting">Consulting</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -235,8 +247,8 @@ function AddProductPanel({ open, onClose, onSubmit }: { open: boolean; onClose: 
 
 function MarketplaceSkeleton() {
   return (
-    <div className="space-y-6 p-5 sm:p-8">
-      <Skeleton className="h-10 w-full max-w-md" />
+    <div className="p-5 space-y-6 sm:p-8">
+      <Skeleton className="w-full h-10 max-w-md" />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 8 }).map((_, index) => (
           <Skeleton key={index} className="h-64 rounded-xl" />
@@ -287,7 +299,7 @@ export default function MarketplacePage() {
     activeFilter === "All" ? products : products.filter((product) => normalize(product.category) === normalize(activeFilter))
 
   return (
-    <div className="animate-fade-in-up space-y-6 p-5 sm:p-8">
+    <div className="p-5 space-y-6 animate-fade-in-up sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-xl font-bold">Healthcare marketplace</h1>
         <Button type="button" className="bg-[#00b4b8]" onClick={() => setIsAddOpen(true)}>

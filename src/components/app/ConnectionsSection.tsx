@@ -23,9 +23,13 @@ type ConnectionsSectionProps = {
   /** connect (people) or subscribe (agencies). */
   relation?: ConnectionRelation
   targetType?: "individual" | "company"
+  /** When set, "View all" links here instead of rendering an inert button. */
+  viewAllHref?: string
+  /** Set false to omit "View all" entirely (e.g. when there's nowhere further to go). Defaults to true. */
+  showViewAll?: boolean
 }
 
-export function ConnectionsSection({ title, items, actionLabel, activeLabel, relation, targetType }: ConnectionsSectionProps) {
+export function ConnectionsSection({ title, items, actionLabel, activeLabel, relation, targetType, viewAllHref, showViewAll = true }: ConnectionsSectionProps) {
   return (
     <section>
       <h2 className="mb-5 text-sm font-semibold">{title}</h2>
@@ -64,7 +68,7 @@ export function ConnectionsSection({ title, items, actionLabel, activeLabel, rel
           </div>
         ))}
       </div>
-      <ViewAllLink />
+      {showViewAll && <ViewAllLink href={viewAllHref} />}
     </section>
   )
 }

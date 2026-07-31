@@ -1,14 +1,13 @@
 import { useEffect, useState, type CSSProperties } from "react"
-import { Link } from "react-router"
 import { Heart } from "lucide-react"
 import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { StatRow } from "@/components/app/StatRow"
 import { ViewAllLink } from "@/components/app/ViewAllLink"
 import { PostComposer } from "@/components/app/PostComposer"
 import { DashboardFeed } from "@/components/app/DashboardFeed"
 import { ConnectionsSection, type Connection } from "@/components/app/ConnectionsSection"
+import { MarketplacePromoCard } from "@/components/app/MarketplacePromoCard"
 import { Routes } from "@/routes/constants"
 import { cn, getInitials } from "@/lib/utils"
 import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
@@ -269,21 +268,7 @@ export default function DashboardPage() {
           <ViewAllLink href={Routes.app.user.jobs} />
         </section>
 
-        <section className="group relative overflow-hidden rounded-lg bg-[#e9e1ff] p-2 shadow-[0_8px_24px_rgba(90,78,224,0.15)]">
-          <div className="relative overflow-hidden rounded-md border border-[#d5cafa] bg-[linear-gradient(55deg,rgba(92,72,215,0.08)_25%,transparent_25%,transparent_50%,rgba(92,72,215,0.08)_50%,rgba(92,72,215,0.08)_75%,transparent_75%)] bg-size-[36px_36px] px-2 py-3">
-            <span className="absolute inset-y-0 w-1/2 pointer-events-none animate-shimmer -left-1/2 bg-linear-to-r from-transparent via-white/40 to-transparent" />
-            <h2 className="text-2xl font-bold leading-tight text-[#2a0c4a]">Turn your equipment into opportunity</h2>
-            <p className="mt-3 text-sm leading-5 text-[#321c47]">
-              Have medical equipment or supplies to sell? List them and connect with the right people
-            </p>
-            <Button
-              asChild
-              className="mt-5 h-11 w-full bg-linear-to-r from-[#5a4ee0] to-[#7a6ff0] text-white shadow-[0_4px_14px_rgba(90,78,224,0.35)] transition-transform duration-200 hover:scale-[1.02] active:scale-95"
-            >
-              <Link to={`${Routes.app.user.marketplace}?add=1`}>Sell an Item</Link>
-            </Button>
-          </div>
-        </section>
+        <MarketplacePromoCard marketplaceHref={Routes.app.user.marketplace} />
       </aside>
 
       <main className="order-1 xl:order-0 space-y-8">
@@ -293,10 +278,10 @@ export default function DashboardPage() {
 
       <aside className="order-3 xl:order-0 space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
         {companies.length > 0 && (
-          <ConnectionsSection title="Top agencies around you" items={companies} actionLabel="Subscribe" activeLabel="Subscribed" relation="subscribe" targetType="company" />
+          <ConnectionsSection title="Top agencies around you" items={companies} actionLabel="Subscribe" activeLabel="Subscribed" relation="subscribe" targetType="company" viewAllHref={`${Routes.app.user.network}?tab=agencies`} />
         )}
         {people.length > 0 && (
-          <ConnectionsSection title="Professionals you may be interested in" items={people} actionLabel="Connect" activeLabel="Pending" relation="connect" targetType="individual" />
+          <ConnectionsSection title="Professionals you may be interested in" items={people} actionLabel="Connect" activeLabel="Pending" relation="connect" targetType="individual" viewAllHref={`${Routes.app.user.network}?tab=connections`} />
         )}
       </aside>
     </div>
