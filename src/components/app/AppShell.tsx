@@ -23,6 +23,7 @@ const userNavItems = [
 
 const agencyNavItems = [
   { label: "Home", href: Routes.app.agency.dashboard },
+  { label: "My network", href: Routes.app.agency.network },
   { label: "Messages", href: Routes.app.agency.messages },
   { label: "Jobs", href: Routes.app.agency.jobs },
   { label: "Market place", href: Routes.app.agency.marketplace },

@@ -241,8 +241,8 @@ export default function NetworkPage() {
                     type="button"
                     onClick={() => setTab(item.key)}
                     className={cn(
-                      "flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm font-semibold transition-colors",
-                      tab === item.key ? "text-[#00b4b8]" : "text-[#151922] hover:bg-[#f2f6f8]",
+                      "flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm font-semibold transition-all duration-150 active:scale-[0.98]",
+                      tab === item.key ? "bg-[#e3f8f8] text-[#00b4b8]" : "text-[#151922] hover:bg-[#f2f6f8]",
                     )}
                   >
                     {item.label}
@@ -262,16 +262,21 @@ export default function NetworkPage() {
                 activeLabel="Subscribed"
                 relation="subscribe"
                 targetType="company"
+                showViewAll={false}
               />
             )
           ) : (
             <section className="rounded-lg border border-white/60 bg-white/80 p-4 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md">
               <h2 className="mb-4 text-sm font-semibold">People who viewed your profile</h2>
               <div className="space-y-4">
-                {MOCK_PROFILE_VIEWERS.map((person) => {
+                {MOCK_PROFILE_VIEWERS.map((person, index) => {
                   const connected = profileViewers.has(person.id)
                   return (
-                    <div key={person.id} className="flex items-center gap-3">
+                    <div
+                      key={person.id}
+                      style={{ animationDelay: `${index * 60}ms` }}
+                      className="animate-fade-in-up -mx-2 flex items-center gap-3 rounded-xl px-2 py-1 transition-colors duration-200 hover:bg-white/70"
+                    >
                       <Avatar className={person.avatarBg} initials={getInitials(person.name)} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-bold">{person.name}</p>
@@ -281,7 +286,7 @@ export default function NetworkPage() {
                         type="button"
                         onClick={() => toggleProfileViewerConnect(person)}
                         className={cn(
-                          "h-9 shrink-0 rounded-full border px-4 text-sm font-medium transition-colors",
+                          "h-9 shrink-0 rounded-full border px-4 text-sm font-medium transition-transform duration-150 hover:scale-105 active:scale-95",
                           connected ? "border-[#10ad58] bg-[#eafaf1] text-[#10ad58]" : "border-[#00b4b8] text-[#00b4b8]",
                         )}
                       >
@@ -314,15 +319,21 @@ export default function NetworkPage() {
                 {visibleInvitations.length === 0 ? (
                   <p className="rounded-3xl border border-dashed border-[#e5ecf5] p-10 text-center text-sm text-[#657080]">No invitations right now.</p>
                 ) : (
-                  visibleInvitations.map((person) => (
-                    <InvitationRow key={person.id} person={person} onAccept={() => acceptInvitation(person)} onDecline={() => declineInvitation(person)} />
+                  visibleInvitations.map((person, index) => (
+                    <InvitationRow
+                      key={person.id}
+                      person={person}
+                      onAccept={() => acceptInvitation(person)}
+                      onDecline={() => declineInvitation(person)}
+                      style={{ animationDelay: `${index * 60}ms` }}
+                    />
                   ))
                 )}
               </div>
 
               {suggestedPeople.length > 0 && (
                 <div className="mt-10">
-                  <ConnectionsSection title="People you may know" items={suggestedPeople} actionLabel="Connect" activeLabel="Pending" relation="connect" targetType="individual" />
+                  <ConnectionsSection title="People you may know" items={suggestedPeople} actionLabel="Connect" activeLabel="Pending" relation="connect" targetType="individual" showViewAll={false} />
                 </div>
               )}
             </>
@@ -342,7 +353,7 @@ export default function NetworkPage() {
                 {visibleConnections.length === 0 ? (
                   <p className="rounded-3xl border border-dashed border-[#e5ecf5] p-10 text-center text-sm text-[#657080]">No connections yet.</p>
                 ) : (
-                  visibleConnections.map((item) => (
+                  visibleConnections.map((item, index) => (
                     <NetworkConnectionRow
                       key={item.connectionId}
                       name={item.name}
@@ -355,6 +366,7 @@ export default function NetworkPage() {
                       removeLabel="Remove"
                       removing={removingId === item.connectionId}
                       onRemove={() => removeConnection(item.connectionId, item.uid, "Connection removed")}
+                      style={{ animationDelay: `${index * 60}ms` }}
                     />
                   ))
                 )}
@@ -376,7 +388,7 @@ export default function NetworkPage() {
                 {visibleAgencies.length === 0 ? (
                   <p className="rounded-3xl border border-dashed border-[#e5ecf5] p-10 text-center text-sm text-[#657080]">No agency subscriptions yet.</p>
                 ) : (
-                  visibleAgencies.map((item) => (
+                  visibleAgencies.map((item, index) => (
                     <NetworkConnectionRow
                       key={item.connectionId}
                       name={item.name}
@@ -389,6 +401,7 @@ export default function NetworkPage() {
                       removeLabel="Unsubscribe"
                       removing={removingId === item.connectionId}
                       onRemove={() => removeConnection(item.connectionId, item.uid, "Unsubscribed")}
+                      style={{ animationDelay: `${index * 60}ms` }}
                     />
                   ))
                 )}

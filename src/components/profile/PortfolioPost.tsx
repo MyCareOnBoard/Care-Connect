@@ -185,6 +185,7 @@ export function PortfolioPost({
                 key={index}
                 src={item.url}
                 controls
+                preload="metadata"
                 className="object-contain w-full bg-black max-h-96 rounded-xl"
               />
             ) : (
@@ -192,6 +193,8 @@ export function PortfolioPost({
                 key={index}
                 src={item.url}
                 alt=""
+                loading="lazy"
+                decoding="async"
                 className="object-cover w-full max-h-96 rounded-xl"
               />
             ),
