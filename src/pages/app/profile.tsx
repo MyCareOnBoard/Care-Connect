@@ -648,7 +648,13 @@ export default function ProfilePage() {
                   />
                 ))
               )}
-              <Button variant="outline">Add portfolio item</Button>
+              <Button
+                variant="outline"
+                className="transition-transform duration-150 hover:scale-[1.02] active:scale-95"
+                onClick={() => toast("Adding portfolio items isn't available in this demo")}
+              >
+                Add portfolio item
+              </Button>
             </div>
           )}
         </div>

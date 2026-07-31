@@ -71,6 +71,7 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true)
   // Below lg, list and chat are mutually exclusive full-screen views; at lg+ both show side-by-side regardless.
   const [mobileView, setMobileView] = useState<"list" | "chat">("list")
+  const [conversationSearch, setConversationSearch] = useState("")
   const handledToRef = useRef(false)
 
   const openConversation = (id: string) => {
@@ -158,6 +159,16 @@ export default function MessagesPage() {
 
   const selected = conversations.find((conversation) => conversation.id === selectedId) ?? null
 
+  const visibleConversations = conversationSearch
+    ? conversations.filter((conversation) => {
+        const term = conversationSearch.toLowerCase()
+        return (
+          (conversation.participant?.name || "").toLowerCase().includes(term) ||
+          (conversation.lastMessage || "").toLowerCase().includes(term)
+        )
+      })
+    : conversations
+
   const handleSend = async (text: string) => {
     if (!selectedId) return
     try {
@@ -194,14 +205,21 @@ export default function MessagesPage() {
       >
         <div className="relative p-4 pb-3">
           <Search className="absolute left-7 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
-          <Input placeholder="Search here" className="border-[#e2e2e2] bg-white pl-9 shadow-[0_1px_4px_rgba(16,20,26,0.04)]" />
+          <Input
+            value={conversationSearch}
+            onChange={(event) => setConversationSearch(event.target.value)}
+            placeholder="Search here"
+            className="border-[#e2e2e2] bg-white pl-9 shadow-[0_1px_4px_rgba(16,20,26,0.04)]"
+          />
         </div>
 
         <div className="flex-1 min-h-0 px-2 pb-2 space-y-1 overflow-y-auto">
           {conversations.length === 0 ? (
             <p className="px-2 py-6 text-center text-sm text-[#657080]">No conversations yet.</p>
+          ) : visibleConversations.length === 0 ? (
+            <p className="px-2 py-6 text-center text-sm text-[#657080]">No conversations match your search.</p>
           ) : (
-            conversations.map((conversation) => {
+            visibleConversations.map((conversation) => {
               const name = conversation.participant?.name || "Care Connect user"
               return (
                 <button

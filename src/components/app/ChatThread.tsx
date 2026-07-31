@@ -34,6 +34,8 @@ function AttachmentView({ attachment }: { attachment: ChatAttachment }) {
         <img
           src={attachment.url}
           alt={attachment.name || "attachment"}
+          loading="lazy"
+          decoding="async"
           className="max-h-56 max-w-full rounded-xl object-cover shadow-[0_4px_12px_rgba(16,20,26,0.15)]"
         />
       </a>

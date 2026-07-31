@@ -194,7 +194,7 @@ function JobsSkeleton() {
   return (
     <div className="p-5 space-y-6 sm:p-8">
       <Skeleton className="h-10 w-60" />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <Skeleton className="h-40 rounded-xl" />
         <Skeleton className="h-40 rounded-xl" />
         <Skeleton className="h-40 rounded-xl" />
@@ -301,7 +301,7 @@ export default function UserJobsPage() {
   }
 
   return (
-    <div className="animate-fade-in-up grid gap-5 p-5 sm:p-8 xl:grid-cols-[380px_minmax(0,1fr)]">
+    <div className="animate-fade-in-up grid grid-cols-1 gap-5 p-5 sm:p-8 xl:grid-cols-[380px_minmax(0,1fr)]">
       <aside className="space-y-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />

@@ -84,7 +84,7 @@ function ApplicationsSkeleton() {
   return (
     <div className="space-y-6 p-5 sm:p-8">
       <Skeleton className="h-6 w-48" />
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Skeleton className="h-20 rounded-xl" />
         <Skeleton className="h-20 rounded-xl" />
         <Skeleton className="h-20 rounded-xl" />
@@ -137,7 +137,7 @@ function UserApplications() {
     <div className="space-y-6 p-5 sm:p-8">
       <section>
         <h1 className="mb-4 text-xl font-bold">Application overview</h1>
-        <div className="grid gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {tiles.map((tile) => (
             <StatTile key={tile.label} value={tile.value} label={tile.label} />
           ))}
@@ -267,17 +267,24 @@ function AgencyApplications() {
       <PageHeader
         title="Applications"
         description="Track applicants from screening through offer, with credential status visible at every stage."
-        actions={<Button className="bg-[#00b4b8]">Export pipeline</Button>}
+        actions={
+          <Button
+            className="bg-[#00b4b8] transition-transform duration-150 hover:scale-105 active:scale-95"
+            onClick={() => toast("Exporting isn't available in this demo")}
+          >
+            Export pipeline
+          </Button>
+        }
       />
 
       {loading ? (
-        <div className="grid gap-4 p-5 sm:p-8 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 p-5 sm:p-8 xl:grid-cols-3">
           <Skeleton className="h-32 rounded-xl" />
           <Skeleton className="h-32 rounded-xl" />
           <Skeleton className="h-32 rounded-xl" />
         </div>
       ) : (
-        <div className="grid gap-4 p-5 sm:p-8 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 p-5 sm:p-8 xl:grid-cols-3">
           {pipeline.map((stage) => (
             <ListCard key={stage.title} title={stage.title} meta={`${stageCount(stage.statuses)} applicants`}>
               {stage.detail}

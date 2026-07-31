@@ -74,7 +74,7 @@ function normalize(value: string) {
 
 function ProductImage({ category, imageUrl, className = "" }: { category: string; imageUrl?: string; className?: string }) {
   if (imageUrl) {
-    return <img src={imageUrl} alt="" className={`object-cover ${className}`} />
+    return <img src={imageUrl} alt="" loading="lazy" decoding="async" className={`object-cover ${className}`} />
   }
   return <div className={`bg-linear-to-br ${CATEGORY_GRADIENTS[category] ?? "from-[#3b3f48] to-[#6b7280]"} ${className}`} />
 }

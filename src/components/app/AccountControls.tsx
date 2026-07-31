@@ -110,7 +110,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
             aria-label="Notifications"
             className={`relative flex ${notificationButtonSize} items-center justify-center rounded-full bg-white text-[#151922] outline-none transition hover:bg-[#f2f6f8] cursor-pointer`}
           >
-            <Bell className="size-4.5 fill-[#151922]" />
+            <Bell className="size-4 fill-[#151922]" />
             <span className="absolute right-3 top-2 size-2 rounded-full bg-[#ed2f20]" />
           </button>
         </DropdownMenuTrigger>
@@ -123,9 +123,9 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
       <Link
         to={profilePath}
         aria-label="Profile image"
-        className="ml-1 flex size-9 items-center justify-center rounded-full bg-[#d3f2f2] transition hover:ring-2 hover:ring-[#00b4b8]/30"
+        className="ml-1 flex size-7 items-center justify-center rounded-full bg-[#d3f2f2] transition hover:ring-2 hover:ring-[#00b4b8]/30"
       >
-        <UserRound className="size-5 rounded-full text-[#00898c]" />
+        <UserRound className="size-4 rounded-full text-[#00898c]" />
       </Link>
 
       <DropdownMenu>
