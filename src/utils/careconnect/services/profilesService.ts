@@ -3,13 +3,15 @@
  * Thin axios wrappers around the `/careconnectProfiles` backend function.
  */
 
-import axiosClient from "@/lib/axios"
+// careconnect* calls go through the merged careconnectCore function; uploads stay
+// on the shared root client (the uploads function is separate, not merged).
+import axiosClient, { careconnectClient } from "@/lib/axios"
 import type { CareConnectProfile, ListProfilesParams } from "../types"
 
 export async function listProfiles(
   params: ListProfilesParams = {},
 ): Promise<CareConnectProfile[]> {
-  const { data } = await axiosClient.get("/careconnectProfiles", { params })
+  const { data } = await careconnectClient.get("/careconnectProfiles", { params })
   return Array.isArray(data?.data) ? data.data : []
 }
 
@@ -18,7 +20,7 @@ export async function listProfiles(
  * increments their view count; fetching your own uid does not.
  */
 export async function getProfile(uid: string): Promise<CareConnectProfile> {
-  const { data } = await axiosClient.get(`/careconnectProfiles/${uid}`)
+  const { data } = await careconnectClient.get(`/careconnectProfiles/${uid}`)
   return data.data
 }
 

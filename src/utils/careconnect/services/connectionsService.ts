@@ -3,7 +3,8 @@
  * Thin axios wrappers around the `/careconnectConnections` backend function.
  */
 
-import axiosClient from "@/lib/axios"
+// Routed through the merged careconnectCore function (see lib/axios.ts).
+import { careconnectClient as axiosClient } from "@/lib/axios"
 
 export type ConnectionRelation = "connect" | "subscribe"
 
