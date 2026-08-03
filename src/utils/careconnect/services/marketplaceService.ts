@@ -5,6 +5,8 @@
 
 import axiosClient from "@/lib/axios"
 
+export type ProductStatus = "active" | "sold" | "archived"
+
 export interface MarketProduct {
   id: string
   sellerId: string
@@ -15,6 +17,7 @@ export interface MarketProduct {
   description: string
   price: number
   currency: string
+  status?: ProductStatus
   imageUrl?: string
 }
 
@@ -27,10 +30,23 @@ export interface NewProductInput {
   image?: File | null
 }
 
+/** Owner edit — any subset of fields; a new `image` is uploaded and sent as imageUrl. */
+export interface UpdateProductInput {
+  name?: string
+  category?: string
+  description?: string
+  price?: number
+  currency?: string
+  sellerLocation?: string
+  status?: ProductStatus
+  image?: File | null
+}
+
 export interface ListProductsParams {
   category?: string
   search?: string
   sellerId?: string
+  status?: ProductStatus
   limit?: number
   offset?: number
 }
@@ -48,6 +64,11 @@ export async function listProducts(params: ListProductsParams = {}): Promise<Mar
   return data.data
 }
 
+/** The caller's own listings (all statuses) — for the "My listings" view. */
+export async function listMyProducts(): Promise<MarketProduct[]> {
+  return listProducts({ sellerId: "me" })
+}
+
 export async function createProduct(input: NewProductInput): Promise<MarketProduct> {
   let imageUrl: string | undefined
   if (input.image) imageUrl = await uploadProductImage(input.image)
@@ -59,6 +80,14 @@ export async function createProduct(input: NewProductInput): Promise<MarketProdu
     currency: input.currency,
     imageUrl,
   })
+  return data.data
+}
+
+export async function updateProduct(id: string, patch: UpdateProductInput): Promise<MarketProduct> {
+  const { image, ...rest } = patch
+  const body: Record<string, unknown> = { ...rest }
+  if (image) body.imageUrl = await uploadProductImage(image)
+  const { data } = await axiosClient.patch(`/careconnectMarketplace/${id}`, body)
   return data.data
 }
 
