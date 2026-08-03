@@ -3,6 +3,7 @@ import { Link } from "react-router"
 import { format, addDays, isSameDay, isWithinInterval, startOfWeek, endOfWeek } from "date-fns"
 import { Calendar, ChevronLeft, ChevronRight, List, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Routes } from "@/routes/constants"
 import { getInitials } from "@/lib/utils"
 import { useProfessionalMembership } from "@/utils/professional/useProfessionalMembership"
@@ -78,10 +79,12 @@ function ScheduleTable({
   bookings,
   isProfessional,
   onBookingUpdated,
+  loading,
 }: {
   bookings: TelehealthBooking[]
   isProfessional: boolean
   onBookingUpdated: (updated: TelehealthBooking) => void
+  loading: boolean
 }) {
   const [tableSearch, setTableSearch] = useState("")
   const [detailsBooking, setDetailsBooking] = useState<TelehealthBooking | null>(null)
@@ -135,9 +138,14 @@ function ScheduleTable({
     <div className="mt-6">
       <h2 className="text-lg font-semibold text-[#151922]">Overview</h2>
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {stats.map((stat) => (
-          <OverviewCard key={stat.label} value={stat.value} label={stat.label} />
-        ))}
+        {loading
+          ? Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="rounded-2xl border border-[#e5ecf5] bg-white p-4">
+                <Skeleton className="h-7 w-10" />
+                <Skeleton className="mt-2 h-4 w-24" />
+              </div>
+            ))
+          : stats.map((stat) => <OverviewCard key={stat.label} value={stat.value} label={stat.label} />)}
       </div>
 
       <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
@@ -153,7 +161,13 @@ function ScheduleTable({
         </div>
       </div>
 
-      {visibleRows.length === 0 ? (
+      {loading ? (
+        <div className="mt-4 space-y-3">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <Skeleton key={index} className="h-12 w-full rounded-xl" />
+          ))}
+        </div>
+      ) : visibleRows.length === 0 ? (
         <p className="mt-6 rounded-3xl border border-dashed border-[#e5ecf5] p-10 text-center text-sm text-[#657080]">
           No appointments yet.
         </p>
@@ -225,17 +239,23 @@ export default function SchedulePage() {
   const [search, setSearch] = useState("")
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [allBookings, setAllBookings] = useState<TelehealthBooking[]>([])
+  const [calendarLoading, setCalendarLoading] = useState(true)
+  const [tableLoading, setTableLoading] = useState(true)
 
   // Load bookings for the visible day (as professional or as client) — powers the Calendar view.
   useEffect(() => {
     let active = true
     const dateKey = toDateKey(currentDate)
+    setCalendarLoading(true)
     listBookings({ scope: isProfessional ? "professional" : "client", from: dateKey, to: dateKey })
       .then((list) => {
         if (active) setAppointments(list.map((booking) => toAppointment(booking, isProfessional)))
       })
       .catch(() => {
         if (active) setAppointments([])
+      })
+      .finally(() => {
+        if (active) setCalendarLoading(false)
       })
     return () => {
       active = false
@@ -245,12 +265,16 @@ export default function SchedulePage() {
   // Full booking history (no date filter) — powers the Table view's Overview stats + rows.
   useEffect(() => {
     let active = true
+    setTableLoading(true)
     listBookings({ scope: isProfessional ? "professional" : "client" })
       .then((list) => {
         if (active) setAllBookings(list)
       })
       .catch(() => {
         if (active) setAllBookings([])
+      })
+      .finally(() => {
+        if (active) setTableLoading(false)
       })
     return () => {
       active = false
@@ -360,7 +384,7 @@ export default function SchedulePage() {
       </div>
 
       {viewMode === "table" ? (
-        <ScheduleTable bookings={allBookings} isProfessional={isProfessional} onBookingUpdated={handleBookingUpdated} />
+        <ScheduleTable bookings={allBookings} isProfessional={isProfessional} onBookingUpdated={handleBookingUpdated} loading={tableLoading} />
       ) : view !== "Day" ? (
         <p className="mt-10 rounded-3xl border border-dashed border-[#e5ecf5] p-10 text-center text-sm text-[#657080]">
           {view} view is coming soon.
@@ -390,7 +414,24 @@ export default function SchedulePage() {
               </div>
             )}
 
-            {visibleAppointments.map((appointment) => (
+            {calendarLoading &&
+              Array.from({ length: 3 }).map((_, index) => (
+                <div
+                  key={`skeleton-${index}`}
+                  className="absolute left-2 rounded-xl border border-[#eef1f3] bg-white p-3 shadow-sm"
+                  style={{ top: 16 + index * 150, height: 108, width: 260, borderLeftColor: "#e2e2e2", borderLeftWidth: 4 }}
+                >
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="mt-2 h-4 w-28" />
+                  <div className="mt-3 flex items-center gap-2">
+                    <Skeleton className="size-6 rounded-full" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                </div>
+              ))}
+
+            {!calendarLoading &&
+              visibleAppointments.map((appointment) => (
               <div
                 key={appointment.id}
                 className="absolute rounded-xl border bg-white p-3 shadow-sm"

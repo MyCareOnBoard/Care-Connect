@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react"
 import { useNavigate } from "react-router"
 import { Banknote, Briefcase, Camera, Mail, MapPin, Pencil, Phone, UserPlus, UserRound, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { ProfileModals } from "@/components/profile/ProfileModals"
 import { PortfolioPost, type PostComment } from "@/components/profile/PortfolioPost"
 import { PostComposer } from "@/components/app/PostComposer"
@@ -134,6 +135,7 @@ export default function ProfilePage() {
   const dispatch = useAppDispatch()
   const [profileSummary, setProfileSummary] = useState(defaultSummary)
   const [agencySummary, setAgencySummary] = useState(defaultAgencySummary)
+  const [identityLoading, setIdentityLoading] = useState(true)
   const [postedJobs, setPostedJobs] = useState<AgencyPostedJob[]>([])
   const [specialties, setSpecialties] = useState<string[]>([])
   const summary = isAgency ? agencySummary : profileSummary
@@ -190,6 +192,8 @@ export default function ProfilePage() {
           setProfileSummary((prev) => ({ ...prev, ...identity }))
           setAgencySummary((prev) => ({ ...prev, ...identity }))
         }
+      } finally {
+        if (active) setIdentityLoading(false)
       }
     })()
     return () => {
@@ -503,30 +507,46 @@ export default function ProfilePage() {
             </div>
 
             <div className="mt-10">
-              <div>
-                <h1 className="text-3xl font-semibold tracking-tight text-[#151922]">{summary.name}</h1>
-                <p className="mt-2 text-sm leading-6 text-black">{summary.headline}</p>
-                <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-[#656f80]">
-                  <span className="inline-flex items-center gap-2">
-                    <MapPin className="text-black size-4" />
-                    {summary.location}
-                  </span>
-                  <span className="inline-flex items-center gap-2">
-                    <Mail className="text-black size-4" />
-                    {summary.email}
-                  </span>
-                  <span className="inline-flex items-center gap-2">
-                    <Phone className="text-black size-4" />
-                    {summary.phone}
-                  </span>
+              {identityLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-8 w-56" />
+                  <Skeleton className="h-4 w-80 max-w-full" />
+                  <div className="flex flex-wrap gap-4 pt-1">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-4 w-44" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div>
+                  <h1 className="text-3xl font-semibold tracking-tight text-[#151922]">{summary.name}</h1>
+                  <p className="mt-2 text-sm leading-6 text-black">{summary.headline}</p>
+                  <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-[#656f80]">
+                    <span className="inline-flex items-center gap-2">
+                      <MapPin className="text-black size-4" />
+                      {summary.location}
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                      <Mail className="text-black size-4" />
+                      {summary.email}
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                      <Phone className="text-black size-4" />
+                      {summary.phone}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               <div className="mt-6 overflow-hidden rounded-3xl border-t-2 border-[#e5ecf5] pt-2">
                 <div className="grid grid-cols-2 text-center sm:grid-cols-4">
                   {summary.metrics.map((metric, index) => (
                     <div key={metric.label} className={`${index > 0 ? "border-l border-[#e6eaf0]" : ""} px-4 py-5`}>
-                      <p className="mt-3 text-3xl font-semibold text-[#151922]">{metric.value}</p>
+                      {identityLoading ? (
+                        <Skeleton className="mx-auto mt-3 h-8 w-10" />
+                      ) : (
+                        <p className="mt-3 text-3xl font-semibold text-[#151922]">{metric.value}</p>
+                      )}
                       <p className="text-sm text-black">{metric.label}</p>
                     </div>
                   ))}
@@ -768,7 +788,25 @@ export default function ProfilePage() {
               <PostComposer />
 
               {portfolioLoading ? (
-                <div className="rounded-3xl border border-[#e5ecf5] bg-[#f7fafc] p-6 text-sm text-[#687182]">Loading your posts…</div>
+                <div className="space-y-6">
+                  {Array.from({ length: 2 }).map((_, index) => (
+                    <div key={index} className="rounded-3xl border border-[#e5ecf5] p-5">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="size-11 rounded-full" />
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-40" />
+                          <Skeleton className="h-3 w-24" />
+                        </div>
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-11/12" />
+                        <Skeleton className="h-4 w-3/4" />
+                      </div>
+                      <Skeleton className="mt-4 h-40 w-full rounded-2xl" />
+                    </div>
+                  ))}
+                </div>
               ) : portfolio.length === 0 ? (
                 <div className="rounded-3xl border border-[#e5ecf5] bg-[#f7fafc] p-6">
                   <p className="text-sm text-[#687182]">Portfolio updates will appear here.</p>
