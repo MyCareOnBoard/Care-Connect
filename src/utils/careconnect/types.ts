@@ -235,12 +235,32 @@ export interface CareConnectProfile {
   documents: unknown[]
   location: string | null
   photo: string | null
+  coverImage: string | null
   subtitle: string
+  headline: string | null
+  description: string | null
+  skills: string[]
+  experience: ProfileExperience[]
+  certificationDetails: ProfileCertification[]
   profileViewsCount: number
   applicationViewsCount: number
   connectionsCount: number
   /** Whether the current viewer follows/connects with this profile (set once Connections ship). */
   isFollowing?: boolean
+}
+
+export interface ProfileExperience {
+  role: string
+  company: string
+  duration: string
+  description: string
+}
+
+export interface ProfileCertification {
+  title: string
+  provider: string
+  date: string
+  status: string
 }
 
 export interface ListProfilesParams {

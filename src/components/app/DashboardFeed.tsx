@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
-import { PortfolioPost, type PortfolioPostData, type PostComment, type PostMedia } from "@/components/profile/PortfolioPost"
+import { PortfolioPost, type PostComment } from "@/components/profile/PortfolioPost"
+import { toPortfolioData } from "@/components/profile/postMapping"
 import { FollowButton } from "@/components/app/FollowButton"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCareFlow } from "@/components/app/useCareFlow"
@@ -17,26 +18,6 @@ import {
 import { listConnections } from "@/utils/careconnect/services/connectionsService"
 
 const AVATAR_PALETTE = ["bg-[#00b4b8]", "bg-[#ffa33d]", "bg-[#a782d8]", "bg-[#d193ce]", "bg-[#ffc95c]"]
-
-const VIDEO_URL = /\.(mp4|mov|webm|m4v|ogg)(\?|$)/i
-
-/** Infer whether a stored media URL is a video (else treat as image). */
-function toPostMedia(urls: string[]): PostMedia[] {
-  return (urls ?? []).map((url) => ({ type: VIDEO_URL.test(url) ? "video" : "image", url }))
-}
-
-/** Map a backend feed post into the presentational PortfolioPostData shape. */
-function toPortfolioData(post: FeedPost): PortfolioPostData {
-  return {
-    id: post.id,
-    paragraphs: post.paragraphs ?? [],
-    hashtags: post.hashtags,
-    statement: post.statement,
-    media: toPostMedia(post.mediaUrls),
-    likes: post.likesCount ?? 0,
-    comments: [],
-  }
-}
 
 export function DashboardFeed() {
   const { flow } = useCareFlow()

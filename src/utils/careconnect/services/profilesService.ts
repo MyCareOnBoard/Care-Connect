@@ -21,3 +21,11 @@ export async function getProfile(uid: string): Promise<CareConnectProfile> {
   const { data } = await axiosClient.get(`/careconnectProfiles/${uid}`)
   return data.data
 }
+
+/** Upload a profile avatar or cover image, returning its public URL. */
+export async function uploadProfileImage(file: File): Promise<string> {
+  const formData = new FormData()
+  formData.append("file", file)
+  const { data } = await axiosClient.post("/uploads/careconnect-profile-image", formData)
+  return data.data.url
+}

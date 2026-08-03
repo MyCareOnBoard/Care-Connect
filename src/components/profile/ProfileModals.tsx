@@ -1,5 +1,14 @@
 import { useState } from "react"
 import { format } from "date-fns"
+import { toast } from "sonner"
+import { getAuthErrorMessage } from "@/utils/auth"
+import { clearRecaptchaVerifier } from "@/utils/auth/services/mfaService"
+import {
+  reauthenticate,
+  sendReauthOtp,
+  completeReauthOtp,
+  changePassword,
+} from "@/utils/auth/services/passwordService"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -39,6 +48,9 @@ type ProfileModalsProps = {
     description: string
   }
   onAccountInfoChange: (value: { fullName: string; email: string; phone: string; location: string; headline: string; description: string }) => void
+  onSaveAccountInfo?: () => Promise<void> | void
+  onDeactivate?: () => Promise<void> | void
+  onDelete?: () => Promise<void> | void
   experience: Array<{ role: string; company: string; duration: string; description: string }>
   onExperienceChange: (value: Array<{ role: string; company: string; duration: string; description: string }>) => void
   newExperience: { role: string; company: string; duration: string; description: string }
@@ -87,6 +99,9 @@ export function ProfileModals({
   onPrivacyOptionChange,
   accountInfo,
   onAccountInfoChange,
+  onSaveAccountInfo = async () => {},
+  onDeactivate = async () => {},
+  onDelete = async () => {},
   experience,
   onExperienceChange,
   newExperience,
@@ -108,9 +123,105 @@ export function ProfileModals({
   const [accountTab, setAccountTab] = useState<AccountTab>("Account info")
   const [passwords, setPasswords] = useState({ current: "", next: "", confirm: "" })
   const [certificateFile, setCertificateFile] = useState<File | null>(null)
+  const [savingAccount, setSavingAccount] = useState(false)
+
+  // In-app password change (MFA re-auth). Step "form" collects passwords; if the
+  // account has MFA, we send an SMS and move to step "otp" to confirm.
+  const [pwStep, setPwStep] = useState<"form" | "otp">("form")
+  const [pwBusy, setPwBusy] = useState(false)
+  const [smsCode, setSmsCode] = useState("")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [reauth, setReauth] = useState<{ resolver: any; verificationId: string } | null>(null)
+
+  const RECAPTCHA_ID = "profile-reauth-recaptcha"
 
   const handlePasswordChange = (field: "current" | "next" | "confirm", value: string) => {
     setPasswords((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const resetPasswordFlow = () => {
+    setPasswords({ current: "", next: "", confirm: "" })
+    setPwStep("form")
+    setSmsCode("")
+    setReauth(null)
+    clearRecaptchaVerifier()
+  }
+
+  const submitPassword = async () => {
+    if (passwords.next.length < 6) {
+      toast.error("New password must be at least 6 characters")
+      return
+    }
+    if (passwords.next !== passwords.confirm) {
+      toast.error("Passwords do not match")
+      return
+    }
+    setPwBusy(true)
+    try {
+      const result = await reauthenticate(passwords.current)
+      if (result.status === "done") {
+        await changePassword(passwords.next)
+        toast.success("Password updated")
+        resetPasswordFlow()
+        onSettingsOpenChange(false)
+        return
+      }
+      // MFA required — send the SMS and switch to the code step.
+      const verificationId = await sendReauthOtp(result.resolver, RECAPTCHA_ID)
+      setReauth({ resolver: result.resolver, verificationId })
+      setPwStep("otp")
+      toast.success("We sent a code to your phone")
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setPwBusy(false)
+    }
+  }
+
+  const submitPasswordOtp = async () => {
+    if (!reauth) return
+    setPwBusy(true)
+    try {
+      await completeReauthOtp(reauth.resolver, reauth.verificationId, smsCode.trim())
+      await changePassword(passwords.next)
+      toast.success("Password updated")
+      resetPasswordFlow()
+      onSettingsOpenChange(false)
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setPwBusy(false)
+    }
+  }
+
+  const saveAccount = async () => {
+    setSavingAccount(true)
+    try {
+      await onSaveAccountInfo()
+      onSettingsOpenChange(false)
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setSavingAccount(false)
+    }
+  }
+
+  const confirmDeactivate = async () => {
+    if (!window.confirm("Deactivate your account? Your profile will be hidden until you sign back in.")) return
+    try {
+      await onDeactivate()
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    }
+  }
+
+  const confirmDelete = async () => {
+    if (!window.confirm("Permanently delete your account and profile? This cannot be undone.")) return
+    try {
+      await onDelete()
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    }
   }
 
   return (
@@ -250,18 +361,30 @@ export function ProfileModals({
 
             {accountTab === "Password" && (
               <div className="space-y-5">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-[#151922]">Current password</label>
-                  <PasswordField value={passwords.current} onChange={(event) => handlePasswordChange("current", event.target.value)} placeholder="Enter current password" />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-[#151922]">New password</label>
-                  <PasswordField value={passwords.next} onChange={(event) => handlePasswordChange("next", event.target.value)} placeholder="Enter new password" />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-[#151922]">Confirm password</label>
-                  <PasswordField value={passwords.confirm} onChange={(event) => handlePasswordChange("confirm", event.target.value)} placeholder="Confirm new password" />
-                </div>
+                {pwStep === "form" ? (
+                  <>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-[#151922]">Current password</label>
+                      <PasswordField value={passwords.current} onChange={(event) => handlePasswordChange("current", event.target.value)} placeholder="Enter current password" />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-[#151922]">New password</label>
+                      <PasswordField value={passwords.next} onChange={(event) => handlePasswordChange("next", event.target.value)} placeholder="Enter new password" />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-[#151922]">Confirm password</label>
+                      <PasswordField value={passwords.confirm} onChange={(event) => handlePasswordChange("confirm", event.target.value)} placeholder="Confirm new password" />
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-[#151922]">Verification code</label>
+                    <p className="mb-3 text-sm text-[#656f80]">Enter the 6-digit code we texted to your phone to confirm the change.</p>
+                    <Input value={smsCode} onChange={(event) => setSmsCode(event.target.value)} inputMode="numeric" placeholder="123456" />
+                  </div>
+                )}
+                {/* Invisible reCAPTCHA target required by Firebase phone verification. */}
+                <div id={RECAPTCHA_ID} />
               </div>
             )}
 
@@ -270,14 +393,14 @@ export function ProfileModals({
                 <div className="rounded-3xl border border-[#fde3e1] bg-[#fff1f0] p-5">
                   <p className="text-sm font-semibold text-[#d8442a]">Deactivate Account</p>
                   <p className="mt-2 text-sm text-[#665555]">Temporarily hide your profile. You can reactivate at any time.</p>
-                  <Button variant="outline" className="mt-4 w-full border-[#d8442a] text-[#d8442a] hover:bg-[#fde3e1]">
+                  <Button variant="outline" className="mt-4 w-full border-[#d8442a] text-[#d8442a] hover:bg-[#fde3e1]" onClick={confirmDeactivate}>
                     Deactivate account
                   </Button>
                 </div>
                 <div className="rounded-3xl border border-[#ffe1de] bg-[#fff4f2] p-5">
                   <p className="text-sm font-semibold text-[#c92815]">Delete Account</p>
                   <p className="mt-2 text-sm text-[#665555]">Permanently delete your account and all data. This cannot be undone.</p>
-                  <Button className="mt-4 w-full bg-[#d8442a] text-white hover:opacity-90">
+                  <Button className="mt-4 w-full bg-[#d8442a] text-white hover:opacity-90" onClick={confirmDelete}>
                     Delete account permanently
                   </Button>
                 </div>
@@ -285,9 +408,21 @@ export function ProfileModals({
             )}
           </DialogBody>
           <DialogFooter>
-            {accountTab !== "Danger zone" ? (
-              <Button className="bg-[#00b4b8] text-white hover:opacity-90" onClick={() => onSettingsOpenChange(false)}>Save changes</Button>
-            ) : (
+            {accountTab === "Account info" && (
+              <Button className="bg-[#00b4b8] text-white hover:opacity-90" disabled={savingAccount} onClick={saveAccount}>
+                {savingAccount ? "Saving…" : "Save changes"}
+              </Button>
+            )}
+            {accountTab === "Password" && (
+              <Button
+                className="bg-[#00b4b8] text-white hover:opacity-90"
+                disabled={pwBusy}
+                onClick={pwStep === "form" ? submitPassword : submitPasswordOtp}
+              >
+                {pwBusy ? "Working…" : pwStep === "form" ? "Update password" : "Confirm code"}
+              </Button>
+            )}
+            {accountTab === "Danger zone" && (
               <Button className="bg-[#868686] text-white hover:opacity-90" variant="secondary" onClick={() => onSettingsOpenChange(false)}>
                 Close
               </Button>
