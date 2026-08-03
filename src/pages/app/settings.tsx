@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { useCareFlow } from "@/components/app/useCareFlow"
 import { ProfileModals } from "@/components/profile/ProfileModals"
@@ -65,7 +66,12 @@ export default function SettingsPage() {
               {isAgency ? "Manage your agency workspace preferences." : "Manage your CareConnect preferences."}
             </p>
           </div>
-          <Button className="h-11 bg-[#00b4b8] px-6">Save changes</Button>
+          <Button
+            className="h-11 bg-[#00b4b8] px-6 transition-transform duration-150 hover:scale-105 active:scale-95"
+            onClick={() => toast("Saving isn't available in this demo")}
+          >
+            Save changes
+          </Button>
         </div>
 
         <div className="space-y-3 mt-7">
@@ -82,7 +88,7 @@ export default function SettingsPage() {
                 key={item}
                 type="button"
                 onClick={action}
-                className="flex w-full items-center justify-between rounded-xl border border-[#d6d6d6] bg-white px-4 py-4 text-left text-sm font-semibold"
+                className="flex w-full items-center justify-between rounded-xl border border-[#d6d6d6] bg-white px-4 py-4 text-left text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:border-[#00b4b8]/40 hover:shadow-[0_4px_14px_rgba(16,20,26,0.08)]"
               >
                 {item}
                 <span className="text-[#00b4b8]">Open</span>

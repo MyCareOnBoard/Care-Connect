@@ -25,6 +25,7 @@ const ResetPasswordPage = lazy(() => import("@/pages/auth/reset-password"));
 
 const DashboardPage = lazy(() => import("@/pages/app/user/dashboard"));
 const AgencyDashboardPage = lazy(() => import("@/pages/app/agency/dashboard"));
+const NetworkPage = lazy(() => import("@/pages/app/network"));
 const UserJobsPage = lazy(() => import("@/pages/app/user/jobs"));
 const AgencyJobsPage = lazy(() => import("@/pages/app/agency/jobs"));
 const MessagesPage = lazy(() => import("@/pages/app/messages"));
@@ -74,6 +75,7 @@ export const router = createBrowserRouter([
         Component: AppLayout,
         children: [
           { path: Routes.app.user.dashboard, Component: DashboardPage },
+          { path: Routes.app.user.network, Component: NetworkPage },
           { path: Routes.app.user.messages, Component: MessagesPage },
           { path: Routes.app.user.jobs, Component: UserJobsPage },
           { path: Routes.app.user.applications, Component: ApplicationsPage },
@@ -84,6 +86,7 @@ export const router = createBrowserRouter([
           { path: `${Routes.app.user.profile}/:id`, Component: ViewProfilePage },
           { path: Routes.app.user.settings, Component: SettingsPage },
           { path: Routes.app.agency.dashboard, Component: AgencyDashboardPage },
+          { path: Routes.app.agency.network, Component: NetworkPage },
           { path: Routes.app.agency.messages, Component: MessagesPage },
           { path: Routes.app.agency.jobs, Component: AgencyJobsPage },
           { path: Routes.app.agency.marketplace, Component: MarketplacePage },

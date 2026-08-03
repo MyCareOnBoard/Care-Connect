@@ -553,7 +553,7 @@ function PaymentMethodDialog({
                   >
                     <span className="flex items-center gap-3">
                       <span className={`flex size-9 items-center justify-center overflow-hidden rounded-full ${option.iconBg}`}>
-                        {option.icon ? <option.icon className="size-4" /> : <img src={option.image} alt="" className="size-10 object-contain" />}
+                        {option.icon ? <option.icon className="size-4" /> : <img src={option.image} alt="" loading="lazy" decoding="async" className="size-10 object-contain" />}
                       </span>
                       <span className="text-sm font-medium text-[#151922]">{option.label}</span>
                     </span>
@@ -1008,7 +1008,7 @@ function UserServiceBrowser() {
 
   return (
     <div className="p-5 sm:p-8">
-      <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <div className="space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
@@ -1220,7 +1220,7 @@ function AgencyTelehealthPage() {
 
       <AgencyOverview services={services} team={team} bookings={bookings} />
 
-      <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="mt-6 grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div>
           <div className="space-y-4">
             {visibleServices.length === 0 ? (
