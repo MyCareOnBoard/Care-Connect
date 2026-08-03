@@ -60,7 +60,7 @@ function JobOverviewCard({ job, style }: { job: Job; style?: CSSProperties }) {
 function AgencyDashboardSkeleton() {
   return (
     <div className="grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-7.5 pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,680px)_326px]">
-      <aside className="order-2 xl:order-0 space-y-10">
+      <aside className="order-2 space-y-10 xl:order-0">
         <Skeleton className="h-20 rounded-lg" />
         <div className="space-y-3">
           <Skeleton className="w-24 h-4" />
@@ -71,7 +71,7 @@ function AgencyDashboardSkeleton() {
         <Skeleton className="h-48 rounded-lg" />
       </aside>
 
-      <main className="order-1 xl:order-0 space-y-8">
+      <main className="order-1 space-y-8 xl:order-0">
         <Skeleton className="h-32 rounded-[30px]" />
         <div className="space-y-4">
           <div className="flex items-start gap-3">
@@ -86,7 +86,7 @@ function AgencyDashboardSkeleton() {
         </div>
       </main>
 
-      <aside className="order-3 xl:order-0 space-y-10">
+      <aside className="order-3 space-y-10 xl:order-0">
         <div className="space-y-4">
           <Skeleton className="w-32 h-4" />
           {Array.from({ length: 4 }).map((_, index) => (
@@ -195,14 +195,14 @@ export default function AgencyDashboardPage() {
         <MarketplacePromoCard marketplaceHref={Routes.app.agency.marketplace} />
       </aside>
 
-      <main className="order-1 xl:order-0 space-y-8">
+      <main className="order-1 space-y-8 xl:order-0">
         <PostComposer />
         <DashboardFeed />
       </main>
 
       <aside className="order-3 xl:order-0 space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
         {companies.length > 0 && (
-          <ConnectionsSection title="Top agencies around you" items={companies} actionLabel="Subscribe" activeLabel="Subscribed" relation="subscribe" targetType="company" viewAllHref={`${Routes.app.agency.network}?tab=agencies`} />
+          <ConnectionsSection title="Top healthcare providers around you" items={companies} actionLabel="Subscribe" activeLabel="Subscribed" relation="subscribe" targetType="company" viewAllHref={`${Routes.app.agency.network}?tab=agencies`} />
         )}
         {people.length > 0 && (
           <ConnectionsSection title="Professionals you may be interested in" items={people} actionLabel="Connect" activeLabel="Pending" relation="connect" targetType="individual" viewAllHref={`${Routes.app.agency.network}?tab=connections`} />
