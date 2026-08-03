@@ -3,7 +3,9 @@
  * Thin axios wrappers around the `/careconnectPosts` backend function.
  */
 
-import axiosClient from "@/lib/axios"
+// Posts go through the merged careconnectCore function (aliased as axiosClient below);
+// media upload stays on the shared root client (uploads is a separate function).
+import rootClient, { careconnectClient as axiosClient } from "@/lib/axios"
 
 export interface FeedComment {
   id: string
@@ -39,7 +41,7 @@ export interface CreatePostInput {
 export async function uploadPostMedia(file: File): Promise<string> {
   const formData = new FormData()
   formData.append("file", file)
-  const { data } = await axiosClient.post("/uploads/careconnect-post-media", formData)
+  const { data } = await rootClient.post("/uploads/careconnect-post-media", formData)
   return data.data.url
 }
 

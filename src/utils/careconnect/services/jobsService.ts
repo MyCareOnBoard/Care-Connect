@@ -6,7 +6,8 @@
  * unwrap the response envelope, and let errors throw for the caller to catch.
  */
 
-import axiosClient from "@/lib/axios"
+// Routed through the merged careconnectCore function (see lib/axios.ts).
+import { careconnectClient as axiosClient } from "@/lib/axios"
 import type {
   Job,
   CreateJobPayload,
