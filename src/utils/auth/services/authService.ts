@@ -43,12 +43,43 @@ export interface BackendUserProfile {
   agency?: Record<string, unknown> | null
 }
 
+export interface ExperienceItem {
+  role: string
+  company: string
+  duration: string
+  description: string
+}
+
+export interface CertificationItem {
+  title: string
+  provider: string
+  date: string
+  status: string
+}
+
 export interface CareConnectProfileFields {
   organizationName?: string
   organizationType?: string
   organizationInterests?: string[]
   profession?: string
   certifications?: string[]
+  /** Profile-display fields edited from the profile page. */
+  headline?: string
+  description?: string
+  location?: string
+  skills?: string[]
+  experience?: ExperienceItem[]
+  certificationDetails?: CertificationItem[]
+}
+
+/** Fields on the shared `users` doc, updated via PUT /users/profile. */
+export interface UserProfileFields {
+  fullName?: string
+  phoneNumber?: string
+  city?: string
+  state?: string
+  profilePicture?: string
+  coverImage?: string
 }
 
 export interface AuthResponse {
@@ -227,6 +258,23 @@ export async function updateCareConnectProfile(
   fields: CareConnectProfileFields
 ): Promise<void> {
   await axiosClient.put('/users/careconnect-profile', fields)
+}
+
+/**
+ * Update fields on the shared `users` doc (name, phone, avatar, cover).
+ */
+export async function updateUserProfile(fields: UserProfileFields): Promise<void> {
+  await axiosClient.put('/users/profile', fields)
+}
+
+/** Temporarily hide the account (reactivates on next sign-in). */
+export async function deactivateAccount(): Promise<void> {
+  await axiosClient.post('/users/deactivate')
+}
+
+/** Permanently delete the account. Call only after a fresh MFA re-auth. */
+export async function deleteAccount(): Promise<void> {
+  await axiosClient.delete('/users/me')
 }
 
 /**

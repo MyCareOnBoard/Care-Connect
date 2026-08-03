@@ -3,12 +3,33 @@ import { useNavigate } from "react-router"
 import { Banknote, Briefcase, Camera, Mail, MapPin, Pencil, Phone, UserPlus, UserRound, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProfileModals } from "@/components/profile/ProfileModals"
-import { PortfolioPost, type PortfolioPostData } from "@/components/profile/PortfolioPost"
+import { PortfolioPost, type PostComment } from "@/components/profile/PortfolioPost"
+import { PostComposer } from "@/components/app/PostComposer"
+import { toPortfolioData } from "@/components/profile/postMapping"
 import { useCareFlow } from "@/components/app/useCareFlow"
 import { Routes } from "@/routes/constants"
 import { toast } from "sonner"
+import { getInitials } from "@/lib/utils"
 import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
-import { getProfile } from "@/utils/careconnect/services/profilesService"
+import {
+  updateUserProfile,
+  updateCareConnectProfile,
+  deactivateAccount,
+  deleteAccount,
+} from "@/utils/auth/services/authService"
+import { logoutUser } from "@/utils/auth/store/authSlice"
+import { useAppDispatch } from "@/store/redux/hooks"
+import { getProfile, uploadProfileImage } from "@/utils/careconnect/services/profilesService"
+import {
+  addComment,
+  deletePost,
+  likePost,
+  listComments,
+  listFeed,
+  unlikePost,
+  POST_CREATED_EVENT,
+  type FeedPost,
+} from "@/utils/careconnect/services/postsService"
 import { listMyJobs } from "@/utils/careconnect/services/jobsService"
 import { inviteTeamMember, listMyTeam, removeTeamMember } from "@/utils/careconnect/services/teamService"
 import { EMPLOYMENT_TYPE_LABELS, formatRelative, formatSalary, type Job, type TeamMember } from "@/utils/careconnect/types"
@@ -101,24 +122,6 @@ function toPostedJob(job: Job): AgencyPostedJob {
 }
 
 
-const initialPortfolio: PortfolioPostData[] = [
-  {
-    id: "post-1",
-    paragraphs: [
-      "One of the hardest product decisions isn't what to build.",
-      "It's deciding who you're willing to disappoint.",
-      "We spend so much time trying to make products work for everyone that we slowly make them exceptional for no one.",
-      "Every product has a target user.",
-      "The challenge is having the discipline to design for them, even when it means saying no to everyone else.",
-    ],
-    statement: "Not every user is your user.",
-    likes: 140,
-    comments: [
-      { id: "c1", author: "Esther Howard", text: "Needed this today. So well said." },
-    ],
-  },
-]
-
 const userTabs = ["About", "Experience", "Skills", "Certifications", "Portfolio"] as const
 const agencyTabs = ["About", "Posted jobs", "Team", "Certifications", "Portfolio"] as const
 type ProfileTab = (typeof userTabs)[number] | (typeof agencyTabs)[number]
@@ -128,6 +131,7 @@ export default function ProfilePage() {
   const { flow } = useCareFlow()
   const navigate = useNavigate()
   const isAgency = flow === "agency"
+  const dispatch = useAppDispatch()
   const [profileSummary, setProfileSummary] = useState(defaultSummary)
   const [agencySummary, setAgencySummary] = useState(defaultAgencySummary)
   const [postedJobs, setPostedJobs] = useState<AgencyPostedJob[]>([])
@@ -204,7 +208,8 @@ export default function ProfilePage() {
   const [skills, setSkills] = useState(initialSkills)
   const [certifications, setCertifications] = useState(initialCertifications)
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
-  const [portfolio, setPortfolio] = useState(initialPortfolio)
+  const [portfolio, setPortfolio] = useState<FeedPost[]>([])
+  const [portfolioLoading, setPortfolioLoading] = useState(true)
   const [newSkill, setNewSkill] = useState("")
   const [newExperience, setNewExperience] = useState({ role: "", company: "", duration: "", description: "" })
   const [newCertification, setNewCertification] = useState({ title: "", provider: "", date: "", file: "" })
@@ -226,6 +231,46 @@ export default function ProfilePage() {
       active = false
     }
   }, [isAgency, user?.uid])
+
+  // Load the user's own posts for the Portfolio tab, and prepend live when they
+  // compose a new one (PostComposer fires POST_CREATED_EVENT).
+  useEffect(() => {
+    if (!user?.uid) return
+    let active = true
+    ;(async () => {
+      setPortfolioLoading(true)
+      try {
+        const posts = await listFeed({ authorId: user.uid })
+        if (active) setPortfolio(posts)
+      } catch {
+        // portfolio is non-critical; leave empty on failure
+      } finally {
+        if (active) setPortfolioLoading(false)
+      }
+    })()
+
+    const onCreated = (event: Event) => {
+      const post = (event as CustomEvent<FeedPost>).detail
+      if (post) setPortfolio((current) => [post, ...current])
+    }
+    window.addEventListener(POST_CREATED_EVENT, onCreated)
+    return () => {
+      active = false
+      window.removeEventListener(POST_CREATED_EVENT, onCreated)
+    }
+  }, [user?.uid])
+
+  const handleRemovePost = async (id: string) => {
+    const previous = portfolio
+    setPortfolio((current) => current.filter((item) => item.id !== id))
+    try {
+      await deletePost(id)
+      toast.success("Post removed")
+    } catch (error) {
+      setPortfolio(previous)
+      toast.error(getAuthErrorMessage(error))
+    }
+  }
 
   const withdrawInvite = async (id: string) => {
     const previous = teamMembers
@@ -309,14 +354,108 @@ export default function ProfilePage() {
     setPrivacyOptions((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
+  // Hydrate the editable surfaces (images, experience/skills/certifications, and the
+  // Account settings form) from the stored profile.
+  useEffect(() => {
+    if (!user?.uid) return
+    let active = true
+    ;(async () => {
+      try {
+        const me = await getProfile(user.uid)
+        if (!active) return
+        if (me.photo) setAvatarSrc(me.photo)
+        if (me.coverImage) setCoverSrc(me.coverImage)
+        if (Array.isArray(me.skills) && me.skills.length) setSkills(me.skills)
+        if (Array.isArray(me.experience) && me.experience.length) setExperience(me.experience)
+        if (Array.isArray(me.certificationDetails) && me.certificationDetails.length) {
+          setCertifications(me.certificationDetails)
+        }
+        setAccountInfo({
+          fullName: me.name || user.fullName || "",
+          email: user.email || "",
+          phone: user.phoneNumber || "",
+          location: me.location || "",
+          headline: me.headline || me.subtitle || "",
+          description: me.description || "",
+        })
+      } catch {
+        // non-critical; keep whatever defaults are shown
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [user?.uid, user?.fullName, user?.email, user?.phoneNumber])
+
+  // Upload an image, persist its URL on the users doc, and show it.
+  const handleImageUpload = async (file: File, field: "profilePicture" | "coverImage", setPreview: (url: string) => void) => {
+    const localUrl = URL.createObjectURL(file)
+    setPreview(localUrl)
+    try {
+      const url = await uploadProfileImage(file)
+      await updateUserProfile({ [field]: url })
+      setPreview(url)
+      toast.success(field === "profilePicture" ? "Profile photo updated" : "Cover photo updated")
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    }
+  }
+
   const handleAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (file) setAvatarSrc(URL.createObjectURL(file))
+    if (file) void handleImageUpload(file, "profilePicture", setAvatarSrc)
   }
 
   const handleCoverChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (file) setCoverSrc(URL.createObjectURL(file))
+    if (file) void handleImageUpload(file, "coverImage", setCoverSrc)
+  }
+
+  // Persisting wrappers for the editable lists (optimistic local update + backend save).
+  const persistCareConnect = (fields: Parameters<typeof updateCareConnectProfile>[0]) =>
+    updateCareConnectProfile(fields).catch((error) => toast.error(getAuthErrorMessage(error)))
+
+  const updateExperience = (next: typeof experience) => {
+    setExperience(next)
+    void persistCareConnect({ experience: next })
+  }
+  const updateSkills = (next: string[]) => {
+    setSkills(next)
+    void persistCareConnect({ skills: next })
+  }
+  const updateCertifications = (next: typeof certifications) => {
+    setCertifications(next)
+    void persistCareConnect({ certificationDetails: next })
+  }
+
+  const handleSaveAccountInfo = async () => {
+    await updateUserProfile({ fullName: accountInfo.fullName, phoneNumber: accountInfo.phone })
+    await updateCareConnectProfile({
+      headline: accountInfo.headline,
+      description: accountInfo.description,
+      location: accountInfo.location,
+    })
+    setProfileSummary((prev) => ({
+      ...prev,
+      name: accountInfo.fullName,
+      headline: accountInfo.headline,
+      location: accountInfo.location,
+      phone: accountInfo.phone,
+    }))
+    toast.success("Account info saved")
+  }
+
+  const handleDeactivate = async () => {
+    await deactivateAccount()
+    toast.success("Account deactivated")
+    await dispatch(logoutUser())
+    navigate(Routes.auth.login, { replace: true })
+  }
+
+  const handleDelete = async () => {
+    await deleteAccount()
+    await dispatch(logoutUser())
+    navigate(Routes.auth.login, { replace: true })
   }
 
   return (
@@ -626,7 +765,11 @@ export default function ProfilePage() {
 
           {activeTab === "Portfolio" && (
             <div className="space-y-6">
-              {portfolio.length === 0 ? (
+              <PostComposer />
+
+              {portfolioLoading ? (
+                <div className="rounded-3xl border border-[#e5ecf5] bg-[#f7fafc] p-6 text-sm text-[#687182]">Loading your posts…</div>
+              ) : portfolio.length === 0 ? (
                 <div className="rounded-3xl border border-[#e5ecf5] bg-[#f7fafc] p-6">
                   <p className="text-sm text-[#687182]">Portfolio updates will appear here.</p>
                   <p className="mt-4 text-sm leading-7 text-[#505964]">
@@ -638,23 +781,28 @@ export default function ProfilePage() {
                   <PortfolioPost
                     key={post.id}
                     authorName={summary.name}
-                    authorRole={isAgency ? "Healthcare Agency" : "Certified Nurse"}
+                    authorRole={summary.headline || (isAgency ? "Healthcare Agency" : "Care Connect member")}
                     avatarClassName="bg-[#6b9cca]"
-                    initials="JE"
-                    post={post}
+                    initials={getInitials(summary.name)}
+                    post={toPortfolioData(post)}
                     editable
-                    onEdit={() => toast("Editing isn't available in this demo")}
-                    onRemove={() => setPortfolio((current) => current.filter((item) => item.id !== post.id))}
+                    initialLiked={post.likedByMe}
+                    initialCommentCount={post.commentsCount ?? 0}
+                    onRemove={() => handleRemovePost(post.id)}
+                    onLikeChange={(next) => {
+                      const call = next ? likePost : unlikePost
+                      call(post.id).catch(() => undefined)
+                    }}
+                    onSubmitComment={(text) => {
+                      addComment(post.id, text).catch(() => undefined)
+                    }}
+                    onLoadComments={async (): Promise<PostComment[]> => {
+                      const comments = await listComments(post.id)
+                      return comments.map((c) => ({ id: c.id, author: c.author, text: c.text }))
+                    }}
                   />
                 ))
               )}
-              <Button
-                variant="outline"
-                className="transition-transform duration-150 hover:scale-[1.02] active:scale-95"
-                onClick={() => toast("Adding portfolio items isn't available in this demo")}
-              >
-                Add portfolio item
-              </Button>
             </div>
           )}
         </div>
@@ -679,16 +827,19 @@ export default function ProfilePage() {
         onPrivacyOptionChange={updatePrivacy}
         accountInfo={accountInfo}
         onAccountInfoChange={setAccountInfo}
+        onSaveAccountInfo={handleSaveAccountInfo}
+        onDeactivate={handleDeactivate}
+        onDelete={handleDelete}
         experience={experience}
-        onExperienceChange={setExperience}
+        onExperienceChange={updateExperience}
         newExperience={newExperience}
         onNewExperienceChange={setNewExperience}
         skills={skills}
-        onSkillsChange={setSkills}
+        onSkillsChange={updateSkills}
         newSkill={newSkill}
         onNewSkillChange={setNewSkill}
         certifications={certifications}
-        onCertificationsChange={setCertifications}
+        onCertificationsChange={updateCertifications}
         newCertification={newCertification}
         onNewCertificationChange={setNewCertification}
         teamInviteOpen={teamInviteOpen}

@@ -43,9 +43,18 @@ export async function uploadPostMedia(file: File): Promise<string> {
   return data.data.url
 }
 
-export async function listFeed(): Promise<FeedPost[]> {
-  const { data } = await axiosClient.get("/careconnectPosts")
+export interface ListFeedParams {
+  /** Restrict to a single author's posts (e.g. a profile's own portfolio). */
+  authorId?: string
+}
+
+export async function listFeed(params: ListFeedParams = {}): Promise<FeedPost[]> {
+  const { data } = await axiosClient.get("/careconnectPosts", { params })
   return data.data
+}
+
+export async function deletePost(id: string): Promise<void> {
+  await axiosClient.delete(`/careconnectPosts/${id}`)
 }
 
 export async function createPost(input: CreatePostInput): Promise<FeedPost> {
