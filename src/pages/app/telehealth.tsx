@@ -694,7 +694,9 @@ function BookServiceDialog({
   const [booking, setBooking] = useState(false)
   const [bookingCode, setBookingCode] = useState("")
 
-  const dates = Array.from({ length: 10 }, (_, index) => addDays(new Date(), index))
+  // Compute the 10-day window once per mount so `selectedDate` keeps a stable
+  // reference across renders (an unstable one previously looped the slots effect).
+  const dates = useMemo(() => Array.from({ length: 10 }, (_, index) => addDays(new Date(), index)), [])
   const selectedDate = dates[dateIndex]
   const members = service?.teamMembers ?? []
 
@@ -732,7 +734,10 @@ function BookServiceDialog({
     return () => {
       active = false
     }
-  }, [step, service, professionalId, selectedDate])
+    // Depend on primitives — `service`/`selectedDate` are recreated every render,
+    // so using them here caused the effect (and getSlots) to fire on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, service?.id, professionalId, dateIndex])
 
   if (!service) return null
 
