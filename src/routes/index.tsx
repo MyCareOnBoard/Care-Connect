@@ -2,6 +2,7 @@ import { lazy } from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 import { Routes } from "@/routes/constants";
 import RouteErrorPage from "@/pages/error/RouteErrorPage";
+import { AppRouteGuard } from "@/components/AppRouteGuard";
 
 const AuthLayout = lazy(() => import("@/layouts/AuthLayout"));
 const AppLayout = lazy(() => import("@/layouts/AppLayout"));
@@ -72,8 +73,11 @@ export const router = createBrowserRouter([
         ],
       },
       {
-        Component: AppLayout,
+        Component: AppRouteGuard,
         children: [
+          {
+            Component: AppLayout,
+            children: [
           { path: Routes.app.user.dashboard, Component: DashboardPage },
           { path: Routes.app.user.network, Component: NetworkPage },
           { path: Routes.app.user.messages, Component: MessagesPage },
@@ -95,6 +99,8 @@ export const router = createBrowserRouter([
           { path: Routes.app.agency.profile, Component: ProfilePage },
           { path: `${Routes.app.agency.profile}/:id`, Component: ViewProfilePage },
           { path: Routes.app.agency.settings, Component: SettingsPage },
+            ],
+          },
         ],
       },
     ],
