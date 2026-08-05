@@ -177,19 +177,19 @@ export default function AgencyDashboardPage() {
         </section>
 
         <section>
-          <h2 className="mb-4 text-sm font-semibold">Jobs overview</h2>
+          <h2 className="mb-4 text-xl font-semibold">Jobs overview</h2>
+          <ViewAllLink href={Routes.app.agency.jobs} />
           {postings.length === 0 ? (
             <p className="rounded-xl border border-dashed border-[#e2e2e2] p-6 text-center text-sm text-[#657080]">
               You haven&apos;t posted any jobs yet.
             </p>
           ) : (
-            <div className="space-y-3">
+            <div className="mt-5 space-y-3">
               {postings.map((job, index) => (
                 <JobOverviewCard key={job.id} job={job} style={{ animationDelay: `${index * 80}ms` }} />
               ))}
             </div>
           )}
-          <ViewAllLink href={Routes.app.agency.jobs} />
         </section>
 
         <MarketplacePromoCard marketplaceHref={Routes.app.agency.marketplace} />
@@ -202,7 +202,7 @@ export default function AgencyDashboardPage() {
 
       <aside className="order-3 xl:order-0 space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
         {companies.length > 0 && (
-          <ConnectionsSection title="Top healthcare providers around you" items={companies} actionLabel="Subscribe" activeLabel="Subscribed" relation="subscribe" targetType="company" viewAllHref={`${Routes.app.agency.network}?tab=agencies`} />
+          <ConnectionsSection title="Top agencies around you" items={companies} actionLabel="Subscribe" activeLabel="Subscribed" relation="subscribe" targetType="company" viewAllHref={`${Routes.app.agency.network}?tab=agencies`} />
         )}
         {people.length > 0 && (
           <ConnectionsSection title="Professionals you may be interested in" items={people} actionLabel="Connect" activeLabel="Pending" relation="connect" targetType="individual" viewAllHref={`${Routes.app.agency.network}?tab=connections`} />

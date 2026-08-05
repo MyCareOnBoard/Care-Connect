@@ -20,7 +20,7 @@ export function BookingRowAction({
 
   if (rowStatus === "in_progress") {
     return (
-      <button type="button" className={linkClass} onClick={() => toast("Joining video call...")}>
+      <button type="button" className={linkClass} onClick={() => onDetails(booking)}>
         Join call
       </button>
     )
