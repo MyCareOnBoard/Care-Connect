@@ -247,13 +247,14 @@ export default function DashboardPage() {
         </section>
 
         <section>
-          <h2 className="mb-4 text-sm font-semibold">Jobs for you</h2>
+          <h2 className="mb-4 text-xl font-semibold">Jobs for you</h2>
+          <ViewAllLink href={Routes.app.user.jobs} />
           {jobs.length === 0 ? (
             <p className="rounded-xl border border-dashed border-[#e2e2e2] p-6 text-center text-sm text-[#657080]">
               No jobs yet.
             </p>
           ) : (
-            <div className="space-y-3">
+            <div className="mt-5 space-y-3">
               {jobs.map((job, index) => (
                 <JobCard
                   key={job.id}
@@ -265,7 +266,6 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
-          <ViewAllLink href={Routes.app.user.jobs} />
         </section>
 
         <MarketplacePromoCard marketplaceHref={Routes.app.user.marketplace} />

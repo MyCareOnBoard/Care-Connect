@@ -598,7 +598,7 @@ function ApplicantDetailsPanel({
         </div>
       </div>
 
-      <div className="mt-8 flex justify-end gap-2">
+      <div className="flex justify-end gap-2 mt-8">
         <Button
           type="button"
           variant="outline"
@@ -795,7 +795,7 @@ export default function AgencyJobsPage() {
             </p>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-[#e2e2e2]">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-sm text-left">
                 <thead className="border-b border-[#e2e2e2] text-[#657080]">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Applicant</th>
@@ -885,22 +885,22 @@ export default function AgencyJobsPage() {
                   <path d="M314 0.5C323.113 0.500016 330.5 7.88731 330.5 17V208C330.5 217.113 323.113 224.5 314 224.5H17C7.8873 224.5 0.5 217.113 0.5 208V50.627C0.500016 41.5143 7.88731 34.127 17 34.127H224.948C231.357 34.1269 237.106 30.1824 239.411 24.2021L244.475 11.0654C246.929 4.69946 253.048 0.500175 259.87 0.5H314Z" stroke="#D9D9D9" strokeWidth="1" />
                 </svg>
 
-                <div className="absolute right-4 top-4 z-20">
+                <div className="absolute z-20 right-4 top-4 ">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
                         type="button"
                         aria-label="Posting actions"
                         onClick={(event) => event.stopPropagation()}
-                        className="flex size-8 items-center justify-center rounded-full text-[#565656] transition hover:bg-black/5"
+                        className="flex size-8 items-center bg-white justify-center rounded-full text-[#565656] transition hover:bg-black/5"
                       >
                         <MoreVertical className="size-4" />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onSelect={() => handleEditPosting(posting)}>Edit</DropdownMenuItem>
+                    <DropdownMenuContent className="bg-white" align="end">
+                      <DropdownMenuItem className="hover:bg-[#00b5b856]" onSelect={() => handleEditPosting(posting)}>Edit</DropdownMenuItem>
                       {posting.status === "open" && (
-                        <DropdownMenuItem onSelect={() => handleChangeJobStatus(posting, "closed")}>
+                        <DropdownMenuItem className="hover:bg-[#00b5b856]" onSelect={() => handleChangeJobStatus(posting, "closed")}>
                           Close posting
                         </DropdownMenuItem>
                       )}
@@ -915,7 +915,7 @@ export default function AgencyJobsPage() {
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem variant="destructive" onSelect={() => setDeleteTarget(posting)}>
+                      <DropdownMenuItem className="hover:bg-[#ff313157]" variant="destructive" onSelect={() => setDeleteTarget(posting)}>
                         Delete
                       </DropdownMenuItem>
                     </DropdownMenuContent>
