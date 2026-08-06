@@ -24,7 +24,7 @@ const AVATAR_PALETTE = ["bg-[#00b4b8]", "bg-[#ffa33d]", "bg-[#a782d8]", "bg-[#d1
 const tabs = [
   { key: "invitations", label: "Invitations" },
   { key: "connections", label: "Connections" },
-  { key: "agencies", label: "Agencies" },
+  { key: "agencies", label: "Healthcare Providers" },
 ] as const
 type NetworkTab = (typeof tabs)[number]["key"]
 
@@ -256,7 +256,7 @@ export default function NetworkPage() {
           {tab === "agencies" ? (
             suggestedAgencies.length > 0 && (
               <ConnectionsSection
-                title="Top agencies around you"
+                title="Top healthcare providers around you"
                 items={suggestedAgencies}
                 actionLabel="Subscribe"
                 activeLabel="Subscribed"
@@ -275,11 +275,11 @@ export default function NetworkPage() {
                     <div
                       key={person.id}
                       style={{ animationDelay: `${index * 60}ms` }}
-                      className="animate-fade-in-up -mx-2 flex items-center gap-3 rounded-xl px-2 py-1 transition-colors duration-200 hover:bg-white/70"
+                      className="flex items-center gap-3 px-2 py-1 -mx-2 transition-colors duration-200 animate-fade-in-up rounded-xl hover:bg-white/70"
                     >
                       <Avatar className={person.avatarBg} initials={getInitials(person.name)} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold">{person.name}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold truncate">{person.name}</p>
                         <p className="mt-1 truncate text-sm text-[#657080]">{person.role}</p>
                       </div>
                       <button
@@ -377,7 +377,7 @@ export default function NetworkPage() {
           {tab === "agencies" && (
             <>
               <div className="flex flex-wrap items-center justify-between gap-4">
-                <h1 className="text-xl font-bold text-[#151922]">Agencies connections({agencies.length})</h1>
+                <h1 className="text-xl font-bold text-[#151922]">Healthcare Providers Connections ({agencies.length})</h1>
                 <div className="relative w-full max-w-sm">
                   <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
                   <Input value={agencySearch} onChange={(e) => setAgencySearch(e.target.value)} placeholder="Role, Name, keyword etc." className="pl-9" />

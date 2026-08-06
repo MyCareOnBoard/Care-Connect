@@ -1,6 +1,8 @@
 import { Outlet } from "react-router";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { SignupWizardProvider } from "@/utils/auth/context/SignupWizardContext";
+import { RouteLoader } from "@/components/ui/loader";
+import { RouteProgressBar } from "@/components/app/RouteProgressBar";
 
 export default function AuthLayout() {
   useEffect(() => {
@@ -10,7 +12,10 @@ export default function AuthLayout() {
 
   return (
     <SignupWizardProvider>
-      <Outlet />
+      <RouteProgressBar />
+      <Suspense fallback={<RouteLoader />}>
+        <Outlet />
+      </Suspense>
     </SignupWizardProvider>
   )
 }

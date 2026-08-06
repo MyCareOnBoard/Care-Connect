@@ -60,7 +60,7 @@ function JobOverviewCard({ job, style }: { job: Job; style?: CSSProperties }) {
 function AgencyDashboardSkeleton() {
   return (
     <div className="grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-7.5 pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,680px)_326px]">
-      <aside className="order-2 xl:order-0 space-y-10">
+      <aside className="order-2 space-y-10 xl:order-0">
         <Skeleton className="h-20 rounded-lg" />
         <div className="space-y-3">
           <Skeleton className="w-24 h-4" />
@@ -71,7 +71,7 @@ function AgencyDashboardSkeleton() {
         <Skeleton className="h-48 rounded-lg" />
       </aside>
 
-      <main className="order-1 xl:order-0 space-y-8">
+      <main className="order-1 space-y-8 xl:order-0">
         <Skeleton className="h-32 rounded-[30px]" />
         <div className="space-y-4">
           <div className="flex items-start gap-3">
@@ -86,7 +86,7 @@ function AgencyDashboardSkeleton() {
         </div>
       </main>
 
-      <aside className="order-3 xl:order-0 space-y-10">
+      <aside className="order-3 space-y-10 xl:order-0">
         <div className="space-y-4">
           <Skeleton className="w-32 h-4" />
           {Array.from({ length: 4 }).map((_, index) => (
@@ -177,25 +177,25 @@ export default function AgencyDashboardPage() {
         </section>
 
         <section>
-          <h2 className="mb-4 text-sm font-semibold">Jobs overview</h2>
+          <h2 className="mb-4 text-xl font-semibold">Jobs overview</h2>
+          <ViewAllLink href={Routes.app.agency.jobs} />
           {postings.length === 0 ? (
             <p className="rounded-xl border border-dashed border-[#e2e2e2] p-6 text-center text-sm text-[#657080]">
               You haven&apos;t posted any jobs yet.
             </p>
           ) : (
-            <div className="space-y-3">
+            <div className="mt-5 space-y-3">
               {postings.map((job, index) => (
                 <JobOverviewCard key={job.id} job={job} style={{ animationDelay: `${index * 80}ms` }} />
               ))}
             </div>
           )}
-          <ViewAllLink href={Routes.app.agency.jobs} />
         </section>
 
         <MarketplacePromoCard marketplaceHref={Routes.app.agency.marketplace} />
       </aside>
 
-      <main className="order-1 xl:order-0 space-y-8">
+      <main className="order-1 space-y-8 xl:order-0">
         <PostComposer />
         <DashboardFeed />
       </main>

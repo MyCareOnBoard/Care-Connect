@@ -9,6 +9,7 @@ import { db } from "@/lib/firebase"
 import { useAuthUser } from "@/utils/auth"
 import { useCareFlow } from "./useCareFlow"
 import { AccountControls } from "./AccountControls"
+import { RouteProgressBar } from "./RouteProgressBar"
 
 const userNavItems = [
   { label: "Home", href: Routes.app.user.dashboard },
@@ -73,6 +74,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <main className="min-h-screen bg-[#f5f8fa] text-[#11151d]">
+      <RouteProgressBar />
       <header className="sticky top-0 z-20 flex min-h-16 items-center gap-3 border-b border-white/40 bg-white/70 px-4 py-3 shadow-[0_1px_0_rgba(16,20,26,0.06)] backdrop-blur-xl supports-backdrop-filter:bg-white/60 sm:min-h-18 sm:gap-5 sm:px-6 xl:px-8">
         <button
           type="button"
