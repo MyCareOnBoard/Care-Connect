@@ -2,7 +2,6 @@ import type { CSSProperties } from "react"
 import { Avatar } from "@/components/app/DashboardAvatar"
 import { Button } from "@/components/ui/button"
 import { getInitials } from "@/lib/utils"
-import type { MockPerson } from "@/utils/network/mockNetworkData"
 
 export function InvitationRow({
   person,
@@ -10,7 +9,7 @@ export function InvitationRow({
   onDecline,
   style,
 }: {
-  person: MockPerson
+  person: { name: string; role: string; avatarBg: string }
   onAccept: () => void
   onDecline: () => void
   style?: CSSProperties

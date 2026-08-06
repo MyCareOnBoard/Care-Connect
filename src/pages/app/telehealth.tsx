@@ -22,6 +22,7 @@ import paypalIcon from "@/assets/imgs/PayPal Icon.png"
 import applePayIcon from "@/assets/imgs/Apple Pay Icon.png"
 import googlePayIcon from "@/assets/imgs/Google Pay Icon.png"
 import { Button } from "@/components/ui/button"
+import { AddressAutocomplete } from "@/components/maps/AddressAutocomplete"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -47,6 +48,7 @@ import {
   minutesToLabel,
   toDateKey,
   SERVICE_MODE_LABELS,
+  type BookingLocation,
   type BookingSlot,
   type ServiceMode,
   type TeamMember,
@@ -689,6 +691,8 @@ function BookServiceDialog({
   const [slots, setSlots] = useState<BookingSlot[]>([])
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [startMinutes, setStartMinutes] = useState<number | null>(null)
+  const [bookingMode, setBookingMode] = useState<ServiceMode>("online")
+  const [bookingLocation, setBookingLocation] = useState<BookingLocation | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null)
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [booking, setBooking] = useState(false)
@@ -709,6 +713,8 @@ function BookServiceDialog({
     setDateIndex(0)
     setSlots([])
     setStartMinutes(null)
+    setBookingMode(service?.modes[0] ?? "online")
+    setBookingLocation(null)
     setPaymentMethod(null)
     setBookingCode("")
     // members derives from service; safe to depend on open + service id.
@@ -752,9 +758,10 @@ function BookServiceDialog({
         teamMemberId: professionalId,
         dateKey: toDateKey(selectedDate),
         startMinutes,
-        mode: service.modes[0] ?? "online",
+        mode: bookingMode,
         note: need,
         paymentMethod: paymentMethod ?? "",
+        location: bookingMode === "in_person" && bookingLocation ? bookingLocation : undefined,
       })
       setBookingCode(created.bookingCode)
       setStep("confirmed")
@@ -888,6 +895,33 @@ function BookServiceDialog({
                   )}
                 </div>
 
+                {service.modes.length > 1 && (
+                  <div>
+                    <p className="mb-2 text-sm font-medium text-[#151922]">Session type</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {service.modes.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => setBookingMode(option)}
+                          className={`rounded-xl border px-4 py-2 text-sm font-semibold transition ${
+                            bookingMode === option ? "border-[#00b4b8] bg-[#e3f8f8] text-[#00b4b8]" : "border-[#eef1f3] text-[#151922]"
+                          }`}
+                        >
+                          {SERVICE_MODE_LABELS[option]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {bookingMode === "in_person" && (
+                  <div>
+                    <p className="mb-2 text-sm font-medium text-[#151922]">Meeting address</p>
+                    <AddressAutocomplete value={bookingLocation} onChange={setBookingLocation} />
+                  </div>
+                )}
+
                 <div>
                   <p className="mb-2 text-sm font-medium text-[#151922]">Pay with</p>
                   <button
@@ -912,7 +946,12 @@ function BookServiceDialog({
 
                 <Button
                   className="w-full bg-[#00b4b8] text-white hover:opacity-90"
-                  disabled={startMinutes == null || (service.price > 0 && !paymentMethod) || booking}
+                  disabled={
+                    startMinutes == null ||
+                    (service.price > 0 && !paymentMethod) ||
+                    (bookingMode === "in_person" && !bookingLocation) ||
+                    booking
+                  }
                   onClick={checkout}
                 >
                   {booking ? "Booking..." : `Checkout at ${formatPrice(service.price, service.currency)}`}

@@ -14,10 +14,18 @@ import { useCareFlow } from "@/components/app/useCareFlow"
 import { Routes } from "@/routes/constants"
 import { cn, getInitials } from "@/lib/utils"
 import { getAuthErrorMessage } from "@/utils/auth"
-import { getProfile, listProfiles } from "@/utils/careconnect/services/profilesService"
-import { listConnections, unfollow, type Connection as ServiceConnection } from "@/utils/careconnect/services/connectionsService"
+import { getProfile, listProfiles, listProfileViewers, type ProfileViewer } from "@/utils/careconnect/services/profilesService"
+import {
+  listConnections,
+  unfollow,
+  follow,
+  listRequests,
+  acceptRequest,
+  declineRequest,
+  type Connection as ServiceConnection,
+  type ConnectionRequest,
+} from "@/utils/careconnect/services/connectionsService"
 import type { CareConnectProfile } from "@/utils/careconnect/types"
-import { MOCK_INVITATIONS, MOCK_PROFILE_VIEWERS, type MockPerson } from "@/utils/network/mockNetworkData"
 
 const AVATAR_PALETTE = ["bg-[#00b4b8]", "bg-[#ffa33d]", "bg-[#a782d8]", "bg-[#d193ce]", "bg-[#ffc95c]", "bg-[#33b6a6]"]
 
@@ -85,10 +93,11 @@ export default function NetworkPage() {
   const [tab, setTab] = useState<NetworkTab>(tabs.some((t) => t.key === initialTab) ? initialTab : "invitations")
   const [loading, setLoading] = useState(true)
 
-  const [invitations, setInvitations] = useState<MockPerson[]>(MOCK_INVITATIONS)
+  const [invitations, setInvitations] = useState<ConnectionRequest[]>([])
   const [invitationSearch, setInvitationSearch] = useState("")
 
-  const [profileViewers, setProfileViewers] = useState<Set<string>>(new Set())
+  const [viewers, setViewers] = useState<ProfileViewer[]>([])
+  const [connectedViewers, setConnectedViewers] = useState<Set<string>>(new Set())
 
   const [connections, setConnections] = useState<ResolvedConnection[]>([])
   const [connectionSearch, setConnectionSearch] = useState("")
@@ -134,16 +143,20 @@ export default function NetworkPage() {
         if (!active) return
         const followedIds = new Set([...connectRelations, ...subscribeRelations].map((c) => c.targetId))
 
-        const [resolvedConnections, resolvedAgencies, individuals, companies] = await Promise.all([
+        const [resolvedConnections, resolvedAgencies, individuals, companies, requests, viewerList] = await Promise.all([
           resolveConnections(connectRelations),
           resolveConnections(subscribeRelations),
           listProfiles({ type: "individual", limit: 8 }).catch(() => []),
           listProfiles({ type: "company", limit: 8 }).catch(() => []),
+          listRequests().catch(() => []),
+          listProfileViewers().catch(() => []),
         ])
         if (!active) return
 
         setConnections(resolvedConnections)
         setAgencies(resolvedAgencies)
+        setInvitations(requests)
+        setViewers(viewerList)
         setSuggestedPeople(
           individuals
             .filter((profile) => !followedIds.has(profile.uid))
@@ -166,24 +179,41 @@ export default function NetworkPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flow])
 
-  const acceptInvitation = (person: MockPerson) => {
-    setInvitations((current) => current.filter((item) => item.id !== person.id))
-    toast.success(`You're now connected with ${person.name}`)
+  const acceptInvitation = async (request: ConnectionRequest) => {
+    setInvitations((current) => current.filter((item) => item.id !== request.id))
+    try {
+      await acceptRequest(request.id)
+      toast.success(`You're now connected with ${request.requester.name || "them"}`)
+    } catch (error) {
+      setInvitations((current) => [request, ...current])
+      toast.error(getAuthErrorMessage(error))
+    }
   }
 
-  const declineInvitation = (person: MockPerson) => {
-    setInvitations((current) => current.filter((item) => item.id !== person.id))
-    toast(`Invitation from ${person.name} declined`)
+  const declineInvitation = async (request: ConnectionRequest) => {
+    setInvitations((current) => current.filter((item) => item.id !== request.id))
+    try {
+      await declineRequest(request.id)
+    } catch (error) {
+      setInvitations((current) => [request, ...current])
+      toast.error(getAuthErrorMessage(error))
+    }
   }
 
-  const toggleProfileViewerConnect = (person: MockPerson) => {
-    setProfileViewers((current) => {
-      const next = new Set(current)
-      if (next.has(person.id)) next.delete(person.id)
-      else next.add(person.id)
-      return next
-    })
-    toast.success(`Connection request sent to ${person.name}`)
+  const connectWithViewer = async (viewer: ProfileViewer) => {
+    if (connectedViewers.has(viewer.uid)) return
+    setConnectedViewers((current) => new Set(current).add(viewer.uid))
+    try {
+      await follow(viewer.uid, "connect", "individual")
+      toast.success(`Connection request sent to ${viewer.name || "them"}`)
+    } catch (error) {
+      setConnectedViewers((current) => {
+        const next = new Set(current)
+        next.delete(viewer.uid)
+        return next
+      })
+      toast.error(getAuthErrorMessage(error))
+    }
   }
 
   const removeConnection = async (connectionId: string, uid: string, label: string) => {
@@ -201,11 +231,13 @@ export default function NetworkPage() {
   }
 
   const visibleInvitations = invitationSearch
-    ? invitations.filter(
-        (item) =>
-          item.name.toLowerCase().includes(invitationSearch.toLowerCase()) ||
-          item.role.toLowerCase().includes(invitationSearch.toLowerCase()),
-      )
+    ? invitations.filter((item) => {
+        const q = invitationSearch.toLowerCase()
+        return (
+          (item.requester.name || "").toLowerCase().includes(q) ||
+          (item.requester.subtitle || "").toLowerCase().includes(q)
+        )
+      })
     : invitations
 
   const visibleConnections = useMemo(
@@ -269,32 +301,37 @@ export default function NetworkPage() {
             <section className="rounded-lg border border-white/60 bg-white/80 p-4 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md">
               <h2 className="mb-4 text-sm font-semibold">People who viewed your profile</h2>
               <div className="space-y-4">
-                {MOCK_PROFILE_VIEWERS.map((person, index) => {
-                  const connected = profileViewers.has(person.id)
-                  return (
-                    <div
-                      key={person.id}
-                      style={{ animationDelay: `${index * 60}ms` }}
-                      className="flex items-center gap-3 px-2 py-1 -mx-2 transition-colors duration-200 animate-fade-in-up rounded-xl hover:bg-white/70"
-                    >
-                      <Avatar className={person.avatarBg} initials={getInitials(person.name)} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold truncate">{person.name}</p>
-                        <p className="mt-1 truncate text-sm text-[#657080]">{person.role}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleProfileViewerConnect(person)}
-                        className={cn(
-                          "h-9 shrink-0 rounded-full border px-4 text-sm font-medium transition-transform duration-150 hover:scale-105 active:scale-95",
-                          connected ? "border-[#10ad58] bg-[#eafaf1] text-[#10ad58]" : "border-[#00b4b8] text-[#00b4b8]",
-                        )}
+                {viewers.length === 0 ? (
+                  <p className="text-sm text-[#657080]">No profile views yet.</p>
+                ) : (
+                  viewers.map((viewer, index) => {
+                    const requested = connectedViewers.has(viewer.uid)
+                    return (
+                      <div
+                        key={viewer.uid}
+                        style={{ animationDelay: `${index * 60}ms` }}
+                        className="flex items-center gap-3 px-2 py-1 -mx-2 transition-colors duration-200 animate-fade-in-up rounded-xl hover:bg-white/70"
                       >
-                        {connected ? "Message" : "Connect"}
-                      </button>
-                    </div>
-                  )
-                })}
+                        <Avatar className={AVATAR_PALETTE[index % AVATAR_PALETTE.length]} initials={getInitials(viewer.name || undefined)} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold truncate">{viewer.name || "Care Connect user"}</p>
+                          <p className="mt-1 truncate text-sm text-[#657080]">{viewer.subtitle || ""}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => connectWithViewer(viewer)}
+                          disabled={requested}
+                          className={cn(
+                            "h-9 shrink-0 rounded-full border px-4 text-sm font-medium transition-transform duration-150 hover:scale-105 active:scale-95 disabled:hover:scale-100",
+                            requested ? "border-[#d9d9d9] text-[#657080]" : "border-[#00b4b8] text-[#00b4b8]",
+                          )}
+                        >
+                          {requested ? "Requested" : "Connect"}
+                        </button>
+                      </div>
+                    )
+                  })
+                )}
               </div>
             </section>
           )}
@@ -319,12 +356,16 @@ export default function NetworkPage() {
                 {visibleInvitations.length === 0 ? (
                   <p className="rounded-3xl border border-dashed border-[#e5ecf5] p-10 text-center text-sm text-[#657080]">No invitations right now.</p>
                 ) : (
-                  visibleInvitations.map((person, index) => (
+                  visibleInvitations.map((request, index) => (
                     <InvitationRow
-                      key={person.id}
-                      person={person}
-                      onAccept={() => acceptInvitation(person)}
-                      onDecline={() => declineInvitation(person)}
+                      key={request.id}
+                      person={{
+                        name: request.requester.name || "Care Connect user",
+                        role: request.requester.subtitle || "",
+                        avatarBg: AVATAR_PALETTE[index % AVATAR_PALETTE.length],
+                      }}
+                      onAccept={() => acceptInvitation(request)}
+                      onDecline={() => declineInvitation(request)}
                       style={{ animationDelay: `${index * 60}ms` }}
                     />
                   ))

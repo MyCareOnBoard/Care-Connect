@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router"
 import { format, addDays, isSameDay, isWithinInterval, startOfWeek, endOfWeek } from "date-fns"
-import { Calendar, ChevronLeft, ChevronRight, List, Search } from "lucide-react"
+import { Calendar, CalendarClock, ChevronLeft, ChevronRight, List, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Routes } from "@/routes/constants"
 import { getInitials } from "@/lib/utils"
@@ -11,6 +12,7 @@ import { minutesToLabel, toDateKey, type TelehealthBooking } from "@/utils/carec
 import { ROW_STATUS_PILL, bookingStart, formatDurationLabel, rowStatusFor } from "@/utils/careconnect/bookingStatus"
 import { BookingDetailsDialog } from "@/components/professional/BookingDetailsDialog"
 import { BookingRowAction } from "@/components/professional/BookingRowAction"
+import { AvailabilityModal } from "@/components/professional/AvailabilityModal"
 
 const isProfessional = true
 
@@ -342,6 +344,8 @@ export default function ProfessionalSchedulePage() {
     )
   }
 
+  const [availabilityOpen, setAvailabilityOpen] = useState(false)
+
   const dateLabel = isSameDay(currentDate, new Date()) ? "Today" : format(currentDate, "MMM d")
 
   // Default business-hours window, widened to fit any booking that falls outside it so
@@ -450,6 +454,16 @@ export default function ProfessionalSchedulePage() {
             <List className="size-4" />
           </button>
         </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="gap-2 border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
+          onClick={() => setAvailabilityOpen(true)}
+        >
+          <CalendarClock className="size-4" />
+          Edit availability
+        </Button>
       </div>
 
       {viewMode === "table" ? (
@@ -537,6 +551,8 @@ export default function ProfessionalSchedulePage() {
         canManage={isProfessional}
         onStatusChanged={handleBookingUpdated}
       />
+
+      <AvailabilityModal open={availabilityOpen} onOpenChange={setAvailabilityOpen} />
     </div>
   )
 }
