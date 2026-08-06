@@ -28,6 +28,7 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tooltip": "^1.2.12",
     "@reduxjs/toolkit": "^2.9.0",
+    "@vis.gl/react-google-maps": "^1.9.0",
     "axios": "^1.13.5",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",

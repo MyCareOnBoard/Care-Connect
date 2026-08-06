@@ -34,3 +34,28 @@ export async function listConnections(relation?: ConnectionRelation): Promise<Co
   })
   return data.data
 }
+
+export interface ConnectionRequest {
+  id: string
+  requester: {
+    uid: string
+    name: string | null
+    subtitle: string | null
+    photo: string | null
+  }
+  createdAt?: unknown
+}
+
+/** Incoming pending connection requests (the Invitations tab). */
+export async function listRequests(): Promise<ConnectionRequest[]> {
+  const { data } = await axiosClient.get("/careconnectConnections/requests")
+  return Array.isArray(data?.data) ? data.data : []
+}
+
+export async function acceptRequest(id: string): Promise<void> {
+  await axiosClient.post(`/careconnectConnections/${id}/accept`)
+}
+
+export async function declineRequest(id: string): Promise<void> {
+  await axiosClient.post(`/careconnectConnections/${id}/decline`)
+}

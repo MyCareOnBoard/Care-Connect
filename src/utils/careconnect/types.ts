@@ -341,6 +341,13 @@ export interface TelehealthService {
   updatedAt?: Timestampish
 }
 
+export interface BookingLocation {
+  address: string
+  lat?: number
+  lng?: number
+  placeId?: string
+}
+
 export interface TelehealthBooking {
   id: string
   serviceId: string
@@ -359,6 +366,7 @@ export interface TelehealthBooking {
   durationMinutes: number
   startAt?: Timestampish
   note: string
+  location?: BookingLocation | null
   price: number
   currency: string
   paymentMethod: string
