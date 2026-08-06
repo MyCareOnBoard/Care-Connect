@@ -1,15 +1,14 @@
 /**
  * Loader Component
  *
- * Reusable loading spinner component with different sizes and variants
+ * Reusable loading spinner component with different sizes and variants.
+ * Pure CSS (no animation library) since `PageLoader` sits on the app's
+ * critical cold-start path — every extra dependency there delays first paint.
  */
-
-import { Oval } from 'react-loader-spinner'
 
 interface LoaderProps {
   size?: 'sm' | 'md' | 'lg' | 'xl'
   color?: string
-  secondaryColor?: string
   fullScreen?: boolean
   text?: string
 }
@@ -24,7 +23,6 @@ const sizeMap = {
 export function Loader({
   size = 'md',
   color = '#00B4B8',
-  secondaryColor = '#148a9c',
   fullScreen = false,
   text,
 }: LoaderProps) {
@@ -32,14 +30,11 @@ export function Loader({
 
   const loader = (
     <div className="flex flex-col items-center justify-center gap-3">
-      <Oval
-        height={loaderSize}
-        width={loaderSize}
-        color={color}
-        secondaryColor={secondaryColor}
-        strokeWidth={4}
-        strokeWidthSecondary={4}
-        ariaLabel="loading"
+      <span
+        role="status"
+        aria-label="loading"
+        className="animate-spin rounded-full border-4 border-current/15"
+        style={{ width: loaderSize, height: loaderSize, borderTopColor: color, color }}
       />
       {text && (
         <p className="text-sm text-gray-600 animate-pulse">{text}</p>
@@ -66,6 +61,18 @@ export function PageLoader({ text = 'Loading...' }: { text?: string }) {
 }
 
 /**
+ * Route Loader - Fills the content area during in-app page transitions,
+ * keeping the surrounding shell (nav/header) mounted instead of blanking the screen.
+ */
+export function RouteLoader() {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <Loader size="lg" />
+    </div>
+  )
+}
+
+/**
  * Inline Loader - For inline loading states
  */
 export function InlineLoader({ text }: { text?: string }) {
@@ -80,5 +87,5 @@ export function InlineLoader({ text }: { text?: string }) {
  * Button Loader - For button loading states
  */
 export function ButtonLoader() {
-  return <Loader size="sm" color="white" secondaryColor="rgba(255,255,255,0.6)" />
+  return <Loader size="sm" color="white" />
 }

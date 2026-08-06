@@ -247,13 +247,14 @@ export default function DashboardPage() {
         </section>
 
         <section>
-          <h2 className="mb-4 text-sm font-semibold">Jobs for you</h2>
+          <h2 className="mb-4 text-xl font-semibold">Jobs for you</h2>
+          <ViewAllLink href={Routes.app.user.jobs} />
           {jobs.length === 0 ? (
             <p className="rounded-xl border border-dashed border-[#e2e2e2] p-6 text-center text-sm text-[#657080]">
               No jobs yet.
             </p>
           ) : (
-            <div className="space-y-3">
+            <div className="mt-5 space-y-3">
               {jobs.map((job, index) => (
                 <JobCard
                   key={job.id}
@@ -265,20 +266,19 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
-          <ViewAllLink href={Routes.app.user.jobs} />
         </section>
 
         <MarketplacePromoCard marketplaceHref={Routes.app.user.marketplace} />
       </aside>
 
-      <main className="order-1 xl:order-0 space-y-8">
+      <main className="order-1 space-y-8 xl:order-0">
         <PostComposer />
         <DashboardFeed />
       </main>
 
       <aside className="order-3 xl:order-0 space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
         {companies.length > 0 && (
-          <ConnectionsSection title="Top agencies around you" items={companies} actionLabel="Subscribe" activeLabel="Subscribed" relation="subscribe" targetType="company" viewAllHref={`${Routes.app.user.network}?tab=agencies`} />
+          <ConnectionsSection title="Top healthcare providers around you" items={companies} actionLabel="Subscribe" activeLabel="Subscribed" relation="subscribe" targetType="company" viewAllHref={`${Routes.app.user.network}?tab=agencies`} />
         )}
         {people.length > 0 && (
           <ConnectionsSection title="Professionals you may be interested in" items={people} actionLabel="Connect" activeLabel="Pending" relation="connect" targetType="individual" viewAllHref={`${Routes.app.user.network}?tab=connections`} />

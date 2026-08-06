@@ -105,16 +105,18 @@ type OwnerActions = {
 }
 
 function ProductCard({ product, onOpen, owner }: { product: Product; onOpen: () => void; owner?: OwnerActions }) {
+  const excerpt = product.description.length > 40 ? `${product.description.slice(0, 40)}.. ` : `${product.description} `
+
   return (
     <article
       role="button"
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={(event) => event.key === "Enter" && onOpen()}
-      className="group cursor-pointer overflow-hidden rounded-xl border border-white/60 bg-white/80 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(16,20,26,0.1)]"
+      className="group cursor-pointer overflow-hidden rounded-2xl border border-[#eef1f3] bg-white shadow-[0_1px_3px_rgba(16,20,26,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(16,20,26,0.1)]"
     >
       <div className="relative">
-        <ProductImage category={product.category} imageUrl={product.imageUrl} className="w-full transition-transform duration-300 h-36 group-hover:scale-105" />
+        <ProductImage category={product.category} imageUrl={product.imageUrl} className="w-full h-40 transition-transform duration-300 group-hover:scale-105" />
         <span className={`absolute right-3 top-3 rounded-full px-3 py-1 text-xs font-semibold ${CATEGORY_STYLES[product.category] ?? "bg-white text-[#141922]"}`}>
           {product.category}
         </span>
@@ -125,12 +127,24 @@ function ProductCard({ product, onOpen, owner }: { product: Product; onOpen: () 
         )}
       </div>
       <div className="p-4">
-        <h3 className="font-bold leading-snug">{product.name}</h3>
-        <p className="mt-1 text-sm text-[#657080] line-clamp-2">{product.description}</p>
+        <h3 className="font-bold leading-snug truncate">{product.name}</h3>
+        <p className="mt-1 truncate text-sm text-[#657080]">
+          {excerpt}
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              onOpen()
+            }}
+            className="font-semibold text-[#151922] hover:underline"
+          >
+            Read more
+          </button>
+        </p>
         <div className="flex items-center justify-between mt-3">
           <span className="font-bold text-[#00b4b8]">{priceLabel(product.price, product.currency)}</span>
           {!owner && (
-            <span className="flex size-8 items-center justify-center rounded-full border border-[#00b4b8]/30 text-[#00b4b8]">
+            <span className="flex size-8 items-center justify-center rounded-lg border border-[#00b4b8]/30 text-[#00b4b8]">
               <ShoppingBag className="size-4" />
             </span>
           )}
@@ -147,7 +161,7 @@ function ProductCard({ product, onOpen, owner }: { product: Product; onOpen: () 
               Delete
             </Button>
             <Select value={product.status} onValueChange={(value) => owner.onSetStatus(value as ProductStatus)}>
-              <SelectTrigger className="ml-auto h-8 w-28">
+              <SelectTrigger className="h-8 ml-auto w-28">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -460,57 +474,62 @@ export default function MarketplacePage() {
 
   const emptyMessage =
     view === "mine"
-      ? "You haven't listed anything yet. Click “Add product” to create your first listing."
+      ? "Your inventory is empty. Click “Add product” to create your first listing."
       : "No products listed yet. Click “Add product” to list the first one."
 
   return (
     <div className="p-5 space-y-6 animate-fade-in-up sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-xl font-bold">Healthcare marketplace</h1>
+        <h1 className="text-2xl font-bold">Healthcare marketplace</h1>
         <Button type="button" className="bg-[#00b4b8]" onClick={() => setIsAddOpen(true)}>
           <Plus className="size-4" />
           Add product
         </Button>
       </div>
 
-      <div className="inline-flex rounded-full border border-[#e2e2e2] p-1">
-        {(["browse", "mine"] as View[]).map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => setView(option)}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              view === option ? "bg-[#00b4b8] text-white" : "text-[#657080] hover:text-[#141922]"
-            }`}
-          >
-            {option === "browse" ? "Browse" : "My listings"}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full max-w-sm">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Price, keywords, item name"
-            className="pl-9"
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {FILTERS.map((filter) => (
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 border border-[#5f6061]/30 rounded-full p-1.5">
+          {(["browse", "mine"] as View[]).map((option) => (
             <button
-              key={filter}
+              key={option}
               type="button"
-              onClick={() => setActiveFilter(filter)}
-              className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
-                activeFilter === filter ? "border-[#00b4b8] bg-[#00b4b8] text-white" : "border-[#e2e2e2] text-[#141922] hover:border-[#00b4b8]"
+              onClick={() => setView(option)}
+              className={`rounded-full px-5 py-2 text-sm font-semibold transition-colors cursor-pointer ${
+                view === option
+                  ? "bg-[#00b4b8] text-white"
+                  : "border border-[#e2e2e2] text-[#141922] hover:border-[#00b4b8]"
               }`}
             >
-              {filter}
+              {option === "browse" ? "Marketplace" : "My inventory"}
             </button>
           ))}
+        </div>
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full max-w-md">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search for Products, keywords, item name"
+              className="pl-9"
+            />
+          </div>
+          <div className="flex items-center gap-2 text-sm shrink-0">
+            <span className="font-semibold whitespace-nowrap">Filter by:</span>
+            <Select value={activeFilter} onValueChange={setActiveFilter}>
+              <SelectTrigger className="w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FILTERS.map((filter) => (
+                  <SelectItem key={filter} value={filter}>
+                    {filter}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
