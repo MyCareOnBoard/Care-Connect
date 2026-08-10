@@ -32,28 +32,41 @@ export function AddressAutocomplete({
   onChangeRef.current = onChange
 
   useEffect(() => {
-    if (!places || !inputRef.current || autocompleteRef.current) return
+    const el = inputRef.current
+    if (!places || !el || autocompleteRef.current) return
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ac = new (places as any).Autocomplete(inputRef.current, {
+    const AutocompleteCtor = (places as any).Autocomplete
+    if (typeof AutocompleteCtor !== "function") return
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ac: any = new AutocompleteCtor(el, {
       fields: ["formatted_address", "geometry", "place_id"],
       types: ["address"],
     })
     autocompleteRef.current = ac
-    const listener = ac.addListener("place_changed", () => {
+    ac.addListener("place_changed", () => {
       const place = ac.getPlace()
-      const address = place.formatted_address || inputRef.current?.value || ""
+      const address = place?.formatted_address || el.value || ""
       onChangeRef.current(
         address
           ? {
               address,
-              lat: place.geometry?.location?.lat?.(),
-              lng: place.geometry?.location?.lng?.(),
-              placeId: place.place_id,
+              lat: place?.geometry?.location?.lat?.(),
+              lng: place?.geometry?.location?.lng?.(),
+              placeId: place?.place_id,
             }
           : null,
       )
     })
-    return () => listener.remove()
+
+    return () => {
+      // Canonical cleanup — doesn't rely on the listener handle (addListener can
+      // return undefined for the Autocomplete widget in current Maps JS versions).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const g = typeof window !== "undefined" ? (window as any).google : undefined
+      g?.maps?.event?.clearInstanceListeners?.(ac)
+      autocompleteRef.current = null
+    }
   }, [places])
 
   return (
