@@ -29,8 +29,8 @@ import { Routes } from "@/routes/constants"
 import { cn, getInitials } from "@/lib/utils"
 import { getAuthErrorMessage } from "@/utils/auth"
 import { getProfile } from "@/utils/careconnect/services/profilesService"
-import { updateBookingStatus } from "@/utils/careconnect/services/telehealthService"
-import { SERVICE_MODE_LABELS, minutesToLabel, type CareConnectProfile, type TelehealthBooking } from "@/utils/careconnect/types"
+import { recordVisitEvent, reportBookingIssue, updateBookingStatus } from "@/utils/careconnect/services/telehealthService"
+import { SERVICE_MODE_LABELS, minutesToLabel, toDate, type CareConnectProfile, type TelehealthBooking } from "@/utils/careconnect/types"
 import { bookingStart, formatDurationLabel } from "@/utils/careconnect/bookingStatus"
 
 function formatPrice(price: number, currency: string): string {
@@ -54,6 +54,18 @@ function formatCallTimer(totalSeconds: number): string {
   const mins = Math.floor(totalSeconds / 60)
   const secs = totalSeconds % 60
   return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`
+}
+
+/**
+ * Seconds left in a service that began at a persisted `startedAt`, or null if
+ * it hasn't started. Deriving from the stored instant (rather than a local
+ * decrement) keeps the countdown correct across dialog close/reopen.
+ */
+function remainingFromStartedAt(booking: TelehealthBooking | null): number | null {
+  const started = toDate(booking?.startedAt)
+  if (!booking || !started) return null
+  const elapsed = Math.floor((Date.now() - started.getTime()) / 1000)
+  return Math.max(0, booking.durationMinutes * 60 - elapsed)
 }
 
 type Step = "details" | "location" | "service" | "call" | "completed" | "call-ended" | "tracking-map" | "raise-issue"
@@ -117,16 +129,24 @@ export function BookingDetailsDialog({
   // Reset to the right starting step whenever the dialog opens for a (possibly different) booking.
   useEffect(() => {
     if (!booking) return
-    setStep(booking.status === "completed" ? "completed" : "details")
-    setRemainingSeconds(booking.durationMinutes * 60)
+    // If the service already started, resume mid-visit from the persisted
+    // `startedAt` instead of a fresh full-duration countdown.
+    const startedRemaining = remainingFromStartedAt(booking)
+    const inProgress = startedRemaining !== null
+    const terminal = booking.status === "completed" || booking.status === "cancelled"
+    // The professional lands back on their live "service" view; the client resumes
+    // the in-progress tracking panel (which lives on the "details" step).
+    const resumeService = inProgress && !terminal && canManage && booking.mode === "in_person"
+    setStep(booking.status === "completed" ? "completed" : resumeService ? "service" : "details")
+    setRemainingSeconds(startedRemaining ?? booking.durationMinutes * 60)
     setMicOn(true)
     setCamOn(true)
     setProfessionalProfile(null)
     setAgencyProfile(null)
-    setTrackingPhase("approaching")
-    setTrackingProgress(0)
+    setTrackingPhase(inProgress ? "in-progress" : "approaching")
+    setTrackingProgress(inProgress ? 100 : 0)
     setIssueReason(null)
-  }, [booking?.id, booking?.status, booking?.durationMinutes])
+  }, [booking?.id, booking?.status, booking?.durationMinutes, booking?.startedAt, canManage, booking?.mode])
 
   // The completion confirmation always credits the professional, and the client's live-tracking
   // panel shows both parties — fetch real photos/titles for those views.
@@ -181,10 +201,13 @@ export function BookingDetailsDialog({
     const counting = step === "service" || (step === "details" && isClientInPersonTracking && trackingPhase === "in-progress")
     if (!counting) return
     const timer = window.setInterval(() => {
-      setRemainingSeconds((seconds) => Math.max(0, seconds - 1))
+      // Prefer the persisted start instant; fall back to a local decrement only
+      // while the "started" write is still in flight.
+      const fromStarted = remainingFromStartedAt(booking)
+      setRemainingSeconds((seconds) => (fromStarted !== null ? fromStarted : Math.max(0, seconds - 1)))
     }, 1000)
     return () => window.clearInterval(timer)
-  }, [step, isClientInPersonTracking, trackingPhase])
+  }, [step, isClientInPersonTracking, trackingPhase, booking?.startedAt])
 
   // Elapsed-time counter while the mock video call is active.
   useEffect(() => {
@@ -226,19 +249,44 @@ export function BookingDetailsDialog({
     }
   }
 
+  // Professional begins the in-person service: persist the start instant (so the
+  // countdown survives a reload) then switch to the live service view.
+  const startService = async () => {
+    if (!booking) return
+    setPending(true)
+    try {
+      const updated = await recordVisitEvent(booking.id, "started")
+      onStatusChanged?.(updated)
+      setStep("service")
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setPending(false)
+    }
+  }
+
+  // Client-side acknowledgement that the service has begun. The authoritative
+  // start instant comes from the professional's `startedAt`; this is only a
+  // local advance for when that write hasn't propagated to the client yet.
   const confirmServiceStarted = () => {
     if (!booking) return
-    setRemainingSeconds(booking.durationMinutes * 60)
+    setRemainingSeconds(remainingFromStartedAt(booking) ?? booking.durationMinutes * 60)
     setTrackingPhase("in-progress")
   }
 
-  // No "raise an issue" endpoint exists yet — this is a local-only report, clearly
-  // separate from the real status-changing actions above.
-  const submitIssue = () => {
-    if (!issueReason) return
-    toast.success("Issue reported. Our support team will reach out shortly.")
-    setIssueReason(null)
-    setStep("details")
+  const submitIssue = async () => {
+    if (!booking || !issueReason) return
+    setPending(true)
+    try {
+      await reportBookingIssue(booking.id, issueReason)
+      toast.success("Issue reported. Our support team will reach out shortly.")
+      setIssueReason(null)
+      setStep("details")
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setPending(false)
+    }
   }
 
   const goHome = () => {
@@ -556,7 +604,12 @@ export function BookingDetailsDialog({
               <Button type="button" variant="outline" onClick={() => setStep("details")}>
                 Cancel
               </Button>
-              <Button type="button" className="bg-[#00b4b8] text-white hover:opacity-90" onClick={() => setStep("service")}>
+              <Button
+                type="button"
+                disabled={pending}
+                className="bg-[#00b4b8] text-white hover:opacity-90 disabled:opacity-60"
+                onClick={startService}
+              >
                 Start service
               </Button>
             </div>
@@ -634,7 +687,7 @@ export function BookingDetailsDialog({
             </div>
             <Button
               type="button"
-              disabled={!issueReason}
+              disabled={!issueReason || pending}
               className="mt-4 w-full bg-[#00b4b8] text-white hover:opacity-90 disabled:bg-[#e2e2e2] disabled:text-[#8a8f98]"
               onClick={submitIssue}
             >
