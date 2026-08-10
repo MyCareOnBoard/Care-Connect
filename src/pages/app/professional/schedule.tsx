@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router"
-import { format, addDays, isSameDay, isWithinInterval, startOfWeek, endOfWeek } from "date-fns"
+import {
+  format,
+  addDays,
+  addMonths,
+  isSameDay,
+  isWithinInterval,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+} from "date-fns"
 import { Calendar, CalendarClock, ChevronLeft, ChevronRight, List, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -25,6 +36,13 @@ function formatHourLabel(hour: number) {
   const period = hour >= 12 ? "pm" : "am"
   const displayHour = hour % 12 === 0 ? 12 : hour % 12
   return `${displayHour}:00 ${period}`
+}
+
+/** A schedule reads as "past" once it's completed/cancelled or its end time has already gone by. */
+function isPastBooking(booking: TelehealthBooking): boolean {
+  if (booking.status === "completed" || booking.status === "cancelled") return true
+  const start = bookingStart(booking)
+  return start.getTime() + booking.durationMinutes * 60000 < Date.now()
 }
 
 type LaidOutAppointment = {
@@ -287,23 +305,34 @@ export default function ProfessionalSchedulePage() {
   const [view, setView] = useState<ScheduleViewMode>("Day")
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [search, setSearch] = useState("")
-  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [rangeBookings, setRangeBookings] = useState<TelehealthBooking[]>([])
   const [allBookings, setAllBookings] = useState<TelehealthBooking[]>([])
   const [calendarLoading, setCalendarLoading] = useState(true)
   const [tableLoading, setTableLoading] = useState(true)
   const [detailsBooking, setDetailsBooking] = useState<TelehealthBooking | null>(null)
 
-  // Load bookings for the visible day (as professional or as client) — powers the Calendar view.
+  // The visible date range depends on the active view — a single day, or a full month
+  // (padded to whole weeks) for both Week and Month views. Week view shows every week of
+  // that month at once (grouped below), not just the one containing `currentDate`.
+  const rangeStart = useMemo(() => {
+    if (view === "Week" || view === "Month") return startOfWeek(startOfMonth(currentDate))
+    return currentDate
+  }, [view, currentDate])
+  const rangeEnd = useMemo(() => {
+    if (view === "Week" || view === "Month") return endOfWeek(endOfMonth(currentDate))
+    return currentDate
+  }, [view, currentDate])
+
+  // Load bookings across the visible range (day/week/month) — powers the Calendar view.
   useEffect(() => {
     let active = true
-    const dateKey = toDateKey(currentDate)
     setCalendarLoading(true)
-    listBookings({ scope: isProfessional ? "professional" : "client", from: dateKey, to: dateKey })
+    listBookings({ scope: isProfessional ? "professional" : "client", from: toDateKey(rangeStart), to: toDateKey(rangeEnd) })
       .then((list) => {
-        if (active) setAppointments(layoutAppointments(list.map((booking) => toAppointment(booking))))
+        if (active) setRangeBookings(list)
       })
       .catch(() => {
-        if (active) setAppointments([])
+        if (active) setRangeBookings([])
       })
       .finally(() => {
         if (active) setCalendarLoading(false)
@@ -311,7 +340,7 @@ export default function ProfessionalSchedulePage() {
     return () => {
       active = false
     }
-  }, [currentDate])
+  }, [rangeStart, rangeEnd])
 
   // Full booking history (no date filter) — powers the Table view's Overview stats + rows.
   useEffect(() => {
@@ -332,21 +361,51 @@ export default function ProfessionalSchedulePage() {
     }
   }, [])
 
-  // Reflect a status change (from the details dialog) in the table's list + the calendar block.
+  // Reflect a status change (from the details dialog) in the table's list + the calendar range.
   const handleBookingUpdated = (updated: TelehealthBooking) => {
     setAllBookings((current) => current.map((booking) => (booking.id === updated.id ? updated : booking)))
-    setAppointments((current) =>
-      current.some((appointment) => appointment.id === updated.id)
-        ? layoutAppointments(
-            current.map((appointment) => (appointment.id === updated.id ? toAppointment(updated) : appointment)),
-          )
-        : current,
-    )
+    setRangeBookings((current) => current.map((booking) => (booking.id === updated.id ? updated : booking)))
+  }
+
+  const goToPrevious = () => {
+    setCurrentDate((current) => (view === "Month" || view === "Week" ? addMonths(current, -1) : addDays(current, -1)))
+  }
+  const goToNext = () => {
+    setCurrentDate((current) => (view === "Month" || view === "Week" ? addMonths(current, 1) : addDays(current, 1)))
   }
 
   const [availabilityOpen, setAvailabilityOpen] = useState(false)
 
-  const dateLabel = isSameDay(currentDate, new Date()) ? "Today" : format(currentDate, "MMM d")
+  const dateLabel =
+    view === "Week" || view === "Month"
+      ? format(currentDate, "MMMM yyyy")
+      : isSameDay(currentDate, new Date())
+        ? "Today"
+        : format(currentDate, "MMM d")
+
+  const searchedRangeBookings = search
+    ? rangeBookings.filter(
+        (booking) =>
+          booking.serviceTitle.toLowerCase().includes(search.toLowerCase()) ||
+          (isProfessional ? booking.clientName : booking.professionalName).toLowerCase().includes(search.toLowerCase()),
+      )
+    : rangeBookings
+
+  const appointments = useMemo(() => {
+    const dateKey = toDateKey(currentDate)
+    return layoutAppointments(searchedRangeBookings.filter((booking) => booking.dateKey === dateKey).map((booking) => toAppointment(booking)))
+  }, [searchedRangeBookings, currentDate])
+
+  const rangeDays = useMemo(() => eachDayOfInterval({ start: rangeStart, end: rangeEnd }), [rangeStart, rangeEnd])
+
+  // Week view shows every week of the current month, each grouped into its own 7-day row.
+  const weeksInMonth = useMemo(() => {
+    const weeks: Date[][] = []
+    for (let index = 0; index < rangeDays.length; index += 7) {
+      weeks.push(rangeDays.slice(index, index + 7))
+    }
+    return weeks
+  }, [rangeDays])
 
   // Default business-hours window, widened to fit any booking that falls outside it so
   // cards never render above/below the visible section.
@@ -402,8 +461,8 @@ export default function ProfessionalSchedulePage() {
           <div className="flex items-center gap-2 rounded-xl border border-[#e2e2e2] px-2 py-1.5">
             <button
               type="button"
-              aria-label="Previous day"
-              onClick={() => setCurrentDate((current) => addDays(current, -1))}
+              aria-label={`Previous ${view.toLowerCase()}`}
+              onClick={goToPrevious}
               className="flex size-6 items-center justify-center rounded-md text-[#657080] hover:bg-[#f2f6f8]"
             >
               <ChevronLeft className="size-4" />
@@ -411,8 +470,8 @@ export default function ProfessionalSchedulePage() {
             <span className="px-1 text-sm font-semibold text-[#151922]">{dateLabel}</span>
             <button
               type="button"
-              aria-label="Next day"
-              onClick={() => setCurrentDate((current) => addDays(current, 1))}
+              aria-label={`Next ${view.toLowerCase()}`}
+              onClick={goToNext}
               className="flex size-6 items-center justify-center rounded-md text-[#657080] hover:bg-[#f2f6f8]"
             >
               <ChevronRight className="size-4" />
@@ -468,10 +527,129 @@ export default function ProfessionalSchedulePage() {
 
       {viewMode === "table" ? (
         <ScheduleTable bookings={allBookings} onBookingUpdated={handleBookingUpdated} loading={tableLoading} />
-      ) : view !== "Day" ? (
-        <p className="mt-10 rounded-3xl border border-dashed border-[#e5ecf5] p-10 text-center text-sm text-[#657080]">
-          {view} view is coming soon.
-        </p>
+      ) : view === "Week" ? (
+        <div className="mt-8 space-y-6">
+          {calendarLoading
+            ? Array.from({ length: 5 }).map((_, weekIndex) => (
+                <div key={weekIndex} className="grid grid-cols-1 gap-3 sm:grid-cols-7">
+                  {Array.from({ length: 7 }).map((_, dayIndex) => (
+                    <Skeleton key={dayIndex} className="rounded-xl h-32" />
+                  ))}
+                </div>
+              ))
+            : weeksInMonth.map((days, weekIndex) => {
+                const isActiveWeek = days.some((day) => isSameDay(day, new Date()))
+                return (
+                  <div key={weekIndex}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <p className="text-sm font-semibold text-[#151922]">
+                        Week {weekIndex + 1} · {format(days[0], "MMM d")} - {format(days[6], "MMM d")}
+                      </p>
+                      {isActiveWeek && (
+                        <span className="rounded-full bg-[#00b4b8] px-2 py-0.5 text-[11px] font-semibold text-white">Active</span>
+                      )}
+                    </div>
+                    <div
+                      className={`grid grid-cols-1 gap-3 sm:grid-cols-7 ${isActiveWeek ? "rounded-2xl bg-[#e3f8f8]/40 p-2 ring-1 ring-[#00b4b8]/30" : ""}`}
+                    >
+                      {days.map((day) => {
+                        const dateKey = toDateKey(day)
+                        const dayBookings = searchedRangeBookings
+                          .filter((booking) => booking.dateKey === dateKey)
+                          .sort((a, b) => a.startMinutes - b.startMinutes)
+                        const isToday = isSameDay(day, new Date())
+                        const inCurrentMonth = day.getMonth() === currentDate.getMonth()
+
+                        return (
+                          <div
+                            key={dateKey}
+                            className={`min-h-32 rounded-xl border p-2.5 ${
+                              isToday ? "border-[#00b4b8] bg-[#e3f8f8]/60" : "border-[#eef1f3] bg-white"
+                            } ${inCurrentMonth ? "" : "opacity-40"}`}
+                          >
+                            <p className={`text-xs font-semibold ${isToday ? "text-[#00b4b8]" : "text-[#657080]"}`}>{format(day, "EEE")}</p>
+                            <p className={`text-base font-bold ${isToday ? "text-[#00b4b8]" : "text-[#151922]"}`}>{format(day, "d")}</p>
+                            <div className="mt-1.5 space-y-1">
+                              {dayBookings.map((booking) => {
+                                const past = isPastBooking(booking)
+                                return (
+                                  <button
+                                    key={booking.id}
+                                    type="button"
+                                    onClick={() => setDetailsBooking(booking)}
+                                    className={`block w-full truncate rounded-md border-l-2 px-1.5 py-1 text-left text-xs font-medium transition hover:-translate-y-0.5 ${
+                                      past
+                                        ? "border-[#c7ccd4] bg-[#f5f6f8] text-[#8a8f98]"
+                                        : "border-[#00b4b8] bg-[#e3f8f8] text-[#0f5f61]"
+                                    }`}
+                                  >
+                                    {minutesToLabel(booking.startMinutes)} · {booking.serviceTitle}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+        </div>
+      ) : view === "Month" ? (
+        <div className="mt-8 overflow-hidden rounded-xl border border-[#eef1f3] bg-[#eef1f3]">
+          <div className="grid grid-cols-7 gap-px">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((label) => (
+              <div key={label} className="bg-[#f7fafc] px-2 py-1.5 text-center text-xs font-semibold text-[#657080]">
+                {label}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-px">
+            {calendarLoading
+              ? Array.from({ length: 35 }).map((_, index) => <Skeleton key={index} className="rounded-none h-24" />)
+              : rangeDays.map((day) => {
+                  const dateKey = toDateKey(day)
+                  const dayBookings = searchedRangeBookings
+                    .filter((booking) => booking.dateKey === dateKey)
+                    .sort((a, b) => a.startMinutes - b.startMinutes)
+                  const visibleBookings = dayBookings.slice(0, 2)
+                  const overflowCount = dayBookings.length - visibleBookings.length
+                  const inCurrentMonth = day.getMonth() === currentDate.getMonth()
+                  const isToday = isSameDay(day, new Date())
+
+                  return (
+                    <div key={dateKey} className={`min-h-24 bg-white p-1.5 ${inCurrentMonth ? "" : "opacity-40"}`}>
+                      <span
+                        className={`inline-flex size-6 items-center justify-center rounded-full text-xs font-semibold ${
+                          isToday ? "bg-[#00b4b8] text-white" : "text-[#151922]"
+                        }`}
+                      >
+                        {format(day, "d")}
+                      </span>
+                      <div className="mt-1 space-y-1">
+                        {visibleBookings.map((booking) => {
+                          const past = isPastBooking(booking)
+                          return (
+                            <button
+                              key={booking.id}
+                              type="button"
+                              onClick={() => setDetailsBooking(booking)}
+                              className={`block w-full truncate rounded px-1 py-0.5 text-left text-[10px] font-medium ${
+                                past ? "bg-[#f5f6f8] text-[#8a8f98]" : "bg-[#e3f8f8] text-[#0f5f61]"
+                              }`}
+                            >
+                              {booking.serviceTitle}
+                            </button>
+                          )
+                        })}
+                        {overflowCount > 0 && <p className="px-1 text-[10px] text-[#8a8f98]">+{overflowCount} more</p>}
+                      </div>
+                    </div>
+                  )
+                })}
+          </div>
+        </div>
       ) : (
         <div className="flex mt-8">
           <div className="w-20 shrink-0 sm:w-24">
