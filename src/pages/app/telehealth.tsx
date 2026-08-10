@@ -11,8 +11,10 @@ import {
   Copy,
   CreditCard,
   Heart,
+  LocateFixed,
   MapPin,
   MessageSquare,
+  Navigation,
   Plus,
   Search,
   Share2,
@@ -25,7 +27,7 @@ import { Button } from "@/components/ui/button"
 import { AddressAutocomplete } from "@/components/maps/AddressAutocomplete"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Radio } from "@/components/ui/radio"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -84,8 +86,6 @@ const STATUS_PILL: Record<TelehealthService["status"], { label: string; classNam
   archived: { label: "Archive", className: "bg-[#1f2430] text-white" },
 }
 
-const MODE_CHECKBOX_CLASS = "rounded-md border-2 border-[#00b4b8] peer-checked:border-[#00b4b8] peer-checked:bg-[#00b4b8]"
-
 /** Compose a display date from a booking's dateKey + startMinutes. */
 function bookingWhen(booking: TelehealthBooking): string {
   const [year, month, day] = booking.dateKey.split("-").map(Number)
@@ -93,11 +93,11 @@ function bookingWhen(booking: TelehealthBooking): string {
   return `${format(date, "MMM d, yyyy")} · ${minutesToLabel(booking.startMinutes)}`
 }
 
-function ModeCheckboxGroup({ modes, onToggle }: { modes: Set<ServiceMode>; onToggle: (mode: ServiceMode) => void }) {
+function ModeRadioGroup({ mode, onChange }: { mode: ServiceMode; onChange: (mode: ServiceMode) => void }) {
   return (
     <div className="flex flex-wrap items-center gap-6">
-      <Checkbox label="Online" checked={modes.has("online")} onChange={() => onToggle("online")} className={MODE_CHECKBOX_CLASS} />
-      <Checkbox label="In-person" checked={modes.has("in_person")} onChange={() => onToggle("in_person")} className={MODE_CHECKBOX_CLASS} />
+      <Radio name="service-mode" label="Online" checked={mode === "online"} onChange={() => onChange("online")} />
+      <Radio name="service-mode" label="In-person" checked={mode === "in_person"} onChange={() => onChange("in_person")} />
     </div>
   )
 }
@@ -187,7 +187,7 @@ function ServiceCreationDialog({
   team: TeamMember[]
   onCreated: (service: TelehealthService) => void
 }) {
-  const [modes, setModes] = useState<Set<ServiceMode>>(new Set(["online"]))
+  const [mode, setMode] = useState<ServiceMode>("online")
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [duration, setDuration] = useState("30 min")
@@ -195,15 +195,6 @@ function ServiceCreationDialog({
   const [price, setPrice] = useState("")
   const [teamMemberIds, setTeamMemberIds] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
-
-  const toggleMode = (mode: ServiceMode) => {
-    setModes((current) => {
-      const next = new Set(current)
-      if (next.has(mode)) next.delete(mode)
-      else next.add(mode)
-      return next
-    })
-  }
 
   const toggleTeamMember = (id: string) => {
     setTeamMemberIds((current) => {
@@ -215,7 +206,7 @@ function ServiceCreationDialog({
   }
 
   const reset = () => {
-    setModes(new Set(["online"]))
+    setMode("online")
     setTitle("")
     setDescription("")
     setDuration("30 min")
@@ -240,7 +231,7 @@ function ServiceCreationDialog({
       const service = await createService({
         title: title.trim(),
         description: description.trim(),
-        modes: modes.size > 0 ? Array.from(modes) : ["online"],
+        modes: [mode],
         durationMinutes,
         price: priceNum,
         currency,
@@ -272,7 +263,7 @@ function ServiceCreationDialog({
         <DialogBody className="px-6 pt-4 pb-6 space-y-5">
           <div>
             <label className="mb-2 block text-sm font-medium text-[#151922]">Select service mode type</label>
-            <ModeCheckboxGroup modes={modes} onToggle={toggleMode} />
+            <ModeRadioGroup mode={mode} onChange={setMode} />
           </div>
 
           <div>
@@ -290,22 +281,24 @@ function ServiceCreationDialog({
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[#151922]">Select time</label>
-              <Select value={duration} onValueChange={setDuration}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {DURATION_OPTIONS.map((option) => (
-                    <SelectItem key={option.minutes} value={option.label}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className={mode === "online" ? "grid gap-4 sm:grid-cols-2" : "grid gap-4"}>
+            {mode === "online" && (
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[#151922]">Select time</label>
+                <Select value={duration} onValueChange={setDuration}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DURATION_OPTIONS.map((option) => (
+                      <SelectItem key={option.minutes} value={option.label}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div>
               <label className="mb-2 block text-sm font-medium text-[#151922]">Enter price</label>
               <div className="flex gap-3">
@@ -670,7 +663,9 @@ function ProfessionalPicker({
   )
 }
 
-type BookingStep = "request" | "schedule" | "confirmed"
+type BookingStep = "location-search" | "location-confirm" | "request" | "schedule" | "confirmed"
+
+const LOCATION_SUGGESTION_HINTS = ["3rd Gate total filling station", "Delcam senior high school"]
 
 function BookServiceDialog({
   service,
@@ -697,17 +692,21 @@ function BookServiceDialog({
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [booking, setBooking] = useState(false)
   const [bookingCode, setBookingCode] = useState("")
+  const [locationQuery, setLocationQuery] = useState("")
+  const [locatingCurrent, setLocatingCurrent] = useState(false)
 
   // Compute the 10-day window once per mount so `selectedDate` keeps a stable
   // reference across renders (an unstable one previously looped the slots effect).
   const dates = useMemo(() => Array.from({ length: 10 }, (_, index) => addDays(new Date(), index)), [])
   const selectedDate = dates[dateIndex]
   const members = service?.teamMembers ?? []
+  const isInPerson = service?.modes.includes("in_person") ?? false
 
-  // Reset when (re)opening for a service.
+  // Reset when (re)opening for a service. In-person services collect a location first
+  // (no maps/geocoding integration exists here, so it's a local, mock-only flow).
   useEffect(() => {
     if (!open) return
-    setStep("request")
+    setStep(isInPerson ? "location-search" : "request")
     setProfessionalId(members[0]?.id ?? null)
     setNeed("")
     setDateIndex(0)
@@ -717,6 +716,8 @@ function BookServiceDialog({
     setBookingLocation(null)
     setPaymentMethod(null)
     setBookingCode("")
+    setLocationQuery("")
+    setLocatingCurrent(false)
     // members derives from service; safe to depend on open + service id.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, service?.id])
@@ -749,6 +750,24 @@ function BookServiceDialog({
 
   const professional = members.find((member) => member.id === professionalId) ?? null
 
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Location isn't available on this device")
+      return
+    }
+    setLocatingCurrent(true)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocationQuery(`Current location (${position.coords.latitude.toFixed(3)}, ${position.coords.longitude.toFixed(3)})`)
+        setLocatingCurrent(false)
+      },
+      () => {
+        toast.error("Couldn't get your current location")
+        setLocatingCurrent(false)
+      },
+    )
+  }
+
   const checkout = async () => {
     if (!professionalId || startMinutes == null) return
     setBooking(true)
@@ -778,9 +797,100 @@ function BookServiceDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent showCloseButton className="p-0 max-w-140">
           <DialogHeader className="px-6 pt-6 text-left">
-            <DialogTitle className="text-xl font-semibold text-[#151922]">{service.title}</DialogTitle>
+            <DialogTitle className="text-xl font-semibold text-[#151922]">
+              {step === "location-search"
+                ? "We'd like to know where you live?"
+                : step === "location-confirm"
+                  ? "Confirm location"
+                  : service.title}
+            </DialogTitle>
+            {step === "location-confirm" && (
+              <p className="text-sm text-[#657080]">Confirm your location to make it easy for professional to attend to you.</p>
+            )}
           </DialogHeader>
           <DialogBody className="px-6 pt-4 pb-6 space-y-5">
+            {step === "location-search" && (
+              <>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-[#151922]">Enter your location</label>
+                  <div className="relative">
+                    <Input
+                      value={locationQuery}
+                      onChange={(event) => setLocationQuery(event.target.value)}
+                      placeholder="Enter your location"
+                      className="pr-10"
+                    />
+                    <LocateFixed className="absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-[#eef1f3]">
+                  {locationQuery.trim() &&
+                    LOCATION_SUGGESTION_HINTS.map((hint) => (
+                      <button
+                        key={hint}
+                        type="button"
+                        onClick={() => setLocationQuery(`${locationQuery.trim()} Municipality`)}
+                        className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-[#f2f6f8]"
+                      >
+                        <MapPin className="size-4 shrink-0 text-[#657080]" />
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium text-[#151922]">{locationQuery.trim()} Municipality</span>
+                          <span className="block truncate text-xs text-[#8a8f98]">{hint}</span>
+                        </span>
+                      </button>
+                    ))}
+                  <button
+                    type="button"
+                    onClick={useCurrentLocation}
+                    disabled={locatingCurrent}
+                    className="flex w-full items-center gap-3 border-t border-[#eef1f3] px-3 py-2.5 text-left first:border-t-0 hover:bg-[#f2f6f8]"
+                  >
+                    <Navigation className="size-4 shrink-0 text-[#151922]" />
+                    <span className="text-sm font-medium text-[#151922]">{locatingCurrent ? "Locating…" : "Use current location"}</span>
+                  </button>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    disabled={!locationQuery.trim()}
+                    className="bg-[#00b4b8] text-white hover:opacity-90"
+                    onClick={() => setStep("location-confirm")}
+                  >
+                    Continue
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {step === "location-confirm" && (
+              <>
+                <div className="relative h-72 overflow-hidden rounded-2xl bg-[linear-gradient(135deg,#dff3ee_0%,#eaf4fb_60%,#dbe9f7_100%)]">
+                  <div
+                    className="absolute inset-0 opacity-40"
+                    style={{
+                      backgroundImage:
+                        "linear-gradient(#c8d8e4 1px, transparent 1px), linear-gradient(90deg, #c8d8e4 1px, transparent 1px)",
+                      backgroundSize: "28px 28px",
+                    }}
+                  />
+                  <span className="absolute left-1/2 top-1/2 flex size-11 -translate-x-1/2 -translate-y-full items-center justify-center rounded-full bg-[#00b4b8] text-white shadow-lg ring-4 ring-white">
+                    <MapPin className="size-5" />
+                  </span>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setStep("location-search")}>
+                    Cancel
+                  </Button>
+                  <Button type="button" className="bg-[#00b4b8] text-white hover:opacity-90" onClick={() => setStep("request")}>
+                    Confirm location
+                  </Button>
+                </div>
+              </>
+            )}
+
             {step === "request" && (
               <>
                 <div className="rounded-xl bg-[#f7fafc] p-4 text-sm text-[#656f80]">
