@@ -26,21 +26,28 @@ export function AvailabilityModal({ open, onOpenChange }: AvailabilityModalProps
   const [value, setValue] = useState<WeeklyAvailability>(DEFAULT_AVAILABILITY)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  // Coverage area — no field exists yet to persist this, so it's local-only for now.
+  // Coverage area — persisted on the team member as `location` (address + optional coords).
   const [locationQuery, setLocationQuery] = useState("")
+  const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [locatingCurrent, setLocatingCurrent] = useState(false)
 
-  // Load the professional's stored availability from the backend each time it opens.
+  // Load the professional's stored availability + coverage location each time it opens.
   useEffect(() => {
     if (!open) return
     setStep("location")
     setLocationQuery("")
+    setLocationCoords(null)
     setLocatingCurrent(false)
     let active = true
     setLoading(true)
     getMyMembership()
       .then((result) => {
-        if (active && result.member?.availability) setValue(result.member.availability)
+        if (!active || !result.member) return
+        if (result.member.availability) setValue(result.member.availability)
+        if (result.member.location?.address) setLocationQuery(result.member.location.address)
+        if (result.member.location?.lat != null && result.member.location?.lng != null) {
+          setLocationCoords({ lat: result.member.location.lat, lng: result.member.location.lng })
+        }
       })
       .catch(() => undefined)
       .finally(() => {
@@ -59,7 +66,9 @@ export function AvailabilityModal({ open, onOpenChange }: AvailabilityModalProps
     setLocatingCurrent(true)
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setLocationQuery(`Current location (${position.coords.latitude.toFixed(3)}, ${position.coords.longitude.toFixed(3)})`)
+        const { latitude, longitude } = position.coords
+        setLocationQuery(`Current location (${latitude.toFixed(3)}, ${longitude.toFixed(3)})`)
+        setLocationCoords({ lat: latitude, lng: longitude })
         setLocatingCurrent(false)
       },
       () => {
@@ -72,7 +81,9 @@ export function AvailabilityModal({ open, onOpenChange }: AvailabilityModalProps
   const handleSave = async () => {
     setSaving(true)
     try {
-      await updateMyAvailability(value)
+      const address = locationQuery.trim()
+      const location = address ? { address, ...(locationCoords ?? {}) } : null
+      await updateMyAvailability(value, location)
       toast.success("Availability updated")
       onOpenChange(false)
     } catch (error) {
@@ -158,8 +169,20 @@ export function AvailabilityModal({ open, onOpenChange }: AvailabilityModalProps
               <Button type="button" variant="outline" onClick={() => setStep("schedule")}>
                 Update schedule
               </Button>
-              <Button type="button" disabled className="bg-[#00b4b8] text-white opacity-60">
-                Save changes
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={loading || saving}
+                className="bg-[#00b4b8] text-white hover:opacity-90"
+              >
+                {saving ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <ButtonLoader />
+                    Saving...
+                  </span>
+                ) : (
+                  "Save changes"
+                )}
               </Button>
             </>
           ) : (

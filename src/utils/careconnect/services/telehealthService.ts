@@ -132,3 +132,30 @@ export async function updateBookingStatus(
   const { data } = await axiosClient.patch(`/careconnectBookings/${id}/status`, { status })
   return data.data
 }
+
+/** In-person visit lifecycle event, driven by the professional/agency. */
+export type VisitEvent = "arrived" | "started"
+
+/** Record an in-person visit event; the server stamps the matching timestamp. */
+export async function recordVisitEvent(id: string, event: VisitEvent): Promise<TelehealthBooking> {
+  const { data } = await axiosClient.patch(`/careconnectBookings/${id}/visit`, { event })
+  return data.data
+}
+
+export interface BookingIssue {
+  id: string
+  bookingId: string
+  reason: string
+  details: string
+  status: string
+}
+
+/** Raise an issue against a booking (any party to it). */
+export async function reportBookingIssue(
+  id: string,
+  reason: string,
+  details?: string,
+): Promise<BookingIssue> {
+  const { data } = await axiosClient.post(`/careconnectBookings/${id}/issues`, { reason, details })
+  return data.data
+}

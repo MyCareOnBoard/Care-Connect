@@ -305,6 +305,8 @@ export interface TeamMember {
   avatarBg: string
   status: "invited" | "active"
   availability: WeeklyAvailability
+  /** Coverage/service location set from the availability modal's location step. */
+  location?: BookingLocation | null
   inviteToken: string
   createdAt?: Timestampish
   updatedAt?: Timestampish
@@ -367,6 +369,10 @@ export interface TelehealthBooking {
   startAt?: Timestampish
   note: string
   location?: BookingLocation | null
+  /** In-person visit lifecycle timestamps (null until the event occurs). */
+  arrivedAt?: Timestampish
+  startedAt?: Timestampish
+  completedAt?: Timestampish
   price: number
   currency: string
   paymentMethod: string

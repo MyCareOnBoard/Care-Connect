@@ -4,7 +4,7 @@
  */
 
 import axiosClient from "@/lib/axios"
-import type { TeamMember, WeeklyAvailability } from "@/utils/careconnect/types"
+import type { BookingLocation, TeamMember, WeeklyAvailability } from "@/utils/careconnect/types"
 
 export interface InviteTeamMemberInput {
   name: string
@@ -58,7 +58,16 @@ export async function getMyMembership(): Promise<MyMembership> {
   return data.data
 }
 
-export async function updateMyAvailability(availability: WeeklyAvailability): Promise<TeamMember> {
-  const { data } = await axiosClient.patch("/careconnectTeam/me/availability", { availability })
+/**
+ * Update the caller's weekly availability, and optionally their coverage
+ * location. Pass `null` for `location` to clear a previously-set area.
+ */
+export async function updateMyAvailability(
+  availability: WeeklyAvailability,
+  location?: BookingLocation | null,
+): Promise<TeamMember> {
+  const body: { availability: WeeklyAvailability; location?: BookingLocation | null } = { availability }
+  if (location !== undefined) body.location = location
+  const { data } = await axiosClient.patch("/careconnectTeam/me/availability", body)
   return data.data
 }
