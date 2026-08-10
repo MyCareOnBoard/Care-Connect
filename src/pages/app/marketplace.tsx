@@ -33,7 +33,7 @@ function priceLabel(price: number, currency: string): string {
   return `${CURRENCY_SYMBOLS[currency] ?? "$"}${price}`
 }
 
-const STATUS_LABELS: Record<ProductStatus, string> = { active: "Active", sold: "Sold", archived: "Archived" }
+const STATUS_LABELS: Record<ProductStatus, string> = { active: "Active", sold: "Out of Stock", archived: "Archived" }
 const STATUS_STYLES: Record<ProductStatus, string> = {
   active: "bg-[#e2f7e8] text-[#1f9c4c]",
   sold: "bg-[#ffe9d6] text-[#d97a2b]",
@@ -166,7 +166,7 @@ function ProductCard({ product, onOpen, owner }: { product: Product; onOpen: () 
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="sold">Sold</SelectItem>
+                <SelectItem value="sold">Out of Stock</SelectItem>
                 <SelectItem value="archived">Archived</SelectItem>
               </SelectContent>
             </Select>
