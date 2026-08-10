@@ -12,8 +12,9 @@ import {
   endOfMonth,
   eachDayOfInterval,
 } from "date-fns"
-import { Calendar, ChevronLeft, ChevronRight, List, Search } from "lucide-react"
+import { Calendar, CalendarClock, ChevronLeft, ChevronRight, List, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Routes } from "@/routes/constants"
 import { getInitials } from "@/lib/utils"
@@ -22,6 +23,7 @@ import { minutesToLabel, toDateKey, type TelehealthBooking } from "@/utils/carec
 import { ROW_STATUS_PILL, bookingStart, formatDurationLabel, rowStatusFor } from "@/utils/careconnect/bookingStatus"
 import { BookingDetailsDialog } from "@/components/professional/BookingDetailsDialog"
 import { BookingRowAction } from "@/components/professional/BookingRowAction"
+import { AvailabilityModal } from "@/components/professional/AvailabilityModal"
 
 const isProfessional = true
 
@@ -372,6 +374,8 @@ export default function ProfessionalSchedulePage() {
     setCurrentDate((current) => (view === "Month" || view === "Week" ? addMonths(current, 1) : addDays(current, 1)))
   }
 
+  const [availabilityOpen, setAvailabilityOpen] = useState(false)
+
   const dateLabel =
     view === "Week" || view === "Month"
       ? format(currentDate, "MMMM yyyy")
@@ -509,6 +513,16 @@ export default function ProfessionalSchedulePage() {
             <List className="size-4" />
           </button>
         </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="gap-2 border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
+          onClick={() => setAvailabilityOpen(true)}
+        >
+          <CalendarClock className="size-4" />
+          Edit availability
+        </Button>
       </div>
 
       {viewMode === "table" ? (
@@ -715,6 +729,8 @@ export default function ProfessionalSchedulePage() {
         canManage={isProfessional}
         onStatusChanged={handleBookingUpdated}
       />
+
+      <AvailabilityModal open={availabilityOpen} onOpenChange={setAvailabilityOpen} />
     </div>
   )
 }

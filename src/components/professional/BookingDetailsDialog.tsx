@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link, useNavigate } from "react-router"
 import { format } from "date-fns"
+import { LocationMap } from "@/components/maps/LocationMap"
 import {
   Building2,
   CalendarDays,
@@ -9,7 +10,6 @@ import {
   Copy,
   Heart,
   Info,
-  MapPin,
   MessageSquare,
   Mic,
   MicOff,
@@ -196,7 +196,7 @@ export function BookingDetailsDialog({
     return () => window.clearInterval(timer)
   }, [step])
 
-  const changeStatus = async (status: "completed" | "cancelled") => {
+  const changeStatus = async (status: "completed" | "cancelled" | "confirmed") => {
     if (!booking) return
     setPending(true)
     try {
@@ -204,6 +204,9 @@ export function BookingDetailsDialog({
       onStatusChanged?.(updated)
       if (status === "completed") {
         setStep("completed")
+      } else if (status === "confirmed") {
+        toast.success("Booking accepted")
+        onOpenChange(false)
       } else {
         toast.success("Booking cancelled")
         onOpenChange(false)
@@ -510,17 +513,28 @@ export function BookingDetailsDialog({
                   className="border-[#ff3e66] text-[#ff3e66] hover:bg-[#fff1f4]"
                   onClick={() => changeStatus("cancelled")}
                 >
-                  Cancel booking
+                  {booking.status === "requested" ? "Decline" : "Cancel booking"}
                 </Button>
-                <Button
-                  type="button"
-                  disabled={pending}
-                  variant="outline"
-                  className="border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
-                  onClick={() => changeStatus("completed")}
-                >
-                  Mark complete
-                </Button>
+                {booking.status === "requested" ? (
+                  <Button
+                    type="button"
+                    disabled={pending}
+                    className="bg-[#00b4b8] text-white hover:opacity-90"
+                    onClick={() => changeStatus("confirmed")}
+                  >
+                    Accept
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    disabled={pending}
+                    variant="outline"
+                    className="border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
+                    onClick={() => changeStatus("completed")}
+                  >
+                    Mark complete
+                  </Button>
+                )}
               </div>
             )}
           </DialogBody>
@@ -530,24 +544,14 @@ export function BookingDetailsDialog({
           <DialogBody className="px-6 pt-4 pb-6 space-y-4 text-sm">
             <div>
               <h3 className="text-base font-semibold text-[#151922]">Client location</h3>
-              <p className="mt-1 text-[#657080]">Client is waiting on you.</p>
+              <p className="mt-1 text-[#657080]">{booking.location?.address || "No address provided."}</p>
             </div>
-            <div className="relative h-64 overflow-hidden rounded-2xl bg-[linear-gradient(135deg,#dff3ee_0%,#eaf4fb_60%,#dbe9f7_100%)]">
-              <div
-                className="absolute inset-0 opacity-40"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(#c8d8e4 1px, transparent 1px), linear-gradient(90deg, #c8d8e4 1px, transparent 1px)",
-                  backgroundSize: "28px 28px",
-                }}
-              />
-              <span className="absolute left-[38%] top-[42%] flex size-9 -translate-x-1/2 -translate-y-full items-center justify-center rounded-full bg-[#00b4b8] text-white shadow-lg">
-                <MapPin className="size-5" />
-              </span>
-              <span className="absolute left-[58%] top-[62%] flex size-9 -translate-x-1/2 -translate-y-full items-center justify-center rounded-full bg-[#151922] text-white shadow-lg">
-                <MapPin className="size-5" />
-              </span>
-            </div>
+            <LocationMap
+              address={booking.location?.address}
+              lat={booking.location?.lat}
+              lng={booking.location?.lng}
+              className="h-64 w-full overflow-hidden rounded-2xl"
+            />
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setStep("details")}>
                 Cancel

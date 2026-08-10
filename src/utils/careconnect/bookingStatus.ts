@@ -1,7 +1,7 @@
 import type { TelehealthBooking } from "@/utils/careconnect/types"
 
 /** Display status derived from a booking's stored status + its time window (no "in-progress" backend status exists). */
-export type RowStatus = "completed" | "cancelled" | "in_progress" | "upcoming"
+export type RowStatus = "requested" | "completed" | "cancelled" | "in_progress" | "upcoming"
 
 /** Booking instant from its dateKey + startMinutes (local). */
 export function bookingStart(booking: TelehealthBooking): Date {
@@ -23,6 +23,8 @@ export function formatDurationLabel(minutes: number): string {
 export function rowStatusFor(booking: TelehealthBooking): RowStatus {
   if (booking.status === "completed") return "completed"
   if (booking.status === "cancelled") return "cancelled"
+  // A booking the provider hasn't accepted yet — surfaced so it can be confirmed.
+  if (booking.status === "requested") return "requested"
   const start = bookingStart(booking)
   const end = new Date(start.getTime() + booking.durationMinutes * 60000)
   const now = new Date()
@@ -31,6 +33,7 @@ export function rowStatusFor(booking: TelehealthBooking): RowStatus {
 }
 
 export const ROW_STATUS_PILL: Record<RowStatus, { label: string; className: string }> = {
+  requested: { label: "Requested", className: "border border-[#d97a2b] bg-white text-[#d97a2b]" },
   completed: { label: "Completed", className: "border border-[#10ad58] bg-white text-[#10ad58]" },
   in_progress: { label: "In-progress", className: "bg-[#1f2430] text-white" },
   cancelled: { label: "Cancelled", className: "border border-[#ff3e66] bg-white text-[#ff3e66]" },

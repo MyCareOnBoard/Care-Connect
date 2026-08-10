@@ -6,6 +6,7 @@
 
 import axiosClient from "@/lib/axios"
 import type {
+  BookingLocation,
   BookingSlot,
   ServiceMode,
   ServiceStatus,
@@ -42,6 +43,7 @@ export interface NewBookingInput {
   mode: ServiceMode
   note?: string
   paymentMethod?: string
+  location?: BookingLocation
 }
 
 export interface ListBookingsParams {
