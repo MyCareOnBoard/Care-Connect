@@ -32,7 +32,14 @@ import {
   type FeedPost,
 } from "@/utils/careconnect/services/postsService"
 import { listMyJobs } from "@/utils/careconnect/services/jobsService"
-import { inviteTeamMember, listMyTeam, removeTeamMember } from "@/utils/careconnect/services/teamService"
+import {
+  bulkInviteTeamMembers,
+  inviteTeamMember,
+  listMyTeam,
+  removeTeamMember,
+  type BulkInviteMemberInput,
+  type BulkInviteResult,
+} from "@/utils/careconnect/services/teamService"
 import { EMPLOYMENT_TYPE_LABELS, formatRelative, formatSalary, type Job, type TeamMember } from "@/utils/careconnect/types"
 
 const initialExperience = [
@@ -318,6 +325,35 @@ export default function ProfilePage() {
       toast.error(getAuthErrorMessage(error))
     }
   }
+
+  /**
+   * Spreadsheet import. Rows were already validated client-side; the backend
+   * still reports per-row outcomes, which the dialog renders as a summary.
+   */
+  const handleBulkInviteTeamMembers = async (
+    members: BulkInviteMemberInput[],
+  ): Promise<BulkInviteResult | undefined> => {
+    try {
+      const inviteUrlBase = new URL(Routes.auth.professionalInvite, window.location.origin).toString()
+      const result = await bulkInviteTeamMembers({ members, inviteUrlBase })
+      if (result.members.length > 0) {
+        setTeamMembers((current) => [...result.members, ...current])
+      }
+      if (result.invited > 0) {
+        toast.success(
+          `${result.invited} invitation${result.invited === 1 ? "" : "s"} sent` +
+            (result.skipped > 0 ? ` — ${result.skipped} row${result.skipped === 1 ? "" : "s"} skipped.` : "."),
+        )
+      } else {
+        toast.error("No invitations were sent — every row was rejected.")
+      }
+      return result
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+      return undefined
+    }
+  }
+
   const [notificationOptions, setNotificationOptions] = useState({
     jobMatches: true,
     certificationExpiring: true,
@@ -885,6 +921,7 @@ export default function ProfilePage() {
         newTeamInvite={newTeamInvite}
         onNewTeamInviteChange={setNewTeamInvite}
         onInviteTeamMember={handleInviteTeamMember}
+        onBulkInviteTeamMembers={handleBulkInviteTeamMembers}
       />
     </div>
   )
