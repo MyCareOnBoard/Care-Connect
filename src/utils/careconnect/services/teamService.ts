@@ -18,6 +18,33 @@ export interface InviteTeamMemberInput {
 /** A newly-invited member, plus whether the backend emailed the invite. */
 export type InvitedTeamMember = TeamMember & { emailed?: boolean }
 
+/** One row of a spreadsheet import. */
+export interface BulkInviteMemberInput {
+  name: string
+  email?: string
+  phone?: string
+  role?: string
+}
+
+/** The outcome of a single submitted row, in submission order. */
+export interface BulkInviteRowResult {
+  index: number
+  name: string
+  email: string
+  status: "invited" | "skipped"
+  emailed: boolean
+  /** Why the row was skipped (server-side validation message). */
+  error?: string
+}
+
+export interface BulkInviteResult {
+  members: InvitedTeamMember[]
+  results: BulkInviteRowResult[]
+  invited: number
+  skipped: number
+  emailed: number
+}
+
 export interface MyMembership {
   isProfessional: boolean
   member?: TeamMember
@@ -31,6 +58,19 @@ export async function listMyTeam(): Promise<TeamMember[]> {
 
 export async function inviteTeamMember(input: InviteTeamMemberInput): Promise<InvitedTeamMember> {
   const { data } = await axiosClient.post("/careconnectTeam", input)
+  return data.data
+}
+
+/**
+ * Invite many members in one request (spreadsheet import). Partial success is
+ * normal — check `results` for each row's outcome rather than assuming all
+ * submitted rows were invited.
+ */
+export async function bulkInviteTeamMembers(input: {
+  members: BulkInviteMemberInput[]
+  inviteUrlBase?: string
+}): Promise<BulkInviteResult> {
+  const { data } = await axiosClient.post("/careconnectTeam/bulk", input)
   return data.data
 }
 

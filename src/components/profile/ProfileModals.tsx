@@ -18,6 +18,8 @@ import { PhoneNumberField } from "@/components/auth/PhoneNumberField"
 import { FileDropzone } from "@/components/auth/FileDropzone"
 import { PasswordField } from "@/components/auth/PasswordField"
 import CustomDatePicker from "@/components/ui/datePicker"
+import { TeamInviteDialog } from "@/components/profile/TeamInviteDialog"
+import type { BulkInviteMemberInput, BulkInviteResult } from "@/utils/careconnect/services/teamService"
 
 type NotificationKey = "jobMatches" | "certificationExpiring" | "newMessages" | "mentorInvitations" | "appointmentReminders" | "pushNotifications" | "emailDigestWeekly" | "smsAlerts"
 type PrivacyKey = "publicProfile" | "showEmailAddress" | "showPhoneNumber" | "showLocation" | "allowMessages" | "showOnlineStatus"
@@ -68,6 +70,8 @@ type ProfileModalsProps = {
   newTeamInvite?: { phone: string; email: string; fullName: string }
   onNewTeamInviteChange?: (value: { phone: string; email: string; fullName: string }) => void
   onInviteTeamMember?: (input: { fullName: string; email: string; phone: string }) => Promise<void> | void
+  /** Spreadsheet import. Resolves with the per-row outcome, or undefined if the request failed. */
+  onBulkInviteTeamMembers?: (members: BulkInviteMemberInput[]) => Promise<BulkInviteResult | undefined>
 }
 
 function parseDurationDate(value: string) {
@@ -119,6 +123,7 @@ export function ProfileModals({
   newTeamInvite = { phone: "", email: "", fullName: "" },
   onNewTeamInviteChange = () => {},
   onInviteTeamMember = async () => {},
+  onBulkInviteTeamMembers,
 }: ProfileModalsProps) {
   const [accountTab, setAccountTab] = useState<AccountTab>("Account info")
   const [passwords, setPasswords] = useState({ current: "", next: "", confirm: "" })
@@ -569,50 +574,14 @@ export function ProfileModals({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog open={teamInviteOpen} onOpenChange={onTeamInviteOpenChange}>
-        <DialogContent showCloseButton className="p-0 max-w-130">
-          <DialogHeader className="px-6 pt-6 text-left">
-            <DialogTitle className="text-xl font-semibold text-[#151922]">Team invitation</DialogTitle>
-          </DialogHeader>
-          <DialogBody className="px-6 pt-4 pb-6 space-y-5">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[#151922]">Phone number</label>
-              <PhoneNumberField value={newTeamInvite.phone} onChange={(value) => onNewTeamInviteChange({ ...newTeamInvite, phone: value })} />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[#151922]">Email</label>
-              <Input
-                value={newTeamInvite.email}
-                onChange={(event) => onNewTeamInviteChange({ ...newTeamInvite, email: event.target.value })}
-                placeholder="Enter your email  here"
-              />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[#151922]">Full name</label>
-              <Input
-                value={newTeamInvite.fullName}
-                onChange={(event) => onNewTeamInviteChange({ ...newTeamInvite, fullName: event.target.value })}
-                placeholder="Enter your full name here"
-              />
-            </div>
-            <Button
-              className="w-full bg-[#00b4b8] text-white hover:opacity-90"
-              onClick={async () => {
-                if (!newTeamInvite.fullName.trim()) return
-                await onInviteTeamMember({
-                  fullName: newTeamInvite.fullName.trim(),
-                  email: newTeamInvite.email.trim(),
-                  phone: newTeamInvite.phone.trim(),
-                })
-                onNewTeamInviteChange({ phone: "", email: "", fullName: "" })
-                onTeamInviteOpenChange(false)
-              }}
-            >
-              Send invitation
-            </Button>
-          </DialogBody>
-        </DialogContent>
-      </Dialog>
+      <TeamInviteDialog
+        open={teamInviteOpen}
+        onOpenChange={onTeamInviteOpenChange}
+        newTeamInvite={newTeamInvite}
+        onNewTeamInviteChange={onNewTeamInviteChange}
+        onInviteTeamMember={onInviteTeamMember}
+        onBulkInviteTeamMembers={onBulkInviteTeamMembers}
+      />
     </>
   )
 }
