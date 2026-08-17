@@ -113,7 +113,11 @@ function TeamMemberPicker({
 }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState("")
-  const visible = team.filter((member) => member.name.toLowerCase().includes(search.toLowerCase()))
+  // Only members who accepted their invite can be assigned — an "invited" row has
+  // no account behind it yet, so it can't be scheduled against a service.
+  const assignable = team.filter((member) => member.status === "active")
+  const pendingCount = team.length - assignable.length
+  const visible = assignable.filter((member) => member.name.toLowerCase().includes(search.toLowerCase()))
   const summary = selected.size > 0 ? `${selected.size} member${selected.size > 1 ? "s" : ""} selected` : "-- select team member here --"
 
   return (
@@ -129,9 +133,11 @@ function TeamMemberPicker({
 
       {open && (
         <div className="mt-3 rounded-xl border border-(--input-border) p-2">
-          {team.length === 0 ? (
+          {assignable.length === 0 ? (
             <p className="px-2 py-3 text-sm text-[#657080]">
-              No team members yet. Invite professionals from your profile&apos;s Team tab.
+              {pendingCount > 0
+                ? `No team members have accepted their invite yet (${pendingCount} pending). They'll appear here once they set up their account.`
+                : "No team members yet. Invite professionals from your profile's Team tab."}
             </p>
           ) : (
             <>

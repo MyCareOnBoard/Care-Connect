@@ -9,6 +9,7 @@ import { useCareFlow } from "@/components/app/useCareFlow"
 import { Routes } from "@/routes/constants"
 import { getAuthErrorMessage } from "@/utils/auth"
 import { getInitials } from "@/lib/utils"
+import { certificationStatus, formatCertificationPeriod } from "@/components/profile/certifications"
 import { getProfile } from "@/utils/careconnect/services/profilesService"
 import type { CareConnectProfile } from "@/utils/careconnect/types"
 
@@ -16,15 +17,23 @@ const profileTabs = ["About", "Certifications"] as const
 type ProfileTab = (typeof profileTabs)[number]
 
 /** Certifications are stored verbatim by the client — normalize to a display record. */
-function normalizeCert(cert: unknown): { title: string; provider?: string; date?: string; status?: string } {
+function normalizeCert(cert: unknown): {
+  title: string
+  provider?: string
+  period?: string
+  status?: string
+} {
   if (typeof cert === "string") return { title: cert }
   if (cert && typeof cert === "object") {
     const c = cert as Record<string, unknown>
+    const date = c.date ? String(c.date) : undefined
+    const endDate = c.endDate ? String(c.endDate) : undefined
     return {
       title: String(c.title ?? c.name ?? "Certification"),
       provider: c.provider ? String(c.provider) : undefined,
-      date: c.date ? String(c.date) : undefined,
-      status: c.status ? String(c.status) : undefined,
+      period: formatCertificationPeriod(date, endDate) || undefined,
+      // Recomputed from the expiry date rather than trusting the stored badge.
+      status: endDate || c.status ? certificationStatus(endDate) : undefined,
     }
   }
   return { title: "Certification" }
@@ -227,8 +236,8 @@ export default function ViewProfilePage() {
                 <div key={`${cert.title}-${index}`} className="flex flex-col gap-3 rounded-3xl border border-[#e5ecf5] p-5 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm font-semibold text-[#151922]">{cert.title}</p>
-                    {(cert.provider || cert.date) && (
-                      <p className="mt-1 text-sm text-[#00898c]">{[cert.provider, cert.date].filter(Boolean).join(" · ")}</p>
+                    {(cert.provider || cert.period) && (
+                      <p className="mt-1 text-sm text-[#00898c]">{[cert.provider, cert.period].filter(Boolean).join(" · ")}</p>
                     )}
                   </div>
                   {cert.status && (

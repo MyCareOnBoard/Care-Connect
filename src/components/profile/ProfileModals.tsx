@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { format } from "date-fns"
 import { toast } from "sonner"
 import { getAuthErrorMessage } from "@/utils/auth"
@@ -19,7 +19,10 @@ import { FileDropzone } from "@/components/auth/FileDropzone"
 import { PasswordField } from "@/components/auth/PasswordField"
 import CustomDatePicker from "@/components/ui/datePicker"
 import { TeamInviteDialog } from "@/components/profile/TeamInviteDialog"
+import { certificationStatus } from "@/components/profile/certifications"
+import { Trash2 } from "lucide-react"
 import type { BulkInviteMemberInput, BulkInviteResult } from "@/utils/careconnect/services/teamService"
+import type { ProfileCertification } from "@/utils/careconnect/types"
 
 type NotificationKey = "jobMatches" | "certificationExpiring" | "newMessages" | "mentorInvitations" | "appointmentReminders" | "pushNotifications" | "emailDigestWeekly" | "smsAlerts"
 type PrivacyKey = "publicProfile" | "showEmailAddress" | "showPhoneNumber" | "showLocation" | "allowMessages" | "showOnlineStatus"
@@ -61,10 +64,10 @@ type ProfileModalsProps = {
   onSkillsChange: (value: string[]) => void
   newSkill: string
   onNewSkillChange: (value: string) => void
-  certifications: Array<{ title: string; provider: string; date: string; status: string }>
-  onCertificationsChange: (value: Array<{ title: string; provider: string; date: string; status: string }>) => void
-  newCertification: { title: string; provider: string; date: string; file: string }
-  onNewCertificationChange: (value: { title: string; provider: string; date: string; file: string }) => void
+  certifications: ProfileCertification[]
+  onCertificationsChange: (value: ProfileCertification[]) => void
+  newCertification: { title: string; provider: string; date: string; endDate: string; file: string }
+  onNewCertificationChange: (value: { title: string; provider: string; date: string; endDate: string; file: string }) => void
   teamInviteOpen?: boolean
   onTeamInviteOpenChange?: (open: boolean) => void
   newTeamInvite?: { phone: string; email: string; fullName: string }
@@ -79,6 +82,9 @@ function parseDurationDate(value: string) {
   const parsed = new Date(value)
   return Number.isNaN(parsed.getTime()) ? null : parsed
 }
+
+/** Certifications and job end dates run into the future, unlike a date of birth. */
+const FUTURE_MONTH_LIMIT = new Date(new Date().getFullYear() + 30, 11)
 
 const accountTabs = ["Account info", "Password", "Danger zone"] as const
 
@@ -129,6 +135,33 @@ export function ProfileModals({
   const [passwords, setPasswords] = useState({ current: "", next: "", confirm: "" })
   const [certificateFile, setCertificateFile] = useState<File | null>(null)
   const [savingAccount, setSavingAccount] = useState(false)
+
+  // Skills are edited against a local draft so renames and removals aren't
+  // persisted keystroke-by-keystroke — onSkillsChange writes to the backend.
+  const [skillDraft, setSkillDraft] = useState<string[]>(skills)
+
+  useEffect(() => {
+    if (skillOpen) setSkillDraft(skills)
+    // Re-seeding while open would discard in-progress edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [skillOpen])
+
+  const addDraftSkill = () => {
+    const skill = newSkill.trim()
+    if (!skill) return
+    setSkillDraft((current) => [...current, skill])
+    onNewSkillChange("")
+  }
+
+  const saveSkills = () => {
+    const pending = newSkill.trim()
+    const next = [...skillDraft, ...(pending ? [pending] : [])]
+      .map((skill) => skill.trim())
+      .filter(Boolean)
+    onSkillsChange(Array.from(new Set(next)))
+    onNewSkillChange("")
+    onSkillOpenChange(false)
+  }
 
   // In-app password change (MFA re-auth). Step "form" collects passwords; if the
   // account has MFA, we send an SMS and move to step "otp" to confirm.
@@ -470,6 +503,7 @@ export function ProfileModals({
               <div>
                 <label className="mb-2 block text-sm font-medium text-[#151922]">End date</label>
                 <CustomDatePicker
+                  endMonth={FUTURE_MONTH_LIMIT}
                   date={parseDurationDate(newExperience.duration.split(" – ")[1])}
                   setDate={(value) => onNewExperienceChange({ ...newExperience, duration: `${newExperience.duration.split(" – ")[0] || ""} – ${value ? format(value, "yyyy-MM-dd") : "Present"}` })}
                 />
@@ -496,26 +530,61 @@ export function ProfileModals({
       <Dialog open={skillOpen} onOpenChange={onSkillOpenChange}>
         <DialogContent showCloseButton className="p-0 max-w-130">
           <DialogHeader className="px-6 pt-6 text-left">
-            <DialogTitle className="text-xl font-semibold text-[#151922]">Add skill</DialogTitle>
+            <DialogTitle className="text-xl font-semibold text-[#151922]">Edit skills</DialogTitle>
           </DialogHeader>
           <DialogBody className="px-6 pt-4 pb-6 space-y-5">
+            {skillDraft.length > 0 && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-[#151922]">Your skills</label>
+                {skillDraft.map((skill, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      value={skill}
+                      onChange={(event) =>
+                        setSkillDraft((current) => current.map((item, i) => (i === index ? event.target.value : item)))
+                      }
+                      placeholder="Skill name"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setSkillDraft((current) => current.filter((_, i) => i !== index))}
+                      aria-label={`Remove ${skill || "skill"}`}
+                      className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-[#e8edf2] text-[#d8442a] transition hover:bg-[#fff1f0]"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div>
-              <label className="mb-2 block text-sm font-medium text-[#151922]">Enter skill</label>
-              <Input value={newSkill} onChange={(event) => onNewSkillChange(event.target.value)} placeholder="Enter skill here, eg: HHA Registered care giver" />
+              <label className="mb-2 block text-sm font-medium text-[#151922]">Add a skill</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={newSkill}
+                  onChange={(event) => onNewSkillChange(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault()
+                      addDraftSkill()
+                    }
+                  }}
+                  placeholder="Enter skill here, eg: HHA Registered care giver"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0 border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
+                  onClick={addDraftSkill}
+                >
+                  Add
+                </Button>
+              </div>
             </div>
           </DialogBody>
           <DialogFooter>
-            <Button
-              className="bg-[#00b4b8] text-white hover:opacity-90"
-              onClick={() => {
-                if (newSkill.trim()) {
-                  onSkillsChange([...skills, newSkill.trim()])
-                  onNewSkillChange("")
-                  onSkillOpenChange(false)
-                }
-              }}
-            >
-              Update skills
+            <Button className="bg-[#00b4b8] text-white hover:opacity-90" onClick={saveSkills}>
+              Save skills
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -531,17 +600,30 @@ export function ProfileModals({
               <label className="mb-2 block text-sm font-medium text-[#151922]">Enter certificate title</label>
               <Input value={newCertification.title} onChange={(event) => onNewCertificationChange({ ...newCertification, title: event.target.value })} placeholder="Enter your certificate title here" />
             </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-[#151922]">Issuing organization</label>
+              <Input value={newCertification.provider} onChange={(event) => onNewCertificationChange({ ...newCertification, provider: event.target.value })} placeholder="eg: American Heart Association" />
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-medium text-[#151922]">Start date</label>
                 <CustomDatePicker
+                  placeholder="Select issue date"
                   date={parseDurationDate(newCertification.date)}
                   setDate={(value) => onNewCertificationChange({ ...newCertification, date: value ? format(value, "yyyy-MM-dd") : "" })}
                 />
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-[#151922]">End date</label>
-                <Input value="Present" disabled />
+                {/* Expiry runs into the future, so the calendar needs a future endMonth
+                    (CustomDatePicker otherwise stops at the current month). */}
+                <CustomDatePicker
+                  placeholder="Select expiry date"
+                  endMonth={FUTURE_MONTH_LIMIT}
+                  date={parseDurationDate(newCertification.endDate)}
+                  setDate={(value) => onNewCertificationChange({ ...newCertification, endDate: value ? format(value, "yyyy-MM-dd") : "" })}
+                />
+                <p className="mt-2 text-xs text-[#8a8f98]">Leave blank if the certificate doesn&apos;t expire.</p>
               </div>
             </div>
             <div>
@@ -557,13 +639,14 @@ export function ProfileModals({
                   onCertificationsChange([
                     ...certifications,
                     {
-                      title: newCertification.title,
-                      provider: newCertification.provider || "Unknown provider",
-                      date: newCertification.date || "Expires Dec 2026",
-                      status: "Active",
+                      title: newCertification.title.trim(),
+                      provider: newCertification.provider.trim(),
+                      date: newCertification.date,
+                      endDate: newCertification.endDate,
+                      status: certificationStatus(newCertification.endDate),
                     },
                   ])
-                  onNewCertificationChange({ title: "", provider: "", date: "", file: "" })
+                  onNewCertificationChange({ title: "", provider: "", date: "", endDate: "", file: "" })
                   setCertificateFile(null)
                   onCertificationOpenChange(false)
                 }

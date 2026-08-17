@@ -1,0 +1,169 @@
+/**
+ * Account-settings state shared by the profile page and the settings page.
+ *
+ * Both surfaces render the same `ProfileModals` account dialog, so the loading,
+ * persistence, and deactivate/delete wiring lives here rather than being
+ * duplicated (the settings page previously shipped hardcoded demo values and
+ * no save handlers at all).
+ */
+
+import { useEffect, useState } from "react"
+import { useNavigate } from "react-router"
+import { toast } from "sonner"
+import { Routes } from "@/routes/constants"
+import { useAppDispatch } from "@/store/redux/hooks"
+import { useAuthUser } from "@/utils/auth"
+import {
+  deactivateAccount,
+  deleteAccount,
+  updateCareConnectProfile,
+  updateUserProfile,
+} from "@/utils/auth/services/authService"
+import { logoutUser } from "@/utils/auth/store/authSlice"
+import { getProfile } from "@/utils/careconnect/services/profilesService"
+import type { CareConnectProfile } from "@/utils/careconnect/types"
+
+export interface AccountInfo {
+  fullName: string
+  email: string
+  phone: string
+  location: string
+  headline: string
+  description: string
+}
+
+const emptyAccountInfo: AccountInfo = {
+  fullName: "",
+  email: "",
+  phone: "",
+  location: "",
+  headline: "",
+  description: "",
+}
+
+const defaultNotificationOptions = {
+  jobMatches: true,
+  certificationExpiring: true,
+  newMessages: true,
+  mentorInvitations: true,
+  appointmentReminders: true,
+  pushNotifications: true,
+  emailDigestWeekly: true,
+  smsAlerts: true,
+}
+
+const defaultPrivacyOptions = {
+  publicProfile: true,
+  showEmailAddress: true,
+  showPhoneNumber: true,
+  showLocation: true,
+  allowMessages: true,
+  showOnlineStatus: true,
+}
+
+type NotificationKey = keyof typeof defaultNotificationOptions
+type PrivacyKey = keyof typeof defaultPrivacyOptions
+
+/**
+ * @param options.profile A profile the caller has already fetched. Pass it (even as
+ *   `null` while loading) to reuse that request instead of the hook issuing its own.
+ *   Omit it entirely and the hook fetches the caller's profile itself.
+ * @param options.onSaved Called with the persisted values so a host page can update
+ *   any summary it renders alongside the dialog without refetching.
+ */
+export function useAccountSettings(
+  options: { profile?: CareConnectProfile | null; onSaved?: (info: AccountInfo) => void } = {},
+) {
+  const { profile, onSaved } = options
+  const usesCallerProfile = "profile" in options
+  const { user } = useAuthUser()
+  const navigate = useNavigate()
+  const dispatch = useAppDispatch()
+
+  const [accountInfo, setAccountInfo] = useState<AccountInfo>(emptyAccountInfo)
+  const [notificationOptions, setNotificationOptions] = useState(defaultNotificationOptions)
+  const [privacyOptions, setPrivacyOptions] = useState(defaultPrivacyOptions)
+
+  useEffect(() => {
+    if (!user?.uid) return
+    const identity = {
+      fullName: user.fullName || "",
+      email: user.email || "",
+      phone: user.phoneNumber || "",
+    }
+    const fromProfile = (me: CareConnectProfile): AccountInfo => ({
+      ...identity,
+      fullName: me.name || identity.fullName,
+      location: me.location || "",
+      headline: me.headline || me.subtitle || "",
+      description: me.description || "",
+    })
+
+    if (usesCallerProfile) {
+      setAccountInfo(profile ? fromProfile(profile) : (prev) => ({ ...prev, ...identity }))
+      return
+    }
+
+    let active = true
+    ;(async () => {
+      try {
+        const me = await getProfile(user.uid)
+        if (active) setAccountInfo(fromProfile(me))
+      } catch {
+        // Profile fetch is non-critical — fall back to the auth identity.
+        if (active) setAccountInfo((prev) => ({ ...prev, ...identity }))
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [user?.uid, user?.fullName, user?.email, user?.phoneNumber, usesCallerProfile, profile])
+
+  const updateNotification = (key: NotificationKey) => {
+    setNotificationOptions((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const updatePrivacy = (key: PrivacyKey) => {
+    setPrivacyOptions((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  /**
+   * Email is intentionally not written here — changing a Firebase Auth email
+   * needs re-authentication and a verification round-trip of its own.
+   */
+  const saveAccountInfo = async () => {
+    await updateUserProfile({ fullName: accountInfo.fullName, phoneNumber: accountInfo.phone })
+    await updateCareConnectProfile({
+      headline: accountInfo.headline,
+      description: accountInfo.description,
+      location: accountInfo.location,
+    })
+    onSaved?.(accountInfo)
+    toast.success("Account info saved")
+  }
+
+  const handleDeactivate = async () => {
+    await deactivateAccount()
+    toast.success("Account deactivated")
+    await dispatch(logoutUser())
+    navigate(Routes.auth.login, { replace: true })
+  }
+
+  const handleDelete = async () => {
+    await deleteAccount()
+    await dispatch(logoutUser())
+    navigate(Routes.auth.login, { replace: true })
+  }
+
+  return {
+    accountInfo,
+    setAccountInfo,
+    saveAccountInfo,
+    handleDeactivate,
+    handleDelete,
+    notificationOptions,
+    updateNotification,
+    privacyOptions,
+    updatePrivacy,
+  }
+}

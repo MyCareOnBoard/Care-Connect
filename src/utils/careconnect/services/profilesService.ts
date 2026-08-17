@@ -16,8 +16,9 @@ export async function listProfiles(
 }
 
 /**
- * Fetch a single public profile by uid. Viewing someone else's profile
- * increments their view count; fetching your own uid does not.
+ * Fetch a single public profile by uid. Viewing someone else's profile counts a
+ * view — at most once per viewer per 24h, so refreshes don't inflate the total.
+ * Fetching your own uid never counts a view.
  */
 export async function getProfile(uid: string): Promise<CareConnectProfile> {
   const { data } = await careconnectClient.get(`/careconnectProfiles/${uid}`)

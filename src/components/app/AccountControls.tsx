@@ -13,6 +13,7 @@ import { Routes } from "@/routes/constants"
 import { useAuth, useAuthUser } from "@/utils/auth"
 import { getInitials } from "@/lib/utils"
 import { ProfileModals } from "@/components/profile/ProfileModals"
+import { useAccountSettings } from "@/hooks/useAccountSettings"
 import { AvailabilityModal } from "@/components/professional/AvailabilityModal"
 import { useProfessionalMembership } from "@/utils/professional/useProfessionalMembership"
 import type { CareFlow } from "./useCareFlow"
@@ -40,41 +41,19 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
   const [privacyOpen, setPrivacyOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [availabilityOpen, setAvailabilityOpen] = useState(false)
-  const [experienceOpen, setExperienceOpen] = useState(false)
-  const [skillOpen, setSkillOpen] = useState(false)
-  const [certificationOpen, setCertificationOpen] = useState(false)
-  const [notificationOptions, setNotificationOptions] = useState({
-    jobMatches: true,
-    certificationExpiring: true,
-    newMessages: true,
-    mentorInvitations: true,
-    appointmentReminders: true,
-    pushNotifications: true,
-    emailDigestWeekly: true,
-    smsAlerts: true,
-  })
-  const [privacyOptions, setPrivacyOptions] = useState({
-    publicProfile: true,
-    showEmailAddress: true,
-    showPhoneNumber: true,
-    showLocation: true,
-    allowMessages: true,
-    showOnlineStatus: true,
-  })
-  const [accountInfo, setAccountInfo] = useState({
-    fullName: user?.fullName || "",
-    email: user?.email || "",
-    phone: "+1 (404) 555-0182",
-    location: "Atlanta, GA",
-    headline: "ICU Registered Nurse | CCRN | Healthcare Tech Enthusiast",
-    description: "ICU RN with 6+ years in critical care. CCRN certified. Passionate about patient-centered care and healthcare technology.",
-  })
-  const [experience, setExperience] = useState([{ role: "ICU Registered Nurse", company: "MedFirst Agency", duration: "Jan 2020 – Present", description: "Critical care nursing in a 24-bed ICU." }])
-  const [skills, setSkills] = useState(["Critical Care", "IV Therapy"])
-  const [certifications, setCertifications] = useState([{ title: "CCRN — Critical Care Registered Nurse", provider: "AACN", date: "Expires Dec 2025", status: "Active" }])
-  const [newSkill, setNewSkill] = useState("")
-  const [newExperience, setNewExperience] = useState({ role: "", company: "", duration: "", description: "" })
-  const [newCertification, setNewCertification] = useState({ title: "", provider: "", date: "", file: "" })
+
+  const {
+    accountInfo,
+    setAccountInfo,
+    saveAccountInfo,
+    handleDeactivate,
+    handleDelete,
+    notificationOptions,
+    updateNotification,
+    privacyOptions,
+    updatePrivacy,
+  } = useAccountSettings()
+
   const profilePath = flow === "agency" ? Routes.app.agency.profile : Routes.app.user.profile
   const notificationButtonSize = notificationSize === "lg" ? "size-11" : "size-10"
 
@@ -91,14 +70,6 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
       // Mirrors the 401 handler in src/lib/axios.ts.
       window.location.replace(Routes.auth.login)
     }
-  }
-
-  const updateNotification = (key: "jobMatches" | "certificationExpiring" | "newMessages" | "mentorInvitations" | "appointmentReminders" | "pushNotifications" | "emailDigestWeekly" | "smsAlerts") => {
-    setNotificationOptions((prev) => ({ ...prev, [key]: !prev[key] }))
-  }
-
-  const updatePrivacy = (key: "publicProfile" | "showEmailAddress" | "showPhoneNumber" | "showLocation" | "allowMessages" | "showOnlineStatus") => {
-    setPrivacyOptions((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
   return (
@@ -209,6 +180,8 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {/* Experience / skills / certifications are edited from the profile page's
+          tabs, so those dialogs stay closed and inert here. */}
       <ProfileModals
         notificationsOpen={notificationsOpen}
         onNotificationsOpenChange={setNotificationsOpen}
@@ -216,30 +189,33 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
         onPrivacyOpenChange={setPrivacyOpen}
         settingsOpen={settingsOpen}
         onSettingsOpenChange={setSettingsOpen}
-        experienceOpen={experienceOpen}
-        onExperienceOpenChange={setExperienceOpen}
-        skillOpen={skillOpen}
-        onSkillOpenChange={setSkillOpen}
-        certificationOpen={certificationOpen}
-        onCertificationOpenChange={setCertificationOpen}
         notificationOptions={notificationOptions}
         onNotificationOptionChange={updateNotification}
         privacyOptions={privacyOptions}
         onPrivacyOptionChange={updatePrivacy}
         accountInfo={accountInfo}
         onAccountInfoChange={setAccountInfo}
-        experience={experience}
-        onExperienceChange={setExperience}
-        newExperience={newExperience}
-        onNewExperienceChange={setNewExperience}
-        skills={skills}
-        onSkillsChange={setSkills}
-        newSkill={newSkill}
-        onNewSkillChange={setNewSkill}
-        certifications={certifications}
-        onCertificationsChange={setCertifications}
-        newCertification={newCertification}
-        onNewCertificationChange={setNewCertification}
+        onSaveAccountInfo={saveAccountInfo}
+        onDeactivate={handleDeactivate}
+        onDelete={handleDelete}
+        experienceOpen={false}
+        onExperienceOpenChange={() => {}}
+        skillOpen={false}
+        onSkillOpenChange={() => {}}
+        certificationOpen={false}
+        onCertificationOpenChange={() => {}}
+        experience={[]}
+        onExperienceChange={() => {}}
+        newExperience={{ role: "", company: "", duration: "", description: "" }}
+        onNewExperienceChange={() => {}}
+        skills={[]}
+        onSkillsChange={() => {}}
+        newSkill=""
+        onNewSkillChange={() => {}}
+        certifications={[]}
+        onCertificationsChange={() => {}}
+        newCertification={{ title: "", provider: "", date: "", endDate: "", file: "" }}
+        onNewCertificationChange={() => {}}
       />
       {isProfessional ? (
         <AvailabilityModal open={availabilityOpen} onOpenChange={setAvailabilityOpen} />
