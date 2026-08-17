@@ -30,6 +30,14 @@ export interface BackendUserProfile {
   email: string
   fullName: string
   userType: UserType
+  /**
+   * From the `users` doc, not Firebase Auth. This is the number the account-settings
+   * form edits; `transformFirebaseUser` supplies a different one (the phone attached
+   * to Auth by phone sign-in / MFA enrolment) that this must override on merge.
+   */
+  phoneNumber?: string
+  profilePicture?: string
+  coverImage?: string
   onboardingCompleted?: boolean
   /**
    * Whether this account has completed the CareConnect setup wizard. Tracked separately
@@ -262,9 +270,13 @@ export async function updateCareConnectProfile(
 
 /**
  * Update fields on the shared `users` doc (name, phone, avatar, cover).
+ *
+ * Returns the updated doc so callers can sync Redux — the persisted auth user is
+ * the source these forms re-seed from, and it does not refresh on its own.
  */
-export async function updateUserProfile(fields: UserProfileFields): Promise<void> {
-  await axiosClient.put('/users/profile', fields)
+export async function updateUserProfile(fields: UserProfileFields): Promise<BackendUserProfile> {
+  const { data } = await axiosClient.put('/users/profile', fields)
+  return data.user
 }
 
 /** Temporarily hide the account (reactivates on next sign-in). */
