@@ -11,7 +11,6 @@ import {
   Copy,
   CreditCard,
   Heart,
-  LocateFixed,
   MapPin,
   MessageSquare,
   Navigation,
@@ -25,6 +24,7 @@ import applePayIcon from "@/assets/imgs/Apple Pay Icon.png"
 import googlePayIcon from "@/assets/imgs/Google Pay Icon.png"
 import { Button } from "@/components/ui/button"
 import { AddressAutocomplete } from "@/components/maps/AddressAutocomplete"
+import { LocationMap } from "@/components/maps/LocationMap"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Radio } from "@/components/ui/radio"
@@ -669,9 +669,7 @@ function ProfessionalPicker({
   )
 }
 
-type BookingStep = "location-search" | "location-confirm" | "request" | "schedule" | "confirmed"
-
-const LOCATION_SUGGESTION_HINTS = ["3rd Gate total filling station", "Delcam senior high school"]
+type BookingStep = "location" | "request" | "schedule" | "confirmed"
 
 function BookServiceDialog({
   service,
@@ -698,21 +696,26 @@ function BookServiceDialog({
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
   const [booking, setBooking] = useState(false)
   const [bookingCode, setBookingCode] = useState("")
-  const [locationQuery, setLocationQuery] = useState("")
   const [locatingCurrent, setLocatingCurrent] = useState(false)
+  // Where "Continue" returns to from the address step, so the one address surface
+  // serves both entry points: up-front for in-person-only services, and on demand
+  // when someone picks In-person on a service that also offers Online.
+  const [locationReturnStep, setLocationReturnStep] = useState<BookingStep>("request")
 
   // Compute the 10-day window once per mount so `selectedDate` keeps a stable
   // reference across renders (an unstable one previously looped the slots effect).
   const dates = useMemo(() => Array.from({ length: 10 }, (_, index) => addDays(new Date(), index)), [])
   const selectedDate = dates[dateIndex]
   const members = service?.teamMembers ?? []
-  const isInPerson = service?.modes.includes("in_person") ?? false
+  // Only when in-person is the *only* option is the address needed before anything
+  // else; a service offering both can't know it's wanted until Session type is picked.
+  const isInPersonOnly = service?.modes.length === 1 && service.modes[0] === "in_person"
 
-  // Reset when (re)opening for a service. In-person services collect a location first
-  // (no maps/geocoding integration exists here, so it's a local, mock-only flow).
+  // Reset when (re)opening for a service.
   useEffect(() => {
     if (!open) return
-    setStep(isInPerson ? "location-search" : "request")
+    setStep(isInPersonOnly ? "location" : "request")
+    setLocationReturnStep("request")
     setProfessionalId(members[0]?.id ?? null)
     setNeed("")
     setDateIndex(0)
@@ -722,7 +725,6 @@ function BookServiceDialog({
     setBookingLocation(null)
     setPaymentMethod(null)
     setBookingCode("")
-    setLocationQuery("")
     setLocatingCurrent(false)
     // members derives from service; safe to depend on open + service id.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -756,6 +758,11 @@ function BookServiceDialog({
 
   const professional = members.find((member) => member.id === professionalId) ?? null
 
+  /**
+   * Drop the device's coordinates straight into the booking location. There's no
+   * reverse-geocode step, so the address line carries the coordinates — the lat/lng
+   * are what the professional's map actually needs.
+   */
   const useCurrentLocation = () => {
     if (!navigator.geolocation) {
       toast.error("Location isn't available on this device")
@@ -764,7 +771,12 @@ function BookServiceDialog({
     setLocatingCurrent(true)
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setLocationQuery(`Current location (${position.coords.latitude.toFixed(3)}, ${position.coords.longitude.toFixed(3)})`)
+        const { latitude, longitude } = position.coords
+        setBookingLocation({
+          address: `Current location (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`,
+          lat: latitude,
+          lng: longitude,
+        })
         setLocatingCurrent(false)
       },
       () => {
@@ -804,93 +816,55 @@ function BookServiceDialog({
         <DialogContent showCloseButton className="p-0 max-w-140">
           <DialogHeader className="px-6 pt-6 text-left">
             <DialogTitle className="text-xl font-semibold text-[#151922]">
-              {step === "location-search"
-                ? "We'd like to know where you live?"
-                : step === "location-confirm"
-                  ? "Confirm location"
-                  : service.title}
+              {step === "location" ? "Where should we meet?" : service.title}
             </DialogTitle>
-            {step === "location-confirm" && (
-              <p className="text-sm text-[#657080]">Confirm your location to make it easy for professional to attend to you.</p>
+            {step === "location" && (
+              <p className="text-sm text-[#657080]">
+                Set the meeting address so your professional knows where to attend to you.
+              </p>
             )}
           </DialogHeader>
           <DialogBody className="px-6 pt-4 pb-6 space-y-5">
-            {step === "location-search" && (
+            {step === "location" && (
               <>
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-[#151922]">Enter your location</label>
-                  <div className="relative">
-                    <Input
-                      value={locationQuery}
-                      onChange={(event) => setLocationQuery(event.target.value)}
-                      placeholder="Enter your location"
-                      className="pr-10"
-                    />
-                    <LocateFixed className="absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
-                  </div>
+                  <label className="mb-2 block text-sm font-medium text-[#151922]">Meeting address</label>
+                  <AddressAutocomplete value={bookingLocation} onChange={setBookingLocation} />
                 </div>
 
-                <div className="rounded-xl border border-[#eef1f3]">
-                  {locationQuery.trim() &&
-                    LOCATION_SUGGESTION_HINTS.map((hint) => (
-                      <button
-                        key={hint}
-                        type="button"
-                        onClick={() => setLocationQuery(`${locationQuery.trim()} Municipality`)}
-                        className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-[#f2f6f8]"
-                      >
-                        <MapPin className="size-4 shrink-0 text-[#657080]" />
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium text-[#151922]">{locationQuery.trim()} Municipality</span>
-                          <span className="block truncate text-xs text-[#8a8f98]">{hint}</span>
-                        </span>
-                      </button>
-                    ))}
-                  <button
-                    type="button"
-                    onClick={useCurrentLocation}
-                    disabled={locatingCurrent}
-                    className="flex w-full items-center gap-3 border-t border-[#eef1f3] px-3 py-2.5 text-left first:border-t-0 hover:bg-[#f2f6f8]"
-                  >
-                    <Navigation className="size-4 shrink-0 text-[#151922]" />
-                    <span className="text-sm font-medium text-[#151922]">{locatingCurrent ? "Locating…" : "Use current location"}</span>
-                  </button>
-                </div>
-
-                <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    disabled={!locationQuery.trim()}
-                    className="bg-[#00b4b8] text-white hover:opacity-90"
-                    onClick={() => setStep("location-confirm")}
-                  >
-                    Continue
-                  </Button>
-                </div>
-              </>
-            )}
-
-            {step === "location-confirm" && (
-              <>
-                <div className="relative h-72 overflow-hidden rounded-2xl bg-[linear-gradient(135deg,#dff3ee_0%,#eaf4fb_60%,#dbe9f7_100%)]">
-                  <div
-                    className="absolute inset-0 opacity-40"
-                    style={{
-                      backgroundImage:
-                        "linear-gradient(#c8d8e4 1px, transparent 1px), linear-gradient(90deg, #c8d8e4 1px, transparent 1px)",
-                      backgroundSize: "28px 28px",
-                    }}
-                  />
-                  <span className="absolute left-1/2 top-1/2 flex size-11 -translate-x-1/2 -translate-y-full items-center justify-center rounded-full bg-[#00b4b8] text-white shadow-lg ring-4 ring-white">
-                    <MapPin className="size-5" />
+                <button
+                  type="button"
+                  onClick={useCurrentLocation}
+                  disabled={locatingCurrent}
+                  className="flex w-full items-center gap-3 rounded-xl border border-[#eef1f3] px-3 py-2.5 text-left transition hover:bg-[#f2f6f8]"
+                >
+                  <Navigation className="size-4 shrink-0 text-[#151922]" />
+                  <span className="text-sm font-medium text-[#151922]">
+                    {locatingCurrent ? "Locating…" : "Use current location"}
                   </span>
-                </div>
+                </button>
+
+                {/* Only renders a real map once the picked place resolved coordinates;
+                    otherwise it shows the address text. */}
+                <LocationMap
+                  address={bookingLocation?.address}
+                  lat={bookingLocation?.lat}
+                  lng={bookingLocation?.lng}
+                  className="h-56 w-full overflow-hidden rounded-2xl"
+                />
 
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setStep("location-search")}>
-                    Cancel
-                  </Button>
-                  <Button type="button" className="bg-[#00b4b8] text-white hover:opacity-90" onClick={() => setStep("request")}>
+                  {locationReturnStep !== "request" && (
+                    <Button type="button" variant="outline" onClick={() => setStep(locationReturnStep)}>
+                      Cancel
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    disabled={!bookingLocation?.address.trim()}
+                    className="bg-[#00b4b8] text-white hover:opacity-90"
+                    onClick={() => setStep(locationReturnStep)}
+                  >
                     Confirm location
                   </Button>
                 </div>
@@ -1034,7 +1008,29 @@ function BookServiceDialog({
                 {bookingMode === "in_person" && (
                   <div>
                     <p className="mb-2 text-sm font-medium text-[#151922]">Meeting address</p>
-                    <AddressAutocomplete value={bookingLocation} onChange={setBookingLocation} />
+                    {/* Editing routes back to the address step so there's a single
+                        autocomplete + map surface rather than two that disagree. */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLocationReturnStep("schedule")
+                        setStep("location")
+                      }}
+                      className="flex h-14 w-full items-center justify-between gap-3 rounded-xl border border-[#eef1f3] px-4 text-left text-sm"
+                    >
+                      {bookingLocation?.address ? (
+                        <span className="flex min-w-0 items-center gap-3 font-medium text-[#151922]">
+                          <MapPin className="size-4 shrink-0" />
+                          <span className="truncate">{bookingLocation.address}</span>
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-3 text-[#656f80]">
+                          <Plus className="size-4" />
+                          Set meeting address
+                        </span>
+                      )}
+                      <ChevronRight className="size-4 shrink-0 text-[#8a8f98]" />
+                    </button>
                   </div>
                 )}
 
