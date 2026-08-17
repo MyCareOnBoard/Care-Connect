@@ -19,7 +19,7 @@ import {
   updateCareConnectProfile,
   updateUserProfile,
 } from "@/utils/auth/services/authService"
-import { logoutUser } from "@/utils/auth/store/authSlice"
+import { logoutUser, setUser } from "@/utils/auth/store/authSlice"
 import { getProfile } from "@/utils/careconnect/services/profilesService"
 import type { CareConnectProfile } from "@/utils/careconnect/types"
 
@@ -132,12 +132,30 @@ export function useAccountSettings(
    * needs re-authentication and a verification round-trip of its own.
    */
   const saveAccountInfo = async () => {
-    await updateUserProfile({ fullName: accountInfo.fullName, phoneNumber: accountInfo.phone })
+    const updated = await updateUserProfile({
+      fullName: accountInfo.fullName,
+      phoneNumber: accountInfo.phone,
+    })
     await updateCareConnectProfile({
       headline: accountInfo.headline,
       description: accountInfo.description,
       location: accountInfo.location,
     })
+
+    // Push the saved values back into the persisted auth user. Without this the
+    // form re-seeds from the pre-save Redux state on every reopen and reload —
+    // and for phone that state came from Firebase Auth, which this never writes,
+    // so the field appeared to ignore the update entirely.
+    if (user) {
+      dispatch(
+        setUser({
+          ...user,
+          fullName: updated?.fullName ?? accountInfo.fullName,
+          phoneNumber: updated?.phoneNumber ?? accountInfo.phone,
+        }),
+      )
+    }
+
     onSaved?.(accountInfo)
     toast.success("Account info saved")
   }

@@ -9,6 +9,7 @@ import {
   registerWithEmail,
   sendPasswordResetEmail,
   getIdToken,
+  getUserProfile,
   removeUserData,
   type LoginResponse,
 } from "../services/authService"
@@ -30,6 +31,31 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType)
+
+/**
+ * Re-merge the backend `users` doc over the persisted auth user, mirroring the
+ * merge order in `completePostLogin` — backend fields win over the Firebase Auth
+ * ones, so `phoneNumber` resolves to the number the profile form edits rather
+ * than the one attached to Auth by phone sign-in / MFA enrolment.
+ *
+ * Best-effort: a failure leaves the persisted user in place.
+ */
+async function refreshBackendUser(
+  firebaseUser: import("firebase/auth").User,
+  persisted: User,
+  dispatch: AppDispatch,
+  setUserState: (user: User) => void,
+) {
+  try {
+    const profile = await getUserProfile()
+    if (profile.uid !== firebaseUser.uid) return
+    const next = { ...persisted, ...profile }
+    dispatch(setUser(next))
+    setUserState(next)
+  } catch {
+    // Offline or a transient 5xx — keep showing the persisted user.
+  }
+}
 
 /**
  * Hook to access authentication context
@@ -69,13 +95,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUserState(reduxUser)
           setIsInitialized(true)
           setLoading(false)
+          // The persisted user is served immediately, then reconciled against the
+          // backend in the background. Without this, fields that live on the `users`
+          // doc (phone, name) stay frozen at whatever was persisted at login — even
+          // after a successful save or a change made from another device.
+          void refreshBackendUser(currentFirebaseUser, reduxUser, dispatch, setUserState)
           return
         }
         dispatch(setUser(null))
       }
 
       if (currentFirebaseUser) {
-        setUserState({
+        const authOnlyUser: User = {
           uid: currentFirebaseUser.uid,
           email: currentFirebaseUser.email || '',
           fullName: currentFirebaseUser.displayName || '',
@@ -86,7 +117,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           updatedAt: new Date(),
           photoURL: currentFirebaseUser.photoURL || undefined,
           phoneNumber: currentFirebaseUser.phoneNumber || undefined,
-        })
+        }
+        setUserState(authOnlyUser)
+        // Firebase Auth alone doesn't know the profile's phone or name — layer the
+        // backend `users` doc on top, same as the persisted-user path above.
+        void refreshBackendUser(currentFirebaseUser, authOnlyUser, dispatch, setUserState)
       }
 
       setIsInitialized(true)
