@@ -8,18 +8,9 @@ import {
   Check,
   Clock,
   Copy,
-  Heart,
   Info,
   MessageSquare,
-  Mic,
-  MicOff,
-  MoreHorizontal,
-  PhoneOff,
-  ScreenShare,
   UserRound,
-  Users,
-  Video,
-  VideoOff,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -31,7 +22,8 @@ import { getAuthErrorMessage } from "@/utils/auth"
 import { getProfile } from "@/utils/careconnect/services/profilesService"
 import { recordVisitEvent, reportBookingIssue, updateBookingStatus } from "@/utils/careconnect/services/telehealthService"
 import { SERVICE_MODE_LABELS, minutesToLabel, toDate, type CareConnectProfile, type TelehealthBooking } from "@/utils/careconnect/types"
-import { bookingStart, formatDurationLabel } from "@/utils/careconnect/bookingStatus"
+import { bookingStart, formatDurationLabel, videoJoinWindow } from "@/utils/careconnect/bookingStatus"
+import { VideoCallFrame } from "@/components/professional/VideoCallFrame"
 
 function formatPrice(price: number, currency: string): string {
   try {
@@ -47,13 +39,6 @@ function formatCountdown(totalSeconds: number): string {
   const mins = Math.floor((totalSeconds % 3600) / 60)
   const secs = totalSeconds % 60
   return [hrs, mins, secs].map((n) => String(n).padStart(2, "0")).join(":")
-}
-
-/** "08:24" elapsed-call timer from a seconds count. */
-function formatCallTimer(totalSeconds: number): string {
-  const mins = Math.floor(totalSeconds / 60)
-  const secs = totalSeconds % 60
-  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`
 }
 
 /**
@@ -84,18 +69,18 @@ const ISSUE_REASONS = [
 
 /**
  * Booking details — backs "View"/"Details" actions, plus the onsite/video service flow:
- * - "Join video call" (either role, online-mode bookings) → a mock full-screen call view
- *   (no real video/WebRTC infra exists in this app) → hanging up either completes the
- *   booking (professional) or shows a lightweight "call ended" closure (client).
+ * - "Join video call" (either role, online-mode bookings) → Daily Prebuilt via
+ *   `VideoCallFrame`, joinable only inside the booking's window (see `videoJoinWindow`;
+ *   the server enforces the same bounds) → leaving the call either completes the booking
+ *   (professional) or shows a lightweight "call ended" closure (client).
  * - "Get location" (professional only, in-person bookings) → a mock map (no maps/geocoding
  *   integration exists) → Start service → a local countdown to completion → Complete
  *   service, alongside the existing quick Cancel/Mark-complete shortcut.
  * - Client, in-person bookings → a live-tracking panel (approaching → arrived → in
  *   progress) with its own mock map and a "Raise an issue" side-branch. There's no real
  *   GPS/dispatch integration, so "approaching → arrived" is a short local timer.
- * All status changes call the real backend status endpoint. The countdown/call/tracking
- * timers are local-only — there's no field to persist "service started at", so they reset
- * if the dialog is closed and reopened mid-session.
+ * All status changes call the real backend status endpoint. The tracking timer is
+ * local-only; the service countdown resumes from the persisted `startedAt`.
  */
 export function BookingDetailsDialog({
   booking,
@@ -114,9 +99,6 @@ export function BookingDetailsDialog({
   const [pending, setPending] = useState(false)
   const [step, setStep] = useState<Step>("details")
   const [remainingSeconds, setRemainingSeconds] = useState(0)
-  const [callSeconds, setCallSeconds] = useState(0)
-  const [micOn, setMicOn] = useState(true)
-  const [camOn, setCamOn] = useState(true)
   const [professionalProfile, setProfessionalProfile] = useState<CareConnectProfile | null>(null)
   const [agencyProfile, setAgencyProfile] = useState<CareConnectProfile | null>(null)
   const [trackingPhase, setTrackingPhase] = useState<TrackingPhase>("approaching")
@@ -125,6 +107,9 @@ export function BookingDetailsDialog({
   const isTerminal = booking?.status === "completed" || booking?.status === "cancelled"
   const totalSeconds = booking ? booking.durationMinutes * 60 : 0
   const isClientInPersonTracking = !canManage && booking?.mode === "in_person" && !isTerminal
+  // Whether the call is joinable now. The server enforces the same window — this only
+  // decides the button's state and its explanation.
+  const joinWindow = booking && booking.mode === "online" ? videoJoinWindow(booking) : null
 
   // Reset to the right starting step whenever the dialog opens for a (possibly different) booking.
   useEffect(() => {
@@ -139,8 +124,6 @@ export function BookingDetailsDialog({
     const resumeService = inProgress && !terminal && canManage && booking.mode === "in_person"
     setStep(booking.status === "completed" ? "completed" : resumeService ? "service" : "details")
     setRemainingSeconds(startedRemaining ?? booking.durationMinutes * 60)
-    setMicOn(true)
-    setCamOn(true)
     setProfessionalProfile(null)
     setAgencyProfile(null)
     setTrackingPhase(inProgress ? "in-progress" : "approaching")
@@ -208,16 +191,6 @@ export function BookingDetailsDialog({
     }, 1000)
     return () => window.clearInterval(timer)
   }, [step, isClientInPersonTracking, trackingPhase, booking?.startedAt])
-
-  // Elapsed-time counter while the mock video call is active.
-  useEffect(() => {
-    if (step !== "call") return
-    setCallSeconds(0)
-    const timer = window.setInterval(() => {
-      setCallSeconds((seconds) => seconds + 1)
-    }, 1000)
-    return () => window.clearInterval(timer)
-  }, [step])
 
   const changeStatus = async (status: "completed" | "cancelled" | "confirmed") => {
     if (!booking) return
@@ -536,11 +509,26 @@ export function BookingDetailsDialog({
               </div>
             )}
 
-            {!isTerminal && booking.mode === "online" && (
+            {!isTerminal && booking.mode === "online" && joinWindow && (
               <div className="border-t border-[#eef1f3] pt-4">
-                <Button type="button" className="w-full bg-[#00b4b8] text-white hover:opacity-90" onClick={() => setStep("call")}>
+                <Button
+                  type="button"
+                  disabled={joinWindow.state !== "open"}
+                  className="w-full bg-[#00b4b8] text-white hover:opacity-90 disabled:bg-[#e2e2e2] disabled:text-[#8a8f98]"
+                  onClick={() => setStep("call")}
+                >
                   Join video call
                 </Button>
+                {/* Say why it's unavailable rather than leaving a dead button. */}
+                {joinWindow.state === "too_early" && (
+                  <p className="mt-2 text-center text-xs text-[#8a8f98]">
+                    Available from {format(joinWindow.opensAt, "h:mm a")} on{" "}
+                    {format(joinWindow.opensAt, "MMM d")}
+                  </p>
+                )}
+                {joinWindow.state === "ended" && (
+                  <p className="mt-2 text-center text-xs text-[#8a8f98]">This session has ended.</p>
+                )}
               </div>
             )}
 
@@ -747,88 +735,7 @@ export function BookingDetailsDialog({
         )}
 
         {booking && isCallStep && (
-          <>
-            <div className="relative flex-1 overflow-hidden">
-              <div className="absolute inset-0 flex items-center justify-center bg-[linear-gradient(135deg,#1f2430_0%,#0c0e12_100%)]">
-                <UserRound className="size-32 text-white/10" />
-              </div>
-              <div className="absolute left-4 top-4 flex flex-col gap-0.5 rounded-lg bg-black/30 px-3 py-1.5 text-white backdrop-blur-sm">
-                <span className="text-sm font-semibold">{canManage ? booking.clientName : booking.professionalName}</span>
-                <span className="text-xs text-white/70">{formatCallTimer(callSeconds)}</span>
-              </div>
-              <div className="absolute bottom-4 right-4 flex size-20 items-center justify-center overflow-hidden rounded-xl bg-[#1f2430] ring-2 ring-white/20 sm:size-28">
-                <span className="flex size-11 items-center justify-center rounded-full bg-[#00b4b8] text-sm font-semibold text-white">
-                  {getInitials(canManage ? booking.professionalName : booking.clientName)}
-                </span>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-3 px-4 py-4 bg-black sm:gap-4">
-              <button type="button" className="flex flex-col items-center gap-1 text-xs text-white/70 hover:text-white" onClick={() => toast("Chat isn't available in this demo")}>
-                <span className="flex items-center justify-center rounded-full size-11 bg-white/10">
-                  <MessageSquare className="size-4" />
-                </span>
-                Chat
-              </button>
-              <button type="button" className="flex flex-col items-center gap-1 text-xs text-white/70 hover:text-white" onClick={() => toast("💙")}>
-                <span className="flex items-center justify-center rounded-full size-11 bg-white/10">
-                  <Heart className="size-4" />
-                </span>
-                React
-              </button>
-              <button
-                type="button"
-                aria-label={micOn ? "Mute microphone" : "Unmute microphone"}
-                onClick={() => setMicOn((current) => !current)}
-                className={cn(
-                  "flex size-11 items-center justify-center rounded-full transition-colors",
-                  micOn ? "bg-[#00b4b8] text-white" : "bg-white/15 text-white/70",
-                )}
-              >
-                {micOn ? <Mic className="size-4" /> : <MicOff className="size-4" />}
-              </button>
-              <button
-                type="button"
-                aria-label={camOn ? "Turn camera off" : "Turn camera on"}
-                onClick={() => setCamOn((current) => !current)}
-                className={cn(
-                  "flex size-11 items-center justify-center rounded-full transition-colors",
-                  camOn ? "bg-[#00b4b8] text-white" : "bg-white/15 text-white/70",
-                )}
-              >
-                {camOn ? <Video className="size-4" /> : <VideoOff className="size-4" />}
-              </button>
-              <button type="button" aria-label="More options" className="flex items-center justify-center text-white rounded-full size-11 bg-white/10 hover:bg-white/20">
-                <MoreHorizontal className="size-4" />
-              </button>
-              <button
-                type="button"
-                aria-label="End call"
-                onClick={handleHangup}
-                disabled={pending}
-                className="flex size-11 items-center justify-center rounded-full bg-[#ff3e66] text-white transition-transform hover:scale-105 active:scale-95"
-              >
-                <PhoneOff className="size-4" />
-              </button>
-              <button type="button" className="flex flex-col items-center gap-1 text-xs text-white/70 hover:text-white" onClick={() => toast("Screen sharing isn't available in this demo")}>
-                <span className="flex items-center justify-center rounded-full size-11 bg-white/10">
-                  <ScreenShare className="size-4" />
-                </span>
-                Share screen
-              </button>
-              <button type="button" className="flex flex-col items-center gap-1 text-xs text-white/70 hover:text-white" onClick={() => toast("Just the two of you on this call")}>
-                <span className="flex items-center justify-center rounded-full size-11 bg-white/10">
-                  <Users className="size-4" />
-                </span>
-                Participants
-              </button>
-              <button type="button" className="flex flex-col items-center gap-1 text-xs text-white/70 hover:text-white" onClick={() => toast("Nothing more here yet")}>
-                <span className="flex items-center justify-center rounded-full size-11 bg-white/10">
-                  <MoreHorizontal className="size-4" />
-                </span>
-                More
-              </button>
-            </div>
-          </>
+          <VideoCallFrame bookingId={booking.id} onLeave={handleHangup} />
         )}
 
         {booking && (step === "completed" || step === "call-ended") && (

@@ -32,6 +32,33 @@ export function rowStatusFor(booking: TelehealthBooking): RowStatus {
   return "upcoming"
 }
 
+/**
+ * How far either side of the slot an online booking's call can be joined. Must match
+ * `VIDEO_JOIN_GRACE_MS` in the backend's booking.schema.js — the server enforces the
+ * window; this only decides whether the button is enabled and what it says.
+ */
+export const VIDEO_JOIN_GRACE_MS = 10 * 60 * 1000
+
+export type VideoJoinState = "open" | "too_early" | "ended"
+
+/**
+ * Whether a booking's video call is joinable now, and when it opens if not. `opensAt`
+ * lets the caller explain the wait ("Available from 2:50 PM") instead of just disabling.
+ */
+export function videoJoinWindow(booking: TelehealthBooking): {
+  state: VideoJoinState
+  opensAt: Date
+  closesAt: Date
+} {
+  const start = bookingStart(booking).getTime()
+  const opensAt = new Date(start - VIDEO_JOIN_GRACE_MS)
+  const closesAt = new Date(start + booking.durationMinutes * 60_000 + VIDEO_JOIN_GRACE_MS)
+  const now = Date.now()
+  const state: VideoJoinState =
+    now < opensAt.getTime() ? "too_early" : now > closesAt.getTime() ? "ended" : "open"
+  return { state, opensAt, closesAt }
+}
+
 export const ROW_STATUS_PILL: Record<RowStatus, { label: string; className: string }> = {
   requested: { label: "Requested", className: "border border-[#d97a2b] bg-white text-[#d97a2b]" },
   completed: { label: "Completed", className: "border border-[#10ad58] bg-white text-[#10ad58]" },

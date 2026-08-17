@@ -142,6 +142,27 @@ export async function recordVisitEvent(id: string, event: VisitEvent): Promise<T
   return data.data
 }
 
+/** One participant's access to a booking's Daily room. The token is short-lived. */
+export interface VideoRoomAccess {
+  roomUrl: string
+  token: string
+  /** ISO instant when the room and token expire (end of the join window). */
+  expiresAt: string
+}
+
+/**
+ * Join access for an online booking's video call. The server creates the Daily room on
+ * the first call and mints a fresh per-participant token on every call, so this must be
+ * called each time someone joins rather than cached.
+ *
+ * Rejects with 409 outside the booking's join window, 400 for in-person bookings, and
+ * 503 when `DAILY_API_KEY` isn't configured.
+ */
+export async function getVideoRoom(id: string): Promise<VideoRoomAccess> {
+  const { data } = await axiosClient.post(`/careconnectBookings/${id}/video-room`)
+  return data.data
+}
+
 export interface BookingIssue {
   id: string
   bookingId: string
