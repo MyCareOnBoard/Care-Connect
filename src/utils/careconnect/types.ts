@@ -376,6 +376,12 @@ export interface TelehealthBooking {
   arrivedAt?: Timestampish
   startedAt?: Timestampish
   completedAt?: Timestampish
+  /**
+   * Daily room for an online booking, created lazily on the first join. Absent means
+   * "not created yet". Join tokens are per-participant and never stored here — fetch
+   * them with `getVideoRoom`.
+   */
+  videoRoom?: { name: string; url: string; expiresAt?: Timestampish } | null
   price: number
   currency: string
   paymentMethod: string
