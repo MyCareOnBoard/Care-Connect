@@ -259,7 +259,10 @@ export interface ProfileExperience {
 export interface ProfileCertification {
   title: string
   provider: string
+  /** Issue date, `yyyy-MM-dd`. */
   date: string
+  /** Expiry date, `yyyy-MM-dd`. Omitted or empty means the certificate doesn't expire. */
+  endDate?: string
   status: string
 }
 

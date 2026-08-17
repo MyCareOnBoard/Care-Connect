@@ -12,14 +12,9 @@ import { Routes } from "@/routes/constants"
 import { toast } from "sonner"
 import { getInitials } from "@/lib/utils"
 import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
-import {
-  updateUserProfile,
-  updateCareConnectProfile,
-  deactivateAccount,
-  deleteAccount,
-} from "@/utils/auth/services/authService"
-import { logoutUser } from "@/utils/auth/store/authSlice"
-import { useAppDispatch } from "@/store/redux/hooks"
+import { updateUserProfile, updateCareConnectProfile } from "@/utils/auth/services/authService"
+import { useAccountSettings } from "@/hooks/useAccountSettings"
+import { certificationStatus, formatCertificationPeriod } from "@/components/profile/certifications"
 import { getProfile, uploadProfileImage } from "@/utils/careconnect/services/profilesService"
 import {
   addComment,
@@ -40,41 +35,16 @@ import {
   type BulkInviteMemberInput,
   type BulkInviteResult,
 } from "@/utils/careconnect/services/teamService"
-import { EMPLOYMENT_TYPE_LABELS, formatRelative, formatSalary, type Job, type TeamMember } from "@/utils/careconnect/types"
-
-const initialExperience = [
-  {
-    role: "ICU Registered Nurse",
-    company: "MedFirst Agency",
-    duration: "Jan 2020 – Present",
-    description: "Critical care nursing in a 24-bed ICU. Manage complex patients, lead code responses, mentor new nurses.",
-  },
-  {
-    role: "Staff Nurse",
-    company: "Grady Memorial Hospital",
-    duration: "Jun 2018 – Dec 2019",
-    description: "Floor nursing on a 32-bed med-surg unit. Specialized in post-op cardiac care.",
-  },
-]
-
-const initialSkills = [
-  "Critical Care",
-  "IV Therapy",
-  "BLS/ACLS",
-  "Ventilator Management",
-  "Sepsis Protocol",
-  "Patient Assessment",
-  "EHR/EMR",
-  "Team Leadership",
-  "Patient Education",
-  "Wound Care",
-]
-
-const initialCertifications = [
-  { title: "CCRN — Critical Care Registered Nurse", provider: "AACN", date: "Expires Dec 2025", status: "Active" },
-  { title: "BLS Provider", provider: "American Heart Association", date: "Expires Aug 2024", status: "Expiring soon" },
-  { title: "RN License — Georgia", provider: "Georgia Nursing Board", date: "Expires Mar 2026", status: "Active" },
-]
+import {
+  EMPLOYMENT_TYPE_LABELS,
+  formatRelative,
+  formatSalary,
+  type CareConnectProfile,
+  type Job,
+  type ProfileCertification,
+  type ProfileExperience,
+  type TeamMember,
+} from "@/utils/careconnect/types"
 
 const defaultSummary = {
   name: "",
@@ -139,34 +109,36 @@ export default function ProfilePage() {
   const { flow } = useCareFlow()
   const navigate = useNavigate()
   const isAgency = flow === "agency"
-  const dispatch = useAppDispatch()
   const [profileSummary, setProfileSummary] = useState(defaultSummary)
   const [agencySummary, setAgencySummary] = useState(defaultAgencySummary)
   const [identityLoading, setIdentityLoading] = useState(true)
   const [postedJobs, setPostedJobs] = useState<AgencyPostedJob[]>([])
   const [specialties, setSpecialties] = useState<string[]>([])
+  const [me, setMe] = useState<CareConnectProfile | null>(null)
   const summary = isAgency ? agencySummary : profileSummary
   const tabs = isAgency ? agencyTabs : userTabs
   const [activeTab, setActiveTab] = useState<ProfileTab>("About")
 
-  // Populate the header identity + view/connection counters from real data.
+  // Single profile fetch for the whole page: header identity, counters, and every
+  // editable surface below all read from `me`.
   useEffect(() => {
     if (!user?.uid) return
     let active = true
     ;(async () => {
       try {
-        const me = await getProfile(user.uid)
+        const profile = await getProfile(user.uid)
         if (!active) return
+        setMe(profile)
         setProfileSummary({
-          name: me.name || user.fullName || "",
-          headline: me.subtitle || "",
-          location: me.location || "",
+          name: profile.name || user.fullName || "",
+          headline: profile.subtitle || "",
+          location: profile.location || "",
           email: user.email || "",
           phone: user.phoneNumber || "",
           metrics: [
-            { label: "Connections", value: String(me.connectionsCount ?? 0) },
-            { label: "Profile views", value: String(me.profileViewsCount ?? 0) },
-            { label: "Application views", value: String(me.applicationViewsCount ?? 0) },
+            { label: "Connections", value: String(profile.connectionsCount ?? 0) },
+            { label: "Profile views", value: String(profile.profileViewsCount ?? 0) },
+            { label: "Application views", value: String(profile.applicationViewsCount ?? 0) },
           ],
         })
 
@@ -174,16 +146,16 @@ export default function ProfilePage() {
           const jobs = await listMyJobs().catch(() => [])
           if (!active) return
           setPostedJobs(jobs.map(toPostedJob))
-          setSpecialties(Array.isArray(me.organizationInterests) ? me.organizationInterests : [])
+          setSpecialties(Array.isArray(profile.organizationInterests) ? profile.organizationInterests : [])
           setAgencySummary({
-            name: me.name || user.fullName || "",
-            headline: me.subtitle || "",
-            location: me.location || "",
+            name: profile.name || user.fullName || "",
+            headline: profile.subtitle || "",
+            location: profile.location || "",
             email: user.email || "",
             phone: user.phoneNumber || "",
             metrics: [
-              { label: "Subscriptions", value: String(me.connectionsCount ?? 0) },
-              { label: "Profile views", value: String(me.profileViewsCount ?? 0) },
+              { label: "Subscriptions", value: String(profile.connectionsCount ?? 0) },
+              { label: "Profile views", value: String(profile.profileViewsCount ?? 0) },
               { label: "Jobs posted", value: String(jobs.length) },
             ],
           })
@@ -215,15 +187,15 @@ export default function ProfilePage() {
   const [skillOpen, setSkillOpen] = useState(false)
   const [certificationOpen, setCertificationOpen] = useState(false)
   const [teamInviteOpen, setTeamInviteOpen] = useState(false)
-  const [experience, setExperience] = useState(initialExperience)
-  const [skills, setSkills] = useState(initialSkills)
-  const [certifications, setCertifications] = useState(initialCertifications)
+  const [experience, setExperience] = useState<ProfileExperience[]>([])
+  const [skills, setSkills] = useState<string[]>([])
+  const [certifications, setCertifications] = useState<ProfileCertification[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [portfolio, setPortfolio] = useState<FeedPost[]>([])
   const [portfolioLoading, setPortfolioLoading] = useState(true)
   const [newSkill, setNewSkill] = useState("")
   const [newExperience, setNewExperience] = useState({ role: "", company: "", duration: "", description: "" })
-  const [newCertification, setNewCertification] = useState({ title: "", provider: "", date: "", file: "" })
+  const [newCertification, setNewCertification] = useState({ title: "", provider: "", date: "", endDate: "", file: "" })
   const [newTeamInvite, setNewTeamInvite] = useState({ phone: "", email: "", fullName: "" })
 
   // Load the agency's roster (Team tab).
@@ -354,31 +326,26 @@ export default function ProfilePage() {
     }
   }
 
-  const [notificationOptions, setNotificationOptions] = useState({
-    jobMatches: true,
-    certificationExpiring: true,
-    newMessages: true,
-    mentorInvitations: true,
-    appointmentReminders: true,
-    pushNotifications: true,
-    emailDigestWeekly: true,
-    smsAlerts: true,
-  })
-  const [privacyOptions, setPrivacyOptions] = useState({
-    publicProfile: true,
-    showEmailAddress: true,
-    showPhoneNumber: true,
-    showLocation: true,
-    allowMessages: true,
-    showOnlineStatus: true,
-  })
-  const [accountInfo, setAccountInfo] = useState({
-    fullName: "Joseph Eshun",
-    email: "marcus@careconnect.io",
-    phone: "+1 (404) 555-0182",
-    location: "Atlanta, GA",
-    headline: "ICU Registered Nurse | CCRN | Healthcare Tech Enthusiast",
-    description: "ICU RN with 6+ years in critical care. CCRN certified. Passionate about patient-centered care and healthcare technology.",
+  const {
+    accountInfo,
+    setAccountInfo,
+    saveAccountInfo,
+    handleDeactivate,
+    handleDelete,
+    notificationOptions,
+    updateNotification,
+    privacyOptions,
+    updatePrivacy,
+  } = useAccountSettings({
+    profile: me,
+    onSaved: (info) =>
+      setProfileSummary((prev) => ({
+        ...prev,
+        name: info.fullName,
+        headline: info.headline,
+        location: info.location,
+        phone: info.phone,
+      })),
   })
 
   const [avatarSrc, setAvatarSrc] = useState<string | null>(null)
@@ -386,46 +353,16 @@ export default function ProfilePage() {
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
 
-  const updateNotification = (key: keyof typeof notificationOptions) => {
-    setNotificationOptions((prev) => ({ ...prev, [key]: !prev[key] }))
-  }
-
-  const updatePrivacy = (key: keyof typeof privacyOptions) => {
-    setPrivacyOptions((prev) => ({ ...prev, [key]: !prev[key] }))
-  }
-
-  // Hydrate the editable surfaces (images, experience/skills/certifications, and the
-  // Account settings form) from the stored profile.
+  // Hydrate the editable surfaces (images, experience/skills/certifications) from
+  // the profile loaded above.
   useEffect(() => {
-    if (!user?.uid) return
-    let active = true
-    ;(async () => {
-      try {
-        const me = await getProfile(user.uid)
-        if (!active) return
-        if (me.photo) setAvatarSrc(me.photo)
-        if (me.coverImage) setCoverSrc(me.coverImage)
-        if (Array.isArray(me.skills) && me.skills.length) setSkills(me.skills)
-        if (Array.isArray(me.experience) && me.experience.length) setExperience(me.experience)
-        if (Array.isArray(me.certificationDetails) && me.certificationDetails.length) {
-          setCertifications(me.certificationDetails)
-        }
-        setAccountInfo({
-          fullName: me.name || user.fullName || "",
-          email: user.email || "",
-          phone: user.phoneNumber || "",
-          location: me.location || "",
-          headline: me.headline || me.subtitle || "",
-          description: me.description || "",
-        })
-      } catch {
-        // non-critical; keep whatever defaults are shown
-      }
-    })()
-    return () => {
-      active = false
-    }
-  }, [user?.uid, user?.fullName, user?.email, user?.phoneNumber])
+    if (!me) return
+    if (me.photo) setAvatarSrc(me.photo)
+    if (me.coverImage) setCoverSrc(me.coverImage)
+    if (Array.isArray(me.skills)) setSkills(me.skills)
+    if (Array.isArray(me.experience)) setExperience(me.experience)
+    if (Array.isArray(me.certificationDetails)) setCertifications(me.certificationDetails)
+  }, [me])
 
   // Upload an image, persist its URL on the users doc, and show it.
   const handleImageUpload = async (file: File, field: "profilePicture" | "coverImage", setPreview: (url: string) => void) => {
@@ -463,39 +400,9 @@ export default function ProfilePage() {
     setSkills(next)
     void persistCareConnect({ skills: next })
   }
-  const updateCertifications = (next: typeof certifications) => {
+  const updateCertifications = (next: ProfileCertification[]) => {
     setCertifications(next)
     void persistCareConnect({ certificationDetails: next })
-  }
-
-  const handleSaveAccountInfo = async () => {
-    await updateUserProfile({ fullName: accountInfo.fullName, phoneNumber: accountInfo.phone })
-    await updateCareConnectProfile({
-      headline: accountInfo.headline,
-      description: accountInfo.description,
-      location: accountInfo.location,
-    })
-    setProfileSummary((prev) => ({
-      ...prev,
-      name: accountInfo.fullName,
-      headline: accountInfo.headline,
-      location: accountInfo.location,
-      phone: accountInfo.phone,
-    }))
-    toast.success("Account info saved")
-  }
-
-  const handleDeactivate = async () => {
-    await deactivateAccount()
-    toast.success("Account deactivated")
-    await dispatch(logoutUser())
-    navigate(Routes.auth.login, { replace: true })
-  }
-
-  const handleDelete = async () => {
-    await deleteAccount()
-    await dispatch(logoutUser())
-    navigate(Routes.auth.login, { replace: true })
   }
 
   return (
@@ -658,8 +565,9 @@ export default function ProfilePage() {
             <div className="space-y-6">
               <div>
                 <h2 className="text-lg font-bold text-[#151922]">About</h2>
+                {/* Same field the Account settings dialog saves as "Job description". */}
                 <p className="max-w-3xl mt-3 text-sm leading-7 ">
-                  ICU RN with 6+ years in critical care. CCRN certified. Passionate about patient-centered care and healthcare technology.
+                  {accountInfo.description || "You haven't added an About section yet."}
                 </p>
               </div>
               <div>
@@ -735,7 +643,9 @@ export default function ProfilePage() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-[#151922]">{member.name}</p>
-                      <p className="mt-1 text-sm text-[#656f80]">{member.status === "invited" ? "Unknown" : member.role}</p>
+                      {/* An invited member hasn't picked a role yet — leave the line blank
+                          rather than labelling them "Unknown". */}
+                      <p className="mt-1 text-sm text-[#656f80]">{member.status === "invited" ? " " : member.role}</p>
                     </div>
                   </div>
                   {member.status === "invited" ? (
@@ -767,6 +677,11 @@ export default function ProfilePage() {
 
           {activeTab === "Experience" && (
             <div className="space-y-6">
+              {experience.length === 0 && (
+                <p className="rounded-3xl border border-dashed border-[#e5ecf5] p-6 text-center text-sm text-[#657080]">
+                  You haven&apos;t added any experience yet.
+                </p>
+              )}
               {experience.map((item) => (
                 <div key={item.role} className="rounded-3xl border border-[#e5ecf5] p-5">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -787,32 +702,50 @@ export default function ProfilePage() {
 
           {activeTab === "Skills" && (
             <div className="space-y-6">
-              <div className="flex flex-wrap gap-2">
-                {skills.map((skill) => (
-                  <span key={skill} className="inline-flex items-center justify-center rounded-full bg-[#e3f8f8] px-4 py-2 text-sm text-[#00b4b8] font-semibold border border-[#00b4b8]">
-                    {skill}
-                  </span>
-                ))}
-              </div>
+              {skills.length === 0 ? (
+                <p className="rounded-3xl border border-dashed border-[#e5ecf5] p-6 text-center text-sm text-[#657080]">
+                  You haven&apos;t added any skills yet.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {skills.map((skill) => (
+                    <span key={skill} className="inline-flex items-center justify-center rounded-full bg-[#e3f8f8] px-4 py-2 text-sm text-[#00b4b8] font-semibold border border-[#00b4b8]">
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              )}
               <Button className="text-[#00b4b8] border-0 hover:border-2" variant="outline" onClick={() => setSkillOpen(true)}>
-                + Add skills
+                {skills.length === 0 ? "+ Add skills" : "Edit skills"}
               </Button>
             </div>
           )}
 
           {activeTab === "Certifications" && (
             <div className="space-y-4">
-              {certifications.map((cert) => (
-                <div key={cert.title} className="flex flex-col gap-3 rounded-3xl border border-[#e5ecf5] p-5 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-[#151922]">{cert.title}</p>
-                    <p className="mt-1 text-sm text-[#00898c]">{cert.provider} · {cert.date}</p>
+              {certifications.length === 0 && (
+                <p className="rounded-3xl border border-dashed border-[#e5ecf5] p-6 text-center text-sm text-[#657080]">
+                  You haven&apos;t added any certifications yet.
+                </p>
+              )}
+              {certifications.map((cert) => {
+                // Recomputed from the expiry date so the badge doesn't go stale.
+                const status = certificationStatus(cert.endDate)
+                const period = formatCertificationPeriod(cert.date, cert.endDate)
+                return (
+                  <div key={cert.title} className="flex flex-col gap-3 rounded-3xl border border-[#e5ecf5] p-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-[#151922]">{cert.title}</p>
+                      {(cert.provider || period) && (
+                        <p className="mt-1 text-sm text-[#00898c]">{[cert.provider, period].filter(Boolean).join(" · ")}</p>
+                      )}
+                    </div>
+                    <span className={`rounded-full px-3 py-1 text-sm ${status === "Active" ? "bg-[#e9f9f0] text-[#0f8a4d]" : "bg-[#fff2f0] text-[#d8442a]"}`}>
+                      {status}
+                    </span>
                   </div>
-                  <span className={`rounded-full px-3 py-1 text-sm ${cert.status === "Active" ? "bg-[#e9f9f0] text-[#0f8a4d]" : "bg-[#fff2f0] text-[#d8442a]"}`}>
-                    {cert.status}
-                  </span>
-                </div>
-              ))}
+                )
+              })}
               <Button className="text-[#00b4b8] border-0 hover:border-2" variant="outline" onClick={() => setCertificationOpen(true)}>
                 + Add certification
               </Button>
@@ -901,7 +834,7 @@ export default function ProfilePage() {
         onPrivacyOptionChange={updatePrivacy}
         accountInfo={accountInfo}
         onAccountInfoChange={setAccountInfo}
-        onSaveAccountInfo={handleSaveAccountInfo}
+        onSaveAccountInfo={saveAccountInfo}
         onDeactivate={handleDeactivate}
         onDelete={handleDelete}
         experience={experience}

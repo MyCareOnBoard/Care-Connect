@@ -341,7 +341,9 @@ export default function UserJobsPage() {
                     aria-label={savedJobIds.has(job.id) ? "Unsave job" : "Save job"}
                     className="shrink-0"
                   >
-                    <Heart className={`size-5 transition-colors ${savedJobIds.has(job.id) ? "fill-[#ff3e66] text-[#ff3e66]" : "text-[#20242c]"}`} />
+                    {/* Bookmark, not a heart — the heart is the Like action, and using
+                        it for Save here made the two read as swapped. */}
+                    <Bookmark className={`size-5 transition-colors ${savedJobIds.has(job.id) ? "fill-[#00b4b8] text-[#00b4b8]" : "text-[#20242c]"}`} />
                   </button>
                 </div>
                 <p className="mt-2 text-sm text-[#565656]">{job.company}</p>
