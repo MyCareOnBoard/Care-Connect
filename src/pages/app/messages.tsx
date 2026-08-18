@@ -11,6 +11,7 @@ import { cn, getInitials } from "@/lib/utils"
 import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
 import { toDate } from "@/utils/careconnect/types"
 import {
+  deleteConversation,
   markRead,
   sendMessage,
   startConversation,
@@ -22,21 +23,22 @@ const CONVERSATIONS = "careconnectConversations"
 const AVATAR_COLORS = ["bg-[#00b4b8]", "bg-[#0d8de0]", "bg-[#ffc95c]", "bg-[#a782d8]", "bg-[#10ad58]", "bg-[#ff3e66]"]
 const colorFor = (id: string) => AVATAR_COLORS[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length]
 
-// No "delete conversation" endpoint exists — deleting hides it locally (survives
-// reloads via localStorage), same pattern as availabilityStore's per-uid persistence.
-const HIDDEN_CONVERSATIONS_PREFIX = "careconnect:hiddenConversations:"
-
-function getHiddenConversationIds(uid: string): Set<string> {
-  try {
-    const raw = localStorage.getItem(`${HIDDEN_CONVERSATIONS_PREFIX}${uid}`)
-    return raw ? new Set(JSON.parse(raw)) : new Set()
-  } catch {
-    return new Set()
-  }
+/**
+ * Deleting a conversation is per-participant and lives on the document as
+ * `deletedFor.<uid>` (see the backend's conversation.schema.js). The list and the message
+ * thread both come from live Firestore snapshots rather than the REST list, so the same
+ * clearance rule has to be applied here too — server-side filtering alone wouldn't reach
+ * the live view.
+ */
+function clearedAtMillis(data: DocumentData | undefined, uid: string): number {
+  return toDate((data?.deletedFor?.[uid] ?? null) as never)?.getTime() ?? 0
 }
 
-function saveHiddenConversationIds(uid: string, ids: Set<string>): void {
-  localStorage.setItem(`${HIDDEN_CONVERSATIONS_PREFIX}${uid}`, JSON.stringify(Array.from(ids)))
+/** Hidden only while nothing has been said since this user cleared the thread. */
+function isClearedFor(data: DocumentData, uid: string): boolean {
+  const clearedAt = clearedAtMillis(data, uid)
+  if (!clearedAt) return false
+  return (toDate(data.lastMessageAt as never)?.getTime() ?? 0) <= clearedAt
 }
 
 function formatTime(value: unknown): string {
@@ -89,13 +91,10 @@ export default function MessagesPage() {
   // Below lg, list and chat are mutually exclusive full-screen views; at lg+ both show side-by-side regardless.
   const [mobileView, setMobileView] = useState<"list" | "chat">("list")
   const [conversationSearch, setConversationSearch] = useState("")
-  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
+  // Clearance instant per conversation. A thread that resurfaced after being cleared is
+  // back in the list, but the messages from before the clear must stay gone.
+  const [clearedByConversation, setClearedByConversation] = useState<Record<string, number>>({})
   const handledToRef = useRef(false)
-
-  useEffect(() => {
-    if (!myUid) return
-    setHiddenIds(getHiddenConversationIds(myUid))
-  }, [myUid])
 
   const openConversation = (id: string) => {
     setSelectedId(id)
@@ -125,7 +124,16 @@ export default function MessagesPage() {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const list = snapshot.docs.map((doc) => mapConversationDoc(doc.id, doc.data(), myUid))
+        setClearedByConversation(
+          Object.fromEntries(
+            snapshot.docs
+              .map((doc) => [doc.id, clearedAtMillis(doc.data(), myUid)] as const)
+              .filter(([, cleared]) => cleared > 0),
+          ),
+        )
+        const list = snapshot.docs
+          .filter((doc) => !isClearedFor(doc.data(), myUid))
+          .map((doc) => mapConversationDoc(doc.id, doc.data(), myUid))
         setConversations(list)
         setSelectedId((prev) => prev ?? list[0]?.id ?? null)
         setLoading(false)
@@ -168,7 +176,14 @@ export default function MessagesPage() {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const msgs = snapshot.docs.map((doc) => mapMessage(doc.id, doc.data())).reverse()
+        const cleared = clearedByConversation[selectedId] ?? 0
+        const msgs = snapshot.docs
+          .filter(
+            (doc) =>
+              !cleared || (toDate(doc.data().createdAt as never)?.getTime() ?? 0) > cleared,
+          )
+          .map((doc) => mapMessage(doc.id, doc.data()))
+          .reverse()
         setMessages(msgs)
         // A message may have arrived for the open thread — clear its unread.
         markRead(selectedId).catch(() => undefined)
@@ -176,13 +191,14 @@ export default function MessagesPage() {
       (error) => console.error("messages subscription error:", error),
     )
     return () => unsubscribe()
-  }, [myUid, selectedId, mapMessage])
+  }, [myUid, selectedId, mapMessage, clearedByConversation])
 
   if (loading) return <MessagesSkeleton />
 
   const selected = conversations.find((conversation) => conversation.id === selectedId) ?? null
 
-  const activeConversations = conversations.filter((conversation) => !hiddenIds.has(conversation.id))
+  // The snapshot already excludes cleared threads.
+  const activeConversations = conversations
   const visibleConversations = conversationSearch
     ? activeConversations.filter((conversation) => {
         const term = conversationSearch.toLowerCase()
@@ -193,18 +209,25 @@ export default function MessagesPage() {
       })
     : activeConversations
 
-  const handleDeleteConversation = (id: string) => {
+  const handleDeleteConversation = async (id: string) => {
     if (!myUid) return
-    if (!window.confirm("Delete this conversation? It will be removed from your list.")) return
-    const next = new Set(hiddenIds)
-    next.add(id)
-    setHiddenIds(next)
-    saveHiddenConversationIds(myUid, next)
-    if (selectedId === id) {
-      setSelectedId(null)
-      setMobileView("list")
+    if (
+      !window.confirm(
+        "Delete this conversation? It will be removed from your list. The other person keeps their copy.",
+      )
+    )
+      return
+    try {
+      await deleteConversation(id)
+      // The conversations snapshot drops it once `deletedFor` lands.
+      if (selectedId === id) {
+        setSelectedId(null)
+        setMobileView("list")
+      }
+      toast.success("Conversation deleted")
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
     }
-    toast.success("Conversation deleted")
   }
 
   const handleSend = async (text: string) => {
@@ -327,7 +350,7 @@ export default function MessagesPage() {
                 <button
                   type="button"
                   aria-label="Delete conversation"
-                  onClick={() => handleDeleteConversation(selected.id)}
+                  onClick={() => void handleDeleteConversation(selected.id)}
                   className="flex size-9 items-center justify-center rounded-full text-[#ff3e66] transition hover:bg-[#fff1f4] hover:shadow-[0_2px_8px_rgba(16,20,26,0.08)]"
                 >
                   <Trash2 className="size-5" />

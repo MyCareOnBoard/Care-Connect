@@ -81,6 +81,17 @@ export async function markRead(id: string): Promise<void> {
   await axiosClient.post(`/careconnectMessaging/${id}/read`)
 }
 
+/**
+ * Clear a conversation for the current user only.
+ *
+ * The other participant keeps the thread and its messages — a 1:1 conversation is shared,
+ * and its document id is deterministic, so it can't be destroyed outright. A later message
+ * from either side brings the thread back, carrying only what was said after the clear.
+ */
+export async function deleteConversation(id: string): Promise<void> {
+  await axiosClient.delete(`/careconnectMessaging/${id}`)
+}
+
 /** Upload a message attachment, returning its public URL. */
 export async function uploadMessageAttachment(file: File): Promise<string> {
   const formData = new FormData()
