@@ -145,6 +145,12 @@ export async function listBookings(params: ListBookingsParams = {}): Promise<Tel
   return data.data
 }
 
+/** A single booking, for polling lifecycle timestamps the client can't otherwise observe. */
+export async function getBooking(id: string): Promise<TelehealthBooking> {
+  const { data } = await axiosClient.get(`/careconnectBookings/${id}`)
+  return data.data
+}
+
 export async function createBooking(input: NewBookingInput): Promise<TelehealthBooking> {
   const { data } = await axiosClient.post("/careconnectBookings", input)
   return data.data
