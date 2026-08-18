@@ -279,6 +279,57 @@ export async function updateUserProfile(fields: UserProfileFields): Promise<Back
   return data.user
 }
 
+/**
+ * Notification preferences. Topic switches decide *whether* to notify; channel switches
+ * decide *how*. Both are enforced server-side in `createNotification`.
+ */
+export interface NotificationPreferences {
+  emailNotifications: boolean
+  inAppNotifications: boolean
+  pushNotifications: boolean
+  smsAlerts: boolean
+  emailDigestWeekly: boolean
+  jobMatches: boolean
+  certificationExpiring: boolean
+  newMessages: boolean
+  mentorInvitations: boolean
+  appointmentReminders: boolean
+}
+
+/**
+ * Privacy settings. Only settings the API actually enforces are here — see
+ * `schemas/privacy.schema.js` for why email/phone/online-status aren't.
+ */
+export interface PrivacySettings {
+  publicProfile: boolean
+  showLocation: boolean
+  allowMessages: boolean
+}
+
+export async function getNotificationPreferences(): Promise<NotificationPreferences> {
+  const { data } = await axiosClient.get('/users/notifications')
+  return data.notifications
+}
+
+export async function updateNotificationPreferences(
+  prefs: Partial<NotificationPreferences>
+): Promise<NotificationPreferences> {
+  const { data } = await axiosClient.put('/users/notifications', prefs)
+  return data.notifications
+}
+
+export async function getPrivacySettings(): Promise<PrivacySettings> {
+  const { data } = await axiosClient.get('/users/privacy')
+  return data.privacy
+}
+
+export async function updatePrivacySettings(
+  settings: Partial<PrivacySettings>
+): Promise<PrivacySettings> {
+  const { data } = await axiosClient.put('/users/privacy', settings)
+  return data.privacy
+}
+
 /** Temporarily hide the account (reactivates on next sign-in). */
 export async function deactivateAccount(): Promise<void> {
   await axiosClient.post('/users/deactivate')

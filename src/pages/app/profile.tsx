@@ -337,8 +337,10 @@ export default function ProfilePage() {
     handleDelete,
     notificationOptions,
     updateNotification,
+    saveNotifications,
     privacyOptions,
     updatePrivacy,
+    savePrivacy,
   } = useAccountSettings({
     profile: me,
     onSaved: (info) =>
@@ -874,8 +876,10 @@ export default function ProfilePage() {
         onCertificationOpenChange={setCertificationOpen}
         notificationOptions={notificationOptions}
         onNotificationOptionChange={updateNotification}
+        onSaveNotifications={saveNotifications}
         privacyOptions={privacyOptions}
         onPrivacyOptionChange={updatePrivacy}
+        onSavePrivacy={savePrivacy}
         accountInfo={accountInfo}
         onAccountInfoChange={setAccountInfo}
         onSaveAccountInfo={saveAccountInfo}

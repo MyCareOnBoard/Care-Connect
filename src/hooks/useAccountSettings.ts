@@ -16,6 +16,10 @@ import { useAuthUser } from "@/utils/auth"
 import {
   deactivateAccount,
   deleteAccount,
+  getNotificationPreferences,
+  getPrivacySettings,
+  updateNotificationPreferences,
+  updatePrivacySettings,
   updateCareConnectProfile,
   updateUserProfile,
 } from "@/utils/auth/services/authService"
@@ -41,24 +45,24 @@ const emptyAccountInfo: AccountInfo = {
   description: "",
 }
 
+// Mirrors NOTIFICATION_PREFERENCE_DEFAULTS on the backend. Every key is enforced there:
+// the delivery switches gate channels, the topic switches gate NotificationCategory groups.
 const defaultNotificationOptions = {
+  emailNotifications: true,
+  inAppNotifications: true,
+  pushNotifications: true,
   jobMatches: true,
   certificationExpiring: true,
   newMessages: true,
   mentorInvitations: true,
   appointmentReminders: true,
-  pushNotifications: true,
-  emailDigestWeekly: true,
-  smsAlerts: true,
 }
 
+// Mirrors PRIVACY_DEFAULTS. Only settings the API enforces.
 const defaultPrivacyOptions = {
   publicProfile: true,
-  showEmailAddress: true,
-  showPhoneNumber: true,
   showLocation: true,
   allowMessages: true,
-  showOnlineStatus: true,
 }
 
 type NotificationKey = keyof typeof defaultNotificationOptions
@@ -118,6 +122,37 @@ export function useAccountSettings(
       active = false
     }
   }, [user?.uid, user?.fullName, user?.email, user?.phoneNumber, usesCallerProfile, profile])
+
+  // Load the persisted preferences. Both fall back to defaults so a fetch failure shows
+  // "everything on" rather than an all-off UI the user never chose.
+  useEffect(() => {
+    if (!user?.uid) return
+    let active = true
+    ;(async () => {
+      const [prefs, privacy] = await Promise.all([
+        getNotificationPreferences().catch(() => null),
+        getPrivacySettings().catch(() => null),
+      ])
+      if (!active) return
+      if (prefs) setNotificationOptions((prev) => ({ ...prev, ...prefs }))
+      if (privacy) setPrivacyOptions((prev) => ({ ...prev, ...privacy }))
+    })()
+    return () => {
+      active = false
+    }
+  }, [user?.uid])
+
+  const saveNotifications = async () => {
+    const saved = await updateNotificationPreferences(notificationOptions)
+    setNotificationOptions((prev) => ({ ...prev, ...saved }))
+    toast.success("Notification preferences saved")
+  }
+
+  const savePrivacy = async () => {
+    const saved = await updatePrivacySettings(privacyOptions)
+    setPrivacyOptions((prev) => ({ ...prev, ...saved }))
+    toast.success("Privacy settings saved")
+  }
 
   const updateNotification = (key: NotificationKey) => {
     setNotificationOptions((prev) => ({ ...prev, [key]: !prev[key] }))
@@ -181,7 +216,9 @@ export function useAccountSettings(
     handleDelete,
     notificationOptions,
     updateNotification,
+    saveNotifications,
     privacyOptions,
     updatePrivacy,
+    savePrivacy,
   }
 }

@@ -24,8 +24,27 @@ import { Trash2 } from "lucide-react"
 import type { BulkInviteMemberInput, BulkInviteResult } from "@/utils/careconnect/services/teamService"
 import type { ProfileCertification } from "@/utils/careconnect/types"
 
-type NotificationKey = "jobMatches" | "certificationExpiring" | "newMessages" | "mentorInvitations" | "appointmentReminders" | "pushNotifications" | "emailDigestWeekly" | "smsAlerts"
-type PrivacyKey = "publicProfile" | "showEmailAddress" | "showPhoneNumber" | "showLocation" | "allowMessages" | "showOnlineStatus"
+/**
+ * Every key here is enforced server-side (see schemas/notification.schema.js): the topic
+ * switches gate whole NotificationCategory groups in `createNotification`, the delivery
+ * switches gate the channels. "SMS alerts" and "Email digest (weekly)" used to appear here
+ * and were dropped — there is no SMS path and no digest job for them to control.
+ */
+type NotificationKey =
+  | "emailNotifications"
+  | "inAppNotifications"
+  | "pushNotifications"
+  | "jobMatches"
+  | "certificationExpiring"
+  | "newMessages"
+  | "mentorInvitations"
+  | "appointmentReminders"
+/**
+ * Only settings the API enforces. `showEmailAddress` / `showPhoneNumber` were dropped —
+ * the public profile response returns neither field, so there was nothing to hide — as was
+ * `showOnlineStatus`, since nothing tracks presence.
+ */
+type PrivacyKey = "publicProfile" | "showLocation" | "allowMessages"
 
 type ProfileModalsProps = {
   notificationsOpen: boolean
@@ -54,6 +73,8 @@ type ProfileModalsProps = {
   }
   onAccountInfoChange: (value: { fullName: string; email: string; phone: string; location: string; headline: string; description: string }) => void
   onSaveAccountInfo?: () => Promise<void> | void
+  onSaveNotifications?: () => Promise<void> | void
+  onSavePrivacy?: () => Promise<void> | void
   onDeactivate?: () => Promise<void> | void
   onDelete?: () => Promise<void> | void
   experience: Array<{ role: string; company: string; duration: string; description: string }>
@@ -119,6 +140,8 @@ export function ProfileModals({
   accountInfo,
   onAccountInfoChange,
   onSaveAccountInfo = async () => {},
+  onSaveNotifications = async () => {},
+  onSavePrivacy = async () => {},
   onDeactivate = async () => {},
   onDelete = async () => {},
   experience,
@@ -274,6 +297,33 @@ export function ProfileModals({
     }
   }
 
+  const [savingNotifications, setSavingNotifications] = useState(false)
+  const [savingPrivacy, setSavingPrivacy] = useState(false)
+
+  const saveNotifications = async () => {
+    setSavingNotifications(true)
+    try {
+      await onSaveNotifications()
+      onNotificationsOpenChange(false)
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setSavingNotifications(false)
+    }
+  }
+
+  const savePrivacy = async () => {
+    setSavingPrivacy(true)
+    try {
+      await onSavePrivacy()
+      onPrivacyOpenChange(false)
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setSavingPrivacy(false)
+    }
+  }
+
   const saveAccount = async () => {
     setSavingAccount(true)
     try {
@@ -334,9 +384,9 @@ export function ProfileModals({
               {
                 title: "Delivery methods",
                 options: [
-                  { label: "Push notifications", key: "pushNotifications" as NotificationKey },
-                  { label: "Email digest (weekly)", key: "emailDigestWeekly" as NotificationKey },
-                  { label: "SMS alerts", key: "smsAlerts" as NotificationKey },
+                  { label: "In-app notifications", key: "inAppNotifications" as NotificationKey },
+                  { label: "Email notifications", key: "emailNotifications" as NotificationKey },
+                  { label: "Push notifications (mobile app)", key: "pushNotifications" as NotificationKey },
                 ],
               },
             ].map((group) => (
@@ -354,8 +404,13 @@ export function ProfileModals({
             ))}
           </DialogBody>
           <DialogFooter>
-            <Button className="bg-[#00b4b8] text-white hover:opacity-90" variant="secondary" onClick={() => onNotificationsOpenChange(false)}>
-              Save changes
+            <Button
+              className="bg-[#00b4b8] text-white hover:opacity-90"
+              variant="secondary"
+              disabled={savingNotifications}
+              onClick={saveNotifications}
+            >
+              {savingNotifications ? "Saving…" : "Save changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -364,16 +419,13 @@ export function ProfileModals({
       <Dialog open={privacyOpen} onOpenChange={onPrivacyOpenChange}>
         <DialogContent showCloseButton className="p-0 max-w-130">
           <DialogHeader className="px-6 pt-6 text-left">
-            <DialogTitle className="text-xl font-semibold text-[#151922]">Privacy policy</DialogTitle>
+            <DialogTitle className="text-xl font-semibold text-[#151922]">Privacy &amp; security</DialogTitle>
           </DialogHeader>
           <DialogBody className="px-6 pt-4 pb-6 space-y-6">
             {[
-              { label: "Public profile", description: "Anyone can view your profile", key: "publicProfile" as PrivacyKey },
-              { label: "Show email address", description: "Display email on your profile", key: "showEmailAddress" as PrivacyKey },
-              { label: "Show phone number", description: "Display phone on your profile", key: "showPhoneNumber" as PrivacyKey },
-              { label: "Show location", description: "Display your city and state", key: "showLocation" as PrivacyKey },
-              { label: "Allow messages", description: "Let non-connections message you", key: "allowMessages" as PrivacyKey },
-              { label: "Show online status", description: "Let others see when you're active", key: "showOnlineStatus" as PrivacyKey },
+              { label: "Public profile", description: "Let other members find and view your profile", key: "publicProfile" as PrivacyKey },
+              { label: "Show location", description: "Display your city and state to other members", key: "showLocation" as PrivacyKey },
+              { label: "Allow messages", description: "Let people start a new conversation with you", key: "allowMessages" as PrivacyKey },
             ].map((item) => (
               <div key={item.key} className="flex items-center justify-between rounded-3xl border border-[#eaf0ff] bg-[#f8fbff] px-4 py-4">
                 <div>
@@ -385,8 +437,13 @@ export function ProfileModals({
             ))}
           </DialogBody>
           <DialogFooter>
-            <Button className="bg-[#00b4b8] text-white hover:opacity-90" variant="secondary" onClick={() => onPrivacyOpenChange(false)}>
-              Save changes
+            <Button
+              className="bg-[#00b4b8] text-white hover:opacity-90"
+              variant="secondary"
+              disabled={savingPrivacy}
+              onClick={savePrivacy}
+            >
+              {savingPrivacy ? "Saving…" : "Save changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
