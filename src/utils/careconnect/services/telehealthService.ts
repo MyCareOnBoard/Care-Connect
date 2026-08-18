@@ -75,6 +75,31 @@ export async function listMyServices(): Promise<TelehealthService[]> {
   return data.data
 }
 
+/** A service returned by intent-aware search, with why it matched. */
+export type SearchedService = TelehealthService & { matchReason?: string | null }
+
+export interface ServiceSearchResult {
+  services: SearchedService[]
+  /**
+   * False when the results are plain keyword matches — either the query had no AI ranking
+   * available, or Gemini failed and the server degraded. The UI labels accordingly.
+   */
+  aiRanked: boolean
+}
+
+/**
+ * Search services by intent rather than wording, so "help with my mum's dementia" can
+ * surface a memory-care service that never uses the word. Falls back server-side to
+ * keyword matching, so this resolves with useful results either way.
+ */
+export async function searchServices(q: string): Promise<ServiceSearchResult> {
+  const { data } = await axiosClient.get("/careconnectTelehealth/search", { params: { q } })
+  return {
+    services: Array.isArray(data?.data) ? data.data : [],
+    aiRanked: data?.aiRanked === true,
+  }
+}
+
 export async function getService(id: string): Promise<TelehealthService> {
   const { data } = await axiosClient.get(`/careconnectTelehealth/${id}`)
   return data.data

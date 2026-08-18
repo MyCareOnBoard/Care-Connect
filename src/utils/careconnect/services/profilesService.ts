@@ -25,6 +25,25 @@ export async function getProfile(uid: string): Promise<CareConnectProfile> {
   return data.data
 }
 
+/** A suggested connection, with why it was suggested. */
+export type SuggestedProfile = CareConnectProfile & {
+  /** Deterministic overlap score — higher is a closer match. Ordering is already applied. */
+  score: number
+  /** One-line rationale, AI-phrased when available and templated from the overlap when not. */
+  reason: string
+  sharedSkills?: string[]
+}
+
+/**
+ * People to connect with, ranked by overlap of skills, certifications, experience,
+ * profession, and location. Server-cached for 24h per user, so this is cheap to call on
+ * every visit to the Network tab.
+ */
+export async function listSuggestedPeople(): Promise<SuggestedProfile[]> {
+  const { data } = await careconnectClient.get("/careconnectProfiles/me/suggestions")
+  return Array.isArray(data?.data) ? data.data : []
+}
+
 export interface ProfileViewer {
   uid: string
   name: string | null

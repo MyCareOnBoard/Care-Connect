@@ -14,7 +14,13 @@ import { useCareFlow } from "@/components/app/useCareFlow"
 import { Routes } from "@/routes/constants"
 import { cn, getInitials } from "@/lib/utils"
 import { getAuthErrorMessage } from "@/utils/auth"
-import { getProfile, listProfiles, listProfileViewers, type ProfileViewer } from "@/utils/careconnect/services/profilesService"
+import {
+  getProfile,
+  listProfiles,
+  listProfileViewers,
+  listSuggestedPeople,
+  type ProfileViewer,
+} from "@/utils/careconnect/services/profilesService"
 import {
   listConnections,
   unfollow,
@@ -43,7 +49,11 @@ function placeholderDate(seed: string): string {
   return format(addDays(new Date(), -daysAgo), "MMMM d, yyyy")
 }
 
-function toConnection(profile: CareConnectProfile, index: number, viewProfile: (id: string) => string): Connection {
+function toConnection(
+  profile: CareConnectProfile & { reason?: string },
+  index: number,
+  viewProfile: (id: string) => string,
+): Connection {
   return {
     name: profile.name || "Care Connect user",
     subtitle: profile.subtitle,
@@ -52,6 +62,7 @@ function toConnection(profile: CareConnectProfile, index: number, viewProfile: (
     profileHref: viewProfile(profile.uid),
     uid: profile.uid,
     isFollowing: profile.isFollowing,
+    reason: profile.reason,
   }
 }
 
@@ -146,7 +157,11 @@ export default function NetworkPage() {
         const [resolvedConnections, resolvedAgencies, individuals, companies, requests, viewerList] = await Promise.all([
           resolveConnections(connectRelations),
           resolveConnections(subscribeRelations),
-          listProfiles({ type: "individual", limit: 8 }).catch(() => []),
+          // Ranked by shared skills/experience, with a reason per person. Falls back to
+          // the plain directory listing so the tab is never empty if suggestions fail.
+          listSuggestedPeople().catch(() => listProfiles({ type: "individual", limit: 8 }).catch(() => [])),
+          // Agencies keep the directory listing — org-to-org similarity is a different
+          // signal set and out of scope here.
           listProfiles({ type: "company", limit: 8 }).catch(() => []),
           listRequests().catch(() => []),
           listProfileViewers().catch(() => []),
