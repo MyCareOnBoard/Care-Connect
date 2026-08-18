@@ -6,6 +6,7 @@ import {
   CalendarCheck,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Clock,
   Copy,
@@ -14,9 +15,10 @@ import {
   MapPin,
   MessageSquare,
   Navigation,
+  Pencil,
   Plus,
   Search,
-  Share2,
+  // Share2,
   Video,
 } from "lucide-react"
 import paypalIcon from "@/assets/imgs/PayPal Icon.png"
@@ -43,6 +45,7 @@ import {
   listBookings,
   listMyServices,
   listServices,
+  updateService,
 } from "@/utils/careconnect/services/telehealthService"
 import { listMyTeam } from "@/utils/careconnect/services/teamService"
 import {
@@ -186,20 +189,25 @@ function ServiceCreationDialog({
   open,
   onOpenChange,
   team,
+  service,
   onCreated,
+  onUpdated,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   team: TeamMember[]
-  onCreated: (service: TelehealthService) => void
+  service?: TelehealthService | null
+  onCreated?: (service: TelehealthService) => void
+  onUpdated?: (service: TelehealthService) => void
 }) {
-  const [mode, setMode] = useState<ServiceMode>("online")
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [duration, setDuration] = useState("30 min")
-  const [currency, setCurrency] = useState("USD")
-  const [price, setPrice] = useState("")
-  const [teamMemberIds, setTeamMemberIds] = useState<Set<string>>(new Set())
+  const isEdit = !!service
+  const [mode, setMode] = useState<ServiceMode>(service?.modes[0] ?? "online")
+  const [title, setTitle] = useState(service?.title ?? "")
+  const [description, setDescription] = useState(service?.description ?? "")
+  const [duration, setDuration] = useState(service ? formatDuration(service.durationMinutes) : "30 min")
+  const [currency, setCurrency] = useState(service?.currency ?? "USD")
+  const [price, setPrice] = useState(service ? String(service.price) : "")
+  const [teamMemberIds, setTeamMemberIds] = useState<Set<string>>(new Set(service?.teamMemberIds ?? []))
   const [saving, setSaving] = useState(false)
 
   const toggleTeamMember = (id: string) => {
@@ -232,20 +240,27 @@ function ServiceCreationDialog({
       return
     }
     const durationMinutes = DURATION_OPTIONS.find((option) => option.label === duration)?.minutes ?? 30
+    const payload = {
+      title: title.trim(),
+      description: description.trim(),
+      modes: [mode],
+      durationMinutes,
+      price: priceNum,
+      currency,
+      teamMemberIds: Array.from(teamMemberIds),
+    }
     setSaving(true)
     try {
-      const service = await createService({
-        title: title.trim(),
-        description: description.trim(),
-        modes: [mode],
-        durationMinutes,
-        price: priceNum,
-        currency,
-        teamMemberIds: Array.from(teamMemberIds),
-      })
-      onCreated(service)
-      toast.success("Service created")
-      reset()
+      if (isEdit && service) {
+        const updated = await updateService(service.id, payload)
+        onUpdated?.(updated)
+        toast.success("Service updated")
+      } else {
+        const created = await createService(payload)
+        onCreated?.(created)
+        toast.success("Service created")
+        reset()
+      }
       onOpenChange(false)
     } catch (error) {
       toast.error(getAuthErrorMessage(error))
@@ -258,13 +273,13 @@ function ServiceCreationDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next) reset()
+        if (!next && !isEdit) reset()
         onOpenChange(next)
       }}
     >
       <DialogContent showCloseButton className="p-0 max-w-150">
         <DialogHeader className="px-6 pt-6 text-left">
-          <DialogTitle className="text-xl font-semibold text-[#151922]">Service creation</DialogTitle>
+          <DialogTitle className="text-xl font-semibold text-[#151922]">{isEdit ? "Edit service" : "Service creation"}</DialogTitle>
         </DialogHeader>
         <DialogBody className="px-6 pt-4 pb-6 space-y-5">
           <div>
@@ -330,7 +345,7 @@ function ServiceCreationDialog({
 
           <div className="flex justify-end">
             <Button className="bg-[#00b4b8] text-white hover:opacity-90" disabled={saving} onClick={submit}>
-              {saving ? "Creating..." : "Create service"}
+              {saving ? (isEdit ? "Saving..." : "Creating...") : isEdit ? "Save changes" : "Create service"}
             </Button>
           </div>
         </DialogBody>
@@ -339,7 +354,7 @@ function ServiceCreationDialog({
   )
 }
 
-function ServiceCard({ service }: { service: TelehealthService }) {
+function ServiceCard({ service, onEdit }: { service: TelehealthService; onEdit: () => void }) {
   const pill = STATUS_PILL[service.status] ?? STATUS_PILL.active
   return (
     <div className="rounded-3xl border border-[#e5ecf5] bg-white p-5">
@@ -366,14 +381,26 @@ function ServiceCard({ service }: { service: TelehealthService }) {
           <CalendarCheck className="size-4" />
           {service.bookingsCount} Bookings · Posted {formatRelative(service.createdAt)}
         </span>
-        <Button
-          asChild
-          variant="outline"
-          size="sm"
-          className="rounded-lg border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
-        >
-          <Link to={Routes.app.agency.serviceAnalytics(service.id)}>View analytics</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onEdit}
+            className="rounded-lg gap-1.5 border-[#e2e2e2] text-[#151922] hover:border-[#00b4b8] hover:text-[#00b4b8]"
+          >
+            <Pencil className="size-3.5" />
+            Edit
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="rounded-lg border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
+          >
+            <Link to={Routes.app.agency.serviceAnalytics(service.id)}>View analytics</Link>
+          </Button>
+        </div>
       </div>
     </div>
   )
@@ -450,7 +477,19 @@ function AgencyOverview({ services, team, bookings }: { services: TelehealthServ
   )
 }
 
+const BOOKINGS_PAGE_SIZE = 10
+
 function BookingsSidebar({ bookings }: { bookings: TelehealthBooking[] }) {
+  const [page, setPage] = useState(1)
+  const totalPages = Math.max(1, Math.ceil(bookings.length / BOOKINGS_PAGE_SIZE))
+
+  // Clamp back onto a valid page if the list shrinks (e.g. a booking is cancelled off it).
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages))
+  }, [totalPages])
+
+  const visibleBookings = bookings.slice((page - 1) * BOOKINGS_PAGE_SIZE, page * BOOKINGS_PAGE_SIZE)
+
   const avatarBg = (id: string) => {
     const palette = ["bg-[#e7b8c9]", "bg-[#6b9cca]", "bg-[#87c9a8]", "bg-[#f5a623]", "bg-[#a782d8]"]
     const sum = [...id].reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
@@ -462,37 +501,65 @@ function BookingsSidebar({ bookings }: { bookings: TelehealthBooking[] }) {
       {bookings.length === 0 ? (
         <p className="mt-4 text-sm text-[#657080]">No bookings yet.</p>
       ) : (
-        <div className="mt-4 space-y-5">
-          {bookings.map((booking) => (
-            <div key={booking.id} className="border-b border-[#eef1f3] pb-5 last:border-0 last:pb-0">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className={`flex size-11 items-center justify-center rounded-full text-sm font-semibold text-white ${avatarBg(booking.id)}`}>
-                    {getInitials(booking.clientName)}
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-[#151922]">{booking.clientName}</p>
-                    <p className="text-sm text-[#656f80]">
-                      {booking.serviceTitle} · {SERVICE_MODE_LABELS[booking.mode]}
-                    </p>
+        <>
+          <div className="mt-4 space-y-5">
+            {visibleBookings.map((booking) => (
+              <div key={booking.id} className="border-b border-[#eef1f3] pb-5 last:border-0 last:pb-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className={`flex size-11 items-center justify-center rounded-full text-sm font-semibold text-white ${avatarBg(booking.id)}`}>
+                      {getInitials(booking.clientName)}
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-[#151922]">{booking.clientName}</p>
+                      <p className="text-sm text-[#656f80]">
+                        {booking.serviceTitle} · {SERVICE_MODE_LABELS[booking.mode]}
+                      </p>
+                    </div>
                   </div>
+                  <Link
+                    to={Routes.app.agency.messages}
+                    aria-label={`Message ${booking.clientName}`}
+                    className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-[#eef1f3] text-[#656f80] transition hover:border-[#00b4b8] hover:text-[#00b4b8]"
+                  >
+                    <MessageSquare className="size-4" />
+                  </Link>
                 </div>
-                <Link
-                  to={Routes.app.agency.messages}
-                  aria-label={`Message ${booking.clientName}`}
-                  className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-[#eef1f3] text-[#656f80] transition hover:border-[#00b4b8] hover:text-[#00b4b8]"
-                >
-                  <MessageSquare className="size-4" />
-                </Link>
+                <p className="mt-3 text-sm text-[#656f80]">Hosted by: {booking.professionalName}</p>
+                <p className="mt-1 inline-flex items-center gap-2 text-sm text-[#656f80]">
+                  <CalendarCheck className="size-4" />
+                  {bookingWhen(booking)}
+                </p>
               </div>
-              <p className="mt-3 text-sm text-[#656f80]">Hosted by: {booking.professionalName}</p>
-              <p className="mt-1 inline-flex items-center gap-2 text-sm text-[#656f80]">
-                <CalendarCheck className="size-4" />
-                {bookingWhen(booking)}
-              </p>
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 mt-5 border-t border-[#eef1f3]">
+              <button
+                type="button"
+                aria-label="Previous page"
+                disabled={page === 1}
+                onClick={() => setPage((current) => current - 1)}
+                className="flex size-8 items-center justify-center rounded-lg text-[#657080] transition hover:bg-[#f2f6f8] disabled:opacity-30"
+              >
+                <ChevronLeft className="size-4" />
+              </button>
+              <span className="text-xs font-medium text-[#657080]">
+                Page {page} of {totalPages}
+              </span>
+              <button
+                type="button"
+                aria-label="Next page"
+                disabled={page === totalPages}
+                onClick={() => setPage((current) => current + 1)}
+                className="flex size-8 items-center justify-center rounded-lg text-[#657080] transition hover:bg-[#f2f6f8] disabled:opacity-30"
+              >
+                <ChevronRight className="size-4" />
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   )
@@ -1123,12 +1190,20 @@ function TelehealthSkeleton() {
   )
 }
 
+const SERVICES_PAGE_SIZE = 5
+
 function UserServiceBrowser() {
   const [services, setServices] = useState<TelehealthService[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [bookingOpen, setBookingOpen] = useState(false)
+  const [visibleServiceCount, setVisibleServiceCount] = useState(SERVICES_PAGE_SIZE)
+
+  // Reset "Load more" progress whenever the search term changes the underlying list.
+  useEffect(() => {
+    setVisibleServiceCount(SERVICES_PAGE_SIZE)
+  }, [search])
 
   useEffect(() => {
     let active = true
@@ -1155,6 +1230,7 @@ function UserServiceBrowser() {
   const visibleServices = search
     ? services.filter((service) => service.title.toLowerCase().includes(search.toLowerCase()))
     : services
+  const shownServices = visibleServices.slice(0, visibleServiceCount)
   const selectedService = services.find((service) => service.id === selectedId) ?? visibleServices[0] ?? null
 
   return (
@@ -1166,7 +1242,7 @@ function UserServiceBrowser() {
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Service title, keywords, or company"
+              placeholder="Search for Service..."
               className="pl-9"
             />
           </div>
@@ -1176,7 +1252,7 @@ function UserServiceBrowser() {
               No services found.
             </p>
           ) : (
-            visibleServices.map((service) => (
+            shownServices.map((service) => (
               <button
                 key={service.id}
                 type="button"
@@ -1214,6 +1290,18 @@ function UserServiceBrowser() {
                 </div>
               </button>
             ))
+          )}
+
+          {visibleServiceCount < visibleServices.length && (
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setVisibleServiceCount((current) => current + SERVICES_PAGE_SIZE)}
+              >
+                Load more
+              </Button>
+            </div>
           )}
         </div>
 
@@ -1259,9 +1347,10 @@ function UserServiceBrowser() {
               <button type="button" aria-label="Save" className="flex size-11 items-center justify-center rounded-xl border border-[#e5ecf5] text-[#565656] hover:bg-[#f2f6f8]">
                 <Heart className="size-4" />
               </button>
-              <button type="button" aria-label="Share" className="flex size-11 items-center justify-center rounded-xl border border-[#e5ecf5] text-[#565656] hover:bg-[#f2f6f8]">
+              {/* Share icon */}
+              {/* <button type="button" aria-label="Share" className="flex size-11 items-center justify-center rounded-xl border border-[#e5ecf5] text-[#565656] hover:bg-[#f2f6f8]">
                 <Share2 className="size-4" />
-              </button>
+              </button> */}
             </div>
 
             <div className="mt-6 border-t border-[#eef1f3] pt-6">
@@ -1316,6 +1405,13 @@ function AgencyTelehealthPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [createOpen, setCreateOpen] = useState(false)
+  const [editingService, setEditingService] = useState<TelehealthService | null>(null)
+  const [visibleServiceCount, setVisibleServiceCount] = useState(SERVICES_PAGE_SIZE)
+
+  // Reset "Load more" progress whenever the search term changes the underlying list.
+  useEffect(() => {
+    setVisibleServiceCount(SERVICES_PAGE_SIZE)
+  }, [search])
 
   useEffect(() => {
     let active = true
@@ -1347,6 +1443,7 @@ function AgencyTelehealthPage() {
   const visibleServices = search
     ? services.filter((service) => service.title.toLowerCase().includes(search.toLowerCase()))
     : services
+  const shownServices = visibleServices.slice(0, visibleServiceCount)
 
   return (
     <div className="p-5 sm:p-8">
@@ -1358,7 +1455,7 @@ function AgencyTelehealthPage() {
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Title, keywords, or company"
+              placeholder="Search for services..."
               className="pl-9"
             />
           </div>
@@ -1379,9 +1476,23 @@ function AgencyTelehealthPage() {
                 No services yet. Click &quot;Create service&quot; to add your first one.
               </p>
             ) : (
-              visibleServices.map((service) => <ServiceCard key={service.id} service={service} />)
+              shownServices.map((service) => (
+                <ServiceCard key={service.id} service={service} onEdit={() => setEditingService(service)} />
+              ))
             )}
           </div>
+
+          {visibleServiceCount < visibleServices.length && (
+            <div className="flex justify-center mt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setVisibleServiceCount((current) => current + SERVICES_PAGE_SIZE)}
+              >
+                Load more
+              </Button>
+            </div>
+          )}
         </div>
 
         <BookingsSidebar bookings={bookings} />
@@ -1392,6 +1503,15 @@ function AgencyTelehealthPage() {
         onOpenChange={setCreateOpen}
         team={team}
         onCreated={(service) => setServices((current) => [service, ...current])}
+      />
+
+      <ServiceCreationDialog
+        key={editingService?.id ?? "edit"}
+        open={!!editingService}
+        onOpenChange={(open) => !open && setEditingService(null)}
+        team={team}
+        service={editingService}
+        onUpdated={(updated) => setServices((current) => current.map((item) => (item.id === updated.id ? updated : item)))}
       />
     </div>
   )

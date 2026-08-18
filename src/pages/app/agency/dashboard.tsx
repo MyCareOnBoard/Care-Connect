@@ -202,7 +202,7 @@ export default function AgencyDashboardPage() {
 
       <aside className="order-3 xl:order-0 space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
         {companies.length > 0 && (
-          <ConnectionsSection title="Top agencies around you" items={companies} actionLabel="Subscribe" activeLabel="Subscribed" relation="subscribe" targetType="company" viewAllHref={`${Routes.app.agency.network}?tab=agencies`} />
+          <ConnectionsSection title="Top Healthcare Providers around you" items={companies} actionLabel="Subscribe" activeLabel="Subscribed" relation="subscribe" targetType="company" viewAllHref={`${Routes.app.agency.network}?tab=agencies`} />
         )}
         {people.length > 0 && (
           <ConnectionsSection title="Professionals you may be interested in" items={people} actionLabel="Connect" activeLabel="Pending" relation="connect" targetType="individual" viewAllHref={`${Routes.app.agency.network}?tab=connections`} />

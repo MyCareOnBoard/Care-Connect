@@ -66,7 +66,7 @@ const defaultAgencySummary = {
   email: "",
   phone: "",
   metrics: [
-    { label: "Subscriptions", value: "0" },
+    { label: "Connections", value: "0" },
     { label: "Profile views", value: "0" },
     { label: "Jobs posted", value: "0" },
   ],
@@ -100,8 +100,8 @@ function toPostedJob(job: Job): AgencyPostedJob {
 }
 
 
-const userTabs = ["About", "Experience", "Skills", "Certifications", "Portfolio"] as const
-const agencyTabs = ["About", "Posted jobs", "Team", "Certifications", "Portfolio"] as const
+const userTabs = ["About", "Experience", "Skills", "Certifications", "Posts"] as const
+const agencyTabs = ["About", "Posted jobs", "Team", "Certifications", "Posts"] as const
 type ProfileTab = (typeof userTabs)[number] | (typeof agencyTabs)[number]
 
 export default function ProfilePage() {
@@ -154,7 +154,7 @@ export default function ProfilePage() {
             email: user.email || "",
             phone: user.phoneNumber || "",
             metrics: [
-              { label: "Subscriptions", value: String(profile.connectionsCount ?? 0) },
+              { label: "Connections", value: String(profile.connectionsCount ?? 0) },
               { label: "Profile views", value: String(profile.profileViewsCount ?? 0) },
               { label: "Jobs posted", value: String(jobs.length) },
             ],
@@ -185,7 +185,9 @@ export default function ProfilePage() {
   const [privacyOpen, setPrivacyOpen] = useState(false)
   const [experienceOpen, setExperienceOpen] = useState(false)
   const [skillOpen, setSkillOpen] = useState(false)
+  const [specialtyOpen, setSpecialtyOpen] = useState(false)
   const [certificationOpen, setCertificationOpen] = useState(false)
+  const [editingCertificationIndex, setEditingCertificationIndex] = useState<number | null>(null)
   const [teamInviteOpen, setTeamInviteOpen] = useState(false)
   const [experience, setExperience] = useState<ProfileExperience[]>([])
   const [skills, setSkills] = useState<string[]>([])
@@ -194,6 +196,7 @@ export default function ProfilePage() {
   const [portfolio, setPortfolio] = useState<FeedPost[]>([])
   const [portfolioLoading, setPortfolioLoading] = useState(true)
   const [newSkill, setNewSkill] = useState("")
+  const [newSpecialty, setNewSpecialty] = useState("")
   const [newExperience, setNewExperience] = useState({ role: "", company: "", duration: "", description: "" })
   const [newCertification, setNewCertification] = useState({ title: "", provider: "", date: "", endDate: "", file: "" })
   const [newTeamInvite, setNewTeamInvite] = useState({ phone: "", email: "", fullName: "" })
@@ -404,6 +407,10 @@ export default function ProfilePage() {
     setCertifications(next)
     void persistCareConnect({ certificationDetails: next })
   }
+  const updateSpecialties = (next: string[]) => {
+    setSpecialties(next)
+    void persistCareConnect({ organizationInterests: next })
+  }
 
   return (
     <div className="px-7.5 pb-10 pt-4">
@@ -529,9 +536,18 @@ export default function ProfilePage() {
                   {summary.headline || "This organization hasn't added an overview yet."}
                 </p>
               </div>
-              {specialties.length > 0 && (
-                <div>
+              <div>
+                <div className="flex items-center justify-between gap-3">
                   <h3 className="text-sm font-bold">Specialties</h3>
+                  <button
+                    type="button"
+                    onClick={() => setSpecialtyOpen(true)}
+                    className="text-sm font-semibold text-[#00b4b8] cursor-pointer"
+                  >
+                    {specialties.length === 0 ? "+ Add specialties" : "Edit"}
+                  </button>
+                </div>
+                {specialties.length > 0 ? (
                   <div className="flex flex-wrap gap-2 mt-4">
                     {specialties.map((item) => (
                       <span key={item} className="inline-flex items-center justify-center rounded-full bg-[#e3f8f8] px-4 py-2 text-sm text-[#00b4b8] font-semibold border border-[#00b4b8]">
@@ -539,8 +555,10 @@ export default function ProfilePage() {
                       </span>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <p className="mt-2 text-sm text-[#657080]">No specialties added yet.</p>
+                )}
+              </div>
               <div>
                 <h3 className="text-sm font-bold">Contact information</h3>
                 <div className="mt-4 space-x-4">
@@ -643,9 +661,13 @@ export default function ProfilePage() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-[#151922]">{member.name}</p>
-                      {/* An invited member hasn't picked a role yet — leave the line blank
-                          rather than labelling them "Unknown". */}
-                      <p className="mt-1 text-sm text-[#656f80]">{member.status === "invited" ? " " : member.role}</p>
+                      {/* A member without a set role (invited, or a backend "Unknown"
+                          placeholder) gets a blank line rather than showing "Unknown". */}
+                      <p className="mt-1 text-sm text-[#656f80]">
+                        {member.status === "invited" || !member.role || member.role.trim().toLowerCase() === "unknown"
+                          ? " "
+                          : member.role}
+                      </p>
                     </div>
                   </div>
                   {member.status === "invited" ? (
@@ -728,31 +750,53 @@ export default function ProfilePage() {
                   You haven&apos;t added any certifications yet.
                 </p>
               )}
-              {certifications.map((cert) => {
+              {certifications.map((cert, index) => {
                 // Recomputed from the expiry date so the badge doesn't go stale.
                 const status = certificationStatus(cert.endDate)
                 const period = formatCertificationPeriod(cert.date, cert.endDate)
                 return (
-                  <div key={cert.title} className="flex flex-col gap-3 rounded-3xl border border-[#e5ecf5] p-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div key={`${cert.title}-${index}`} className="flex flex-col gap-3 rounded-3xl border border-[#e5ecf5] p-5 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-sm font-semibold text-[#151922]">{cert.title}</p>
                       {(cert.provider || period) && (
                         <p className="mt-1 text-sm text-[#00898c]">{[cert.provider, period].filter(Boolean).join(" · ")}</p>
                       )}
                     </div>
-                    <span className={`rounded-full px-3 py-1 text-sm ${status === "Active" ? "bg-[#e9f9f0] text-[#0f8a4d]" : "bg-[#fff2f0] text-[#d8442a]"}`}>
-                      {status}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className={`rounded-full px-3 py-1 text-sm ${status === "Active" ? "bg-[#e9f9f0] text-[#0f8a4d]" : "bg-[#fff2f0] text-[#d8442a]"}`}>
+                        {status}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`Edit ${cert.title}`}
+                        onClick={() => {
+                          setNewCertification({ title: cert.title, provider: cert.provider, date: cert.date, endDate: cert.endDate ?? "", file: "" })
+                          setEditingCertificationIndex(index)
+                          setCertificationOpen(true)
+                        }}
+                        className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-[#e5ecf5] text-[#657080] transition hover:border-[#00b4b8] hover:text-[#00b4b8]"
+                      >
+                        <Pencil className="size-4" />
+                      </button>
+                    </div>
                   </div>
                 )
               })}
-              <Button className="text-[#00b4b8] border-0 hover:border-2" variant="outline" onClick={() => setCertificationOpen(true)}>
+              <Button
+                className="text-[#00b4b8] border-0 hover:border-2"
+                variant="outline"
+                onClick={() => {
+                  setNewCertification({ title: "", provider: "", date: "", endDate: "", file: "" })
+                  setEditingCertificationIndex(null)
+                  setCertificationOpen(true)
+                }}
+              >
                 + Add certification
               </Button>
             </div>
           )}
 
-          {activeTab === "Portfolio" && (
+          {activeTab === "Posts" && (
             <div className="space-y-6">
               <PostComposer />
 
@@ -845,10 +889,18 @@ export default function ProfilePage() {
         onSkillsChange={updateSkills}
         newSkill={newSkill}
         onNewSkillChange={setNewSkill}
+        specialtyOpen={specialtyOpen}
+        onSpecialtyOpenChange={setSpecialtyOpen}
+        specialties={specialties}
+        onSpecialtiesChange={updateSpecialties}
+        newSpecialty={newSpecialty}
+        onNewSpecialtyChange={setNewSpecialty}
         certifications={certifications}
         onCertificationsChange={updateCertifications}
         newCertification={newCertification}
         onNewCertificationChange={setNewCertification}
+        editingCertificationIndex={editingCertificationIndex}
+        onEditingCertificationIndexChange={setEditingCertificationIndex}
         teamInviteOpen={teamInviteOpen}
         onTeamInviteOpenChange={setTeamInviteOpen}
         newTeamInvite={newTeamInvite}

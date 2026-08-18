@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react"
-import { FileText, Mic, Paperclip, Send } from "lucide-react"
+import { FileText, Paperclip, Send } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export type ChatAttachment = {
@@ -117,13 +117,13 @@ export function ChatThread({ messages, onSend, onAttach, header, className = "",
       </div>
 
       <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-[#eef1f3] bg-white/70 p-3 shadow-[0_-4px_16px_rgba(16,20,26,0.04)] backdrop-blur-sm">
-        <button
+        {/* <button
           type="button"
           aria-label="Voice message"
           className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-[#e2e2e2] bg-white text-[#565656] shadow-[0_1px_4px_rgba(16,20,26,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_4px_10px_rgba(16,20,26,0.1)]"
         >
           <Mic className="size-4" />
-        </button>
+        </button> */}
         {onAttach && (
           <input
             ref={fileInputRef}
