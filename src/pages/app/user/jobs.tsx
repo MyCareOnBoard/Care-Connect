@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { Search, Heart, Bookmark, Link as LinkIcon } from "lucide-react"
+import { Search, Heart, Bookmark } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -306,7 +306,7 @@ export default function UserJobsPage() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
           <Input
-            placeholder="Job title, keywords, or company"
+            placeholder="Enter Job Title to Search.."
             className="pl-9"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -332,19 +332,32 @@ export default function UserJobsPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <h3 className="font-bold leading-snug">{job.title}</h3>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      toggleSaved(job.id)
-                    }}
-                    aria-label={savedJobIds.has(job.id) ? "Unsave job" : "Save job"}
-                    className="shrink-0"
-                  >
-                    {/* Bookmark, not a heart — the heart is the Like action, and using
-                        it for Save here made the two read as swapped. */}
-                    <Bookmark className={`size-5 transition-colors ${savedJobIds.has(job.id) ? "fill-[#00b4b8] text-[#00b4b8]" : "text-[#20242c]"}`} />
-                  </button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {/* Same likedJobIds state as the detail panel's heart, so liking
+                        from either the sidebar or the opened job stays in sync. */}
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        toggleLiked(job.id)
+                      }}
+                      aria-label={likedJobIds.has(job.id) ? "Unlike job" : "Like job"}
+                    >
+                      <Heart className={`size-5 transition-colors ${likedJobIds.has(job.id) ? "fill-[#ff3e66] text-[#ff3e66]" : "text-[#20242c]"}`} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        toggleSaved(job.id)
+                      }}
+                      aria-label={savedJobIds.has(job.id) ? "Unsave job" : "Save job"}
+                    >
+                      {/* Bookmark, not a heart — the heart is the Like action, and using
+                          it for Save here made the two read as swapped. */}
+                      <Bookmark className={`size-5 transition-colors ${savedJobIds.has(job.id) ? "fill-[#00b4b8] text-[#00b4b8]" : "text-[#20242c]"}`} />
+                    </button>
+                  </div>
                 </div>
                 <p className="mt-2 text-sm text-[#565656]">{job.company}</p>
                 <p className="mt-1 text-sm text-[#565656]">{job.location}</p>
@@ -370,7 +383,7 @@ export default function UserJobsPage() {
               <h1 className="text-2xl font-bold">{selectedJob.title}</h1>
               <p className="mt-1 flex items-center gap-1 text-sm text-[#565656]">
                 {selectedJob.company}
-                <LinkIcon className="size-3.5" />
+                {/* <LinkIcon className="size-3.5" /> */}
               </p>
               <p className="mt-1 text-sm text-[#565656]">{selectedJob.location}</p>
               {formatSalary(selectedJob) && (

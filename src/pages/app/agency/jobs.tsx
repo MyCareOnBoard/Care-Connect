@@ -4,7 +4,7 @@ import { ChevronLeft, Search, Plus, Check, MoreVertical, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Radio } from "@/components/ui/radio"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -444,8 +444,9 @@ function UploadJobPanel({
             <label className="text-sm font-semibold">Select contract type</label>
             <div className="flex flex-wrap gap-5">
               {CONTRACT_TYPES.map((type) => (
-                <Checkbox
+                <Radio
                   key={type}
+                  name="contract-type"
                   label={type}
                   checked={contractType === type}
                   onChange={() => setContractType(type)}
@@ -847,7 +848,7 @@ export default function AgencyJobsPage() {
         <div className="relative w-full max-w-sm">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
           <Input
-            placeholder="Keyword, no_of applicants etc."
+            placeholder="Enter Job Title to Search.."
             className="pl-9"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
