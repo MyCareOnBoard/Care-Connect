@@ -21,8 +21,10 @@ export default function SettingsPage() {
     handleDelete,
     notificationOptions,
     updateNotification,
+    saveNotifications,
     privacyOptions,
     updatePrivacy,
+    savePrivacy,
   } = useAccountSettings()
 
   return (
@@ -84,8 +86,10 @@ export default function SettingsPage() {
         onCertificationOpenChange={() => {}}
         notificationOptions={notificationOptions}
         onNotificationOptionChange={updateNotification}
+        onSaveNotifications={saveNotifications}
         privacyOptions={privacyOptions}
         onPrivacyOptionChange={updatePrivacy}
+        onSavePrivacy={savePrivacy}
         accountInfo={accountInfo}
         onAccountInfoChange={setAccountInfo}
         onSaveAccountInfo={saveAccountInfo}

@@ -50,8 +50,10 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
     handleDelete,
     notificationOptions,
     updateNotification,
+    saveNotifications,
     privacyOptions,
     updatePrivacy,
+    savePrivacy,
   } = useAccountSettings()
 
   const profilePath = flow === "agency" ? Routes.app.agency.profile : Routes.app.user.profile
@@ -191,8 +193,10 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
         onSettingsOpenChange={setSettingsOpen}
         notificationOptions={notificationOptions}
         onNotificationOptionChange={updateNotification}
+        onSaveNotifications={saveNotifications}
         privacyOptions={privacyOptions}
         onPrivacyOptionChange={updatePrivacy}
+        onSavePrivacy={savePrivacy}
         accountInfo={accountInfo}
         onAccountInfoChange={setAccountInfo}
         onSaveAccountInfo={saveAccountInfo}
