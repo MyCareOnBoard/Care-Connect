@@ -3,7 +3,7 @@ import { useNavigate } from "react-router"
 import { useDispatch } from "react-redux"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { ButtonLoader } from "@/components/ui/loader"
+import { ButtonLoader, Loader } from "@/components/ui/loader"
 import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
 import { RecaptchaAnchor } from "@/components/auth/RecaptchaAnchor"
 import { Routes } from "@/routes/constants"
@@ -132,8 +132,19 @@ export default function MfaChallengePage() {
     navigate(Routes.auth.login, { replace: true })
   }
 
+  // The resolver is held in memory only, so a refresh — or opening this URL directly —
+  // arrives with nothing to challenge against. The effect above sends the user back to
+  // sign-in; hold the auth shell with a loader until that navigation commits, rather
+  // than rendering an unexplained blank page.
   if (!mfaSession) {
-    return null
+    return (
+      <AuthOnboardingLayout>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-5 py-10">
+          <Loader size="lg" />
+          <p className="text-sm text-[#565656]">Returning you to sign in…</p>
+        </div>
+      </AuthOnboardingLayout>
+    )
   }
 
   return (
@@ -149,6 +160,14 @@ export default function MfaChallengePage() {
         </p>
 
         <RecaptchaAnchor id={RECAPTCHA_CONTAINER_ID} />
+
+        {/* reCAPTCHA plus the SMS round-trip can take a few seconds — show progress
+            instead of a heading over empty space. */}
+        {phase === "sending" && (
+          <div className="flex justify-center py-6">
+            <Loader size="lg" />
+          </div>
+        )}
 
         {phase === "send-failed" && (
           <Button
