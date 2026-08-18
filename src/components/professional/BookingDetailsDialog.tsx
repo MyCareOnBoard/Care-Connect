@@ -2,15 +2,15 @@ import { useEffect, useState } from "react"
 import { Link, useNavigate } from "react-router"
 import { format } from "date-fns"
 import { LocationMap } from "@/components/maps/LocationMap"
+import { directionsUrl } from "@/components/maps/directions"
 import {
-  Building2,
   CalendarDays,
   Check,
   Clock,
   Copy,
   Info,
   MessageSquare,
-  UserRound,
+  Navigation,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -20,7 +20,12 @@ import { Routes } from "@/routes/constants"
 import { cn, getInitials } from "@/lib/utils"
 import { getAuthErrorMessage } from "@/utils/auth"
 import { getProfile } from "@/utils/careconnect/services/profilesService"
-import { recordVisitEvent, reportBookingIssue, updateBookingStatus } from "@/utils/careconnect/services/telehealthService"
+import {
+  getBooking,
+  recordVisitEvent,
+  reportBookingIssue,
+  updateBookingStatus,
+} from "@/utils/careconnect/services/telehealthService"
 import { SERVICE_MODE_LABELS, minutesToLabel, toDate, type CareConnectProfile, type TelehealthBooking } from "@/utils/careconnect/types"
 import { bookingStart, formatDurationLabel, videoJoinWindow } from "@/utils/careconnect/bookingStatus"
 import { VideoCallFrame } from "@/components/professional/VideoCallFrame"
@@ -57,6 +62,9 @@ type Step = "details" | "location" | "service" | "call" | "completed" | "call-en
 
 type TrackingPhase = "approaching" | "arrived" | "in-progress"
 
+/** How often the client re-reads the booking while waiting for the professional to arrive. */
+const ARRIVAL_POLL_MS = 20_000
+
 const ISSUE_REASONS = [
   "Professional didn't show up",
   "Service wasn't completed",
@@ -73,12 +81,15 @@ const ISSUE_REASONS = [
  *   `VideoCallFrame`, joinable only inside the booking's window (see `videoJoinWindow`;
  *   the server enforces the same bounds) → leaving the call either completes the booking
  *   (professional) or shows a lightweight "call ended" closure (client).
- * - "Get location" (professional only, in-person bookings) → a mock map (no maps/geocoding
- *   integration exists) → Start service → a local countdown to completion → Complete
- *   service, alongside the existing quick Cancel/Mark-complete shortcut.
- * - Client, in-person bookings → a live-tracking panel (approaching → arrived → in
- *   progress) with its own mock map and a "Raise an issue" side-branch. There's no real
- *   GPS/dispatch integration, so "approaching → arrived" is a short local timer.
+ * - "Get location" (professional only, in-person bookings) → the client's real address on a
+ *   `LocationMap`, plus a "Get directions" hand-off to the device's maps app → Start service
+ *   → a countdown to completion → Complete service, alongside the existing quick
+ *   Cancel/Mark-complete shortcut.
+ * - Client, in-person bookings → a tracking panel (approaching → arrived → in progress)
+ *   with a "Raise an issue" side-branch. MOCK: its "Professional location" map is a CSS
+ *   grid with two hardcoded pins and a fixed polyline — no coordinates are read, so every
+ *   booking renders the same picture — and "approaching → arrived" is a 9-second local
+ *   timer, not location data. Nothing reports the professional's position yet.
  * All status changes call the real backend status endpoint. The tracking timer is
  * local-only; the service countdown resumes from the persisted `startedAt`.
  */
@@ -102,7 +113,6 @@ export function BookingDetailsDialog({
   const [professionalProfile, setProfessionalProfile] = useState<CareConnectProfile | null>(null)
   const [agencyProfile, setAgencyProfile] = useState<CareConnectProfile | null>(null)
   const [trackingPhase, setTrackingPhase] = useState<TrackingPhase>("approaching")
-  const [trackingProgress, setTrackingProgress] = useState(0)
   const [issueReason, setIssueReason] = useState<string | null>(null)
   const isTerminal = booking?.status === "completed" || booking?.status === "cancelled"
   const totalSeconds = booking ? booking.durationMinutes * 60 : 0
@@ -110,6 +120,9 @@ export function BookingDetailsDialog({
   // Whether the call is joinable now. The server enforces the same window — this only
   // decides the button's state and its explanation.
   const joinWindow = booking && booking.mode === "online" ? videoJoinWindow(booking) : null
+  // Null when the booking has neither coordinates nor an address — older in-person bookings
+  // predate the Places autocomplete and may carry nothing to navigate to.
+  const locationDirectionsUrl = booking?.location ? directionsUrl(booking.location) : null
 
   // Reset to the right starting step whenever the dialog opens for a (possibly different) booking.
   useEffect(() => {
@@ -126,8 +139,9 @@ export function BookingDetailsDialog({
     setRemainingSeconds(startedRemaining ?? booking.durationMinutes * 60)
     setProfessionalProfile(null)
     setAgencyProfile(null)
-    setTrackingPhase(inProgress ? "in-progress" : "approaching")
-    setTrackingProgress(inProgress ? 100 : 0)
+    // Phase comes from the persisted visit timestamps, so reopening the dialog resumes
+    // where the visit actually is rather than restarting a simulation.
+    setTrackingPhase(inProgress ? "in-progress" : booking.arrivedAt ? "arrived" : "approaching")
     setIssueReason(null)
   }, [booking?.id, booking?.status, booking?.durationMinutes, booking?.startedAt, canManage, booking?.mode])
 
@@ -161,22 +175,35 @@ export function BookingDetailsDialog({
     }
   }, [step, isClientInPersonTracking, booking?.posterId])
 
-  // Mock "professional is approaching" progress — no real GPS/dispatch integration exists,
-  // so arrival is simulated with a short local timer instead of live location data.
+  /**
+   * Arrival is reported by the professional (PATCH /:id/visit stamps `arrivedAt`), so the
+   * client learns about it by re-reading the booking. Polling while the panel is open is
+   * the honest version of what used to be a 9-second local timer that "arrived" on its own
+   * regardless of where anyone was.
+   */
   useEffect(() => {
-    if (!(step === "details" && isClientInPersonTracking) || trackingPhase !== "approaching") return
-    const startedAt = Date.now()
-    const mockDurationMs = 9000
-    const timer = window.setInterval(() => {
-      const pct = Math.min(100, ((Date.now() - startedAt) / mockDurationMs) * 100)
-      setTrackingProgress(pct)
-      if (pct >= 100) {
-        window.clearInterval(timer)
-        setTrackingPhase("arrived")
+    const watching =
+      step === "details" && isClientInPersonTracking && trackingPhase === "approaching" && booking?.id
+    if (!watching) return
+    let active = true
+    const poll = async () => {
+      try {
+        const fresh = await getBooking(booking.id)
+        if (!active) return
+        if (fresh.arrivedAt || fresh.startedAt) {
+          setTrackingPhase(fresh.startedAt ? "in-progress" : "arrived")
+          onStatusChanged?.(fresh)
+        }
+      } catch {
+        // Transient failure — the next tick tries again.
       }
-    }, 200)
-    return () => window.clearInterval(timer)
-  }, [step, isClientInPersonTracking, trackingPhase, booking?.id])
+    }
+    const timer = window.setInterval(poll, ARRIVAL_POLL_MS)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
+  }, [step, isClientInPersonTracking, trackingPhase, booking?.id, onStatusChanged])
 
   // Local countdown while the service is in progress (professional's own flow, or the
   // client's in-person tracking panel once they've confirmed the service started).
@@ -219,6 +246,25 @@ export function BookingDetailsDialog({
       void changeStatus("completed")
     } else {
       setStep("call-ended")
+    }
+  }
+
+  /**
+   * Professional reports reaching the client. This is the only thing that moves the
+   * client's tracking panel off "waiting" — without it the client has no signal at all,
+   * which is why the panel used to fake one with a timer.
+   */
+  const markArrived = async () => {
+    if (!booking) return
+    setPending(true)
+    try {
+      const updated = await recordVisitEvent(booking.id, "arrived")
+      onStatusChanged?.(updated)
+      toast.success("Client notified that you've arrived")
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setPending(false)
     }
   }
 
@@ -356,20 +402,23 @@ export function BookingDetailsDialog({
 
             {trackingPhase === "approaching" && (
               <div className="border-t border-[#eef1f3] pt-4">
-                <p className="text-[#8a8f98]">Professional is approaching……</p>
+                {/* The scheduled time, labelled as such. Nothing tracks the professional's
+                    position, so this must not be dressed up as a live estimate. */}
+                <p className="text-[#8a8f98]">Waiting for your professional to arrive</p>
                 <div className="mt-2 flex items-baseline justify-between">
                   <span className="text-4xl font-semibold text-[#151922]">{minutesToLabel(booking.startMinutes)}</span>
-                  <span className="text-xs text-[#8a8f98]">Estimated arrival</span>
+                  <span className="text-xs text-[#8a8f98]">Scheduled start</span>
                 </div>
-                <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#eef1f3]">
-                  <div className="h-full rounded-full bg-[#00b4b8] transition-all duration-200 ease-linear" style={{ width: `${trackingProgress}%` }} />
-                </div>
+                <p className="mt-2 text-xs text-[#8a8f98]">
+                  You&apos;ll see this update as soon as they mark themselves arrived.
+                </p>
                 <Button
                   type="button"
-                  className="mt-4 w-full bg-[#00b4b8] text-white hover:opacity-90"
+                  variant="outline"
+                  className="mt-4 w-full border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
                   onClick={() => setStep("tracking-map")}
                 >
-                  View current location
+                  View meeting location
                 </Button>
               </div>
             )}
@@ -588,9 +637,33 @@ export function BookingDetailsDialog({
               lng={booking.location?.lng}
               className="h-64 w-full overflow-hidden rounded-2xl"
             />
-            <div className="flex justify-end gap-2">
+            {/* The embedded map is display-only (no UI controls, cooperative gestures), so
+                actually travelling there means handing off to the device's maps app. */}
+            {locationDirectionsUrl && (
+              <a
+                href={locationDirectionsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#00b4b8] text-sm font-semibold text-[#00b4b8] transition hover:bg-[#e3f8f8]"
+              >
+                <Navigation className="size-4" />
+                Get directions
+              </a>
+            )}
+            <div className="flex flex-wrap justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setStep("details")}>
                 Cancel
+              </Button>
+              {/* Distinct from Start service: arrival is what the client is waiting to see,
+                  and it often happens minutes before the visit actually begins. */}
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending || Boolean(booking.arrivedAt)}
+                className="border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8] disabled:border-[#e2e2e2] disabled:text-[#8a8f98]"
+                onClick={markArrived}
+              >
+                {booking.arrivedAt ? "Arrival sent" : "I've arrived"}
               </Button>
               <Button
                 type="button"
@@ -606,33 +679,25 @@ export function BookingDetailsDialog({
 
         {booking && step === "tracking-map" && (
           <DialogBody className="px-6 pt-4 pb-6 space-y-4 text-sm">
-            <div className="relative h-80 overflow-hidden rounded-2xl bg-[linear-gradient(135deg,#dff3ee_0%,#eaf4fb_60%,#dbe9f7_100%)] sm:h-96">
-              <div
-                className="absolute inset-0 opacity-40"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(#c8d8e4 1px, transparent 1px), linear-gradient(90deg, #c8d8e4 1px, transparent 1px)",
-                  backgroundSize: "28px 28px",
-                }}
-              />
-              <svg className="absolute inset-0 size-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <polyline
-                  points="30,60 45,45 60,50 75,35"
-                  fill="none"
-                  stroke="#00b4b8"
-                  strokeWidth="1.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  vectorEffect="non-scaling-stroke"
-                />
-              </svg>
-              <span className="absolute left-[30%] top-[60%] flex size-9 -translate-x-1/2 -translate-y-full items-center justify-center rounded-full bg-[#00b4b8] text-white shadow-lg">
-                <UserRound className="size-5" />
-              </span>
-              <span className="absolute left-[75%] top-[35%] flex size-9 -translate-x-1/2 -translate-y-full items-center justify-center rounded-full bg-[#151922] text-white shadow-lg">
-                <Building2 className="size-5" />
-              </span>
+            <div>
+              <h3 className="text-base font-semibold text-[#151922]">Meeting location</h3>
+              <p className="mt-1 text-[#657080]">{booking.location?.address || "No address provided."}</p>
             </div>
+            {/* The confirmed meeting point, from the address the booking was made against.
+                This is deliberately not a live view of the professional: nothing reports
+                their position, and the previous version's two pins and route line were
+                fixed pixel positions that rendered identically for every booking. */}
+            <LocationMap
+              address={booking.location?.address}
+              lat={booking.location?.lat}
+              lng={booking.location?.lng}
+              className="h-72 w-full overflow-hidden rounded-2xl sm:h-80"
+            />
+            <p className="text-xs text-[#8a8f98]">
+              {trackingPhase === "arrived"
+                ? "Your professional has marked themselves as arrived."
+                : "Live location sharing isn't available yet — you'll be updated when your professional marks themselves arrived."}
+            </p>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setStep("details")}>
                 Cancel
