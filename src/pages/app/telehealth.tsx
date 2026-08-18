@@ -18,7 +18,7 @@ import {
   Pencil,
   Plus,
   Search,
-  // Share2,
+  Sparkles,
   Video,
 } from "lucide-react"
 import paypalIcon from "@/assets/imgs/PayPal Icon.png"
@@ -45,7 +45,9 @@ import {
   listBookings,
   listMyServices,
   listServices,
+  searchServices,
   updateService,
+  type SearchedService,
 } from "@/utils/careconnect/services/telehealthService"
 import { listMyTeam } from "@/utils/careconnect/services/teamService"
 import {
@@ -1192,6 +1194,22 @@ function TelehealthSkeleton() {
 
 const SERVICES_PAGE_SIZE = 5
 
+/** Matches the fields the search box has always advertised, not just the title. */
+function serviceMatchesQuery(service: TelehealthService, query: string): boolean {
+  const term = query.trim().toLowerCase()
+  if (!term) return true
+  return [
+    service.title,
+    service.description,
+    service.agencyName,
+    service.agencyLocation,
+    ...(service.includes ?? []),
+    ...(service.suitableFor ?? []),
+  ].some((value) => String(value ?? "").toLowerCase().includes(term))
+}
+
+const AI_SEARCH_DEBOUNCE_MS = 600
+
 function UserServiceBrowser() {
   const [services, setServices] = useState<TelehealthService[]>([])
   const [loading, setLoading] = useState(true)
@@ -1199,11 +1217,17 @@ function UserServiceBrowser() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [bookingOpen, setBookingOpen] = useState(false)
   const [visibleServiceCount, setVisibleServiceCount] = useState(SERVICES_PAGE_SIZE)
+  // AI results for the query currently in the box, or null when we're showing keyword
+  // matches. Keeping the query alongside the results is what makes a late response for an
+  // older query discardable.
+  const [aiResults, setAiResults] = useState<{ query: string; services: SearchedService[] } | null>(null)
+  const [aiSearching, setAiSearching] = useState(false)
 
-  // Reset "Load more" progress whenever the search term changes the underlying list.
+  // Reset "Load more" progress whenever the underlying list changes — a new search term,
+  // or AI results replacing the keyword matches.
   useEffect(() => {
     setVisibleServiceCount(SERVICES_PAGE_SIZE)
-  }, [search])
+  }, [search, aiResults])
 
   useEffect(() => {
     let active = true
@@ -1225,26 +1249,80 @@ function UserServiceBrowser() {
     }
   }, [])
 
+  // Second tier: keyword matches are already on screen, so this only ever upgrades the
+  // list. A failure or an empty AI result leaves the keyword matches standing.
+  useEffect(() => {
+    const query = search.trim()
+    if (query.length < 3) {
+      setAiResults(null)
+      setAiSearching(false)
+      return
+    }
+
+    let active = true
+    setAiSearching(true)
+    const timer = window.setTimeout(async () => {
+      try {
+        const result = await searchServices(query)
+        if (!active) return
+        setAiResults(result.aiRanked ? { query, services: result.services } : null)
+      } catch {
+        if (active) setAiResults(null)
+      } finally {
+        if (active) setAiSearching(false)
+      }
+    }, AI_SEARCH_DEBOUNCE_MS)
+
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+    }
+  }, [search])
+
   if (loading) return <TelehealthSkeleton />
 
-  const visibleServices = search
-    ? services.filter((service) => service.title.toLowerCase().includes(search.toLowerCase()))
-    : services
+  const query = search.trim()
+  const keywordMatches = query ? services.filter((service) => serviceMatchesQuery(service, query)) : services
+  // Only trust AI results that belong to what's in the box right now.
+  const showingAi = Boolean(query && aiResults && aiResults.query === query && aiResults.services.length > 0)
+  const visibleServices: SearchedService[] = showingAi ? aiResults!.services : keywordMatches
   const shownServices = visibleServices.slice(0, visibleServiceCount)
-  const selectedService = services.find((service) => service.id === selectedId) ?? visibleServices[0] ?? null
+  const selectedService = visibleServices.find((service) => service.id === selectedId) ?? visibleServices[0] ?? null
 
   return (
     <div className="p-5 sm:p-8">
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <div className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search for Service..."
-              className="pl-9"
-            />
+          <div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Describe what you need, or search by title"
+                className="pl-9"
+              />
+            </div>
+            {/* Keyword matches are already rendered below; this only says whether the
+                smarter pass has landed yet. */}
+            {query.length >= 3 && (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-[#8a8f98]">
+                {showingAi ? (
+                  <>
+                    <Sparkles className="size-3.5 text-[#00b4b8]" />
+                    <span className="font-medium text-[#00898c]">Smart results</span>
+                    <span>· matched on what you described</span>
+                  </>
+                ) : aiSearching ? (
+                  <>
+                    <Sparkles className="size-3.5 animate-pulse" />
+                    <span>Looking for closer matches…</span>
+                  </>
+                ) : (
+                  <span>Keyword matches</span>
+                )}
+              </p>
+            )}
           </div>
 
           {visibleServices.length === 0 ? (
@@ -1262,6 +1340,9 @@ function UserServiceBrowser() {
                 }`}
               >
                 <h3 className="text-sm font-semibold text-[#151922]">{service.title}</h3>
+                {service.matchReason && (
+                  <p className="mt-1 text-xs text-[#00898c]">{service.matchReason}</p>
+                )}
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-[#656f80]">
                   <span className="inline-flex items-center gap-1.5">
                     <Video className="size-4" />

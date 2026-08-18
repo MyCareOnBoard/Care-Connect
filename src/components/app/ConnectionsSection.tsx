@@ -13,6 +13,8 @@ export type Connection = {
   /** Target uid — when present the follow button persists via the connections service. */
   uid?: string
   isFollowing?: boolean
+  /** Why this person was suggested, e.g. "Also an ICU nurse · shares CCRN". */
+  reason?: string
 }
 
 type ConnectionsSectionProps = {
@@ -46,6 +48,9 @@ export function ConnectionsSection({ title, items, actionLabel, activeLabel, rel
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold truncate hover:underline">{item.name}</p>
                   <p className="mt-1 truncate text-sm text-[#383d45]">{item.subtitle}</p>
+                  {item.reason && (
+                    <p className="mt-0.5 truncate text-xs text-[#00898c]">{item.reason}</p>
+                  )}
                 </div>
               </Link>
             ) : (
@@ -54,6 +59,9 @@ export function ConnectionsSection({ title, items, actionLabel, activeLabel, rel
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold truncate">{item.name}</p>
                   <p className="mt-1 truncate text-sm text-[#383d45]">{item.subtitle}</p>
+                  {item.reason && (
+                    <p className="mt-0.5 truncate text-xs text-[#00898c]">{item.reason}</p>
+                  )}
                 </div>
               </>
             )}
