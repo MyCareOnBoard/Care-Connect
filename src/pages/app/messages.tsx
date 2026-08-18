@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "react-router"
 import { collection, limit as fsLimit, onSnapshot, orderBy, query, where, type DocumentData } from "firebase/firestore"
-import { ChevronLeft, MoreHorizontal, Search } from "lucide-react"
+import { ChevronLeft, Search, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -21,6 +21,23 @@ import {
 const CONVERSATIONS = "careconnectConversations"
 const AVATAR_COLORS = ["bg-[#00b4b8]", "bg-[#0d8de0]", "bg-[#ffc95c]", "bg-[#a782d8]", "bg-[#10ad58]", "bg-[#ff3e66]"]
 const colorFor = (id: string) => AVATAR_COLORS[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length]
+
+// No "delete conversation" endpoint exists — deleting hides it locally (survives
+// reloads via localStorage), same pattern as availabilityStore's per-uid persistence.
+const HIDDEN_CONVERSATIONS_PREFIX = "careconnect:hiddenConversations:"
+
+function getHiddenConversationIds(uid: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(`${HIDDEN_CONVERSATIONS_PREFIX}${uid}`)
+    return raw ? new Set(JSON.parse(raw)) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+function saveHiddenConversationIds(uid: string, ids: Set<string>): void {
+  localStorage.setItem(`${HIDDEN_CONVERSATIONS_PREFIX}${uid}`, JSON.stringify(Array.from(ids)))
+}
 
 function formatTime(value: unknown): string {
   const date = toDate(value as never)
@@ -72,7 +89,13 @@ export default function MessagesPage() {
   // Below lg, list and chat are mutually exclusive full-screen views; at lg+ both show side-by-side regardless.
   const [mobileView, setMobileView] = useState<"list" | "chat">("list")
   const [conversationSearch, setConversationSearch] = useState("")
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
   const handledToRef = useRef(false)
+
+  useEffect(() => {
+    if (!myUid) return
+    setHiddenIds(getHiddenConversationIds(myUid))
+  }, [myUid])
 
   const openConversation = (id: string) => {
     setSelectedId(id)
@@ -159,15 +182,30 @@ export default function MessagesPage() {
 
   const selected = conversations.find((conversation) => conversation.id === selectedId) ?? null
 
+  const activeConversations = conversations.filter((conversation) => !hiddenIds.has(conversation.id))
   const visibleConversations = conversationSearch
-    ? conversations.filter((conversation) => {
+    ? activeConversations.filter((conversation) => {
         const term = conversationSearch.toLowerCase()
         return (
           (conversation.participant?.name || "").toLowerCase().includes(term) ||
           (conversation.lastMessage || "").toLowerCase().includes(term)
         )
       })
-    : conversations
+    : activeConversations
+
+  const handleDeleteConversation = (id: string) => {
+    if (!myUid) return
+    if (!window.confirm("Delete this conversation? It will be removed from your list.")) return
+    const next = new Set(hiddenIds)
+    next.add(id)
+    setHiddenIds(next)
+    saveHiddenConversationIds(myUid, next)
+    if (selectedId === id) {
+      setSelectedId(null)
+      setMobileView("list")
+    }
+    toast.success("Conversation deleted")
+  }
 
   const handleSend = async (text: string) => {
     if (!selectedId) return
@@ -214,7 +252,7 @@ export default function MessagesPage() {
         </div>
 
         <div className="flex-1 min-h-0 px-2 pb-2 space-y-1 overflow-y-auto">
-          {conversations.length === 0 ? (
+          {activeConversations.length === 0 ? (
             <p className="px-2 py-6 text-center text-sm text-[#657080]">No conversations yet.</p>
           ) : visibleConversations.length === 0 ? (
             <p className="px-2 py-6 text-center text-sm text-[#657080]">No conversations match your search.</p>
@@ -286,8 +324,13 @@ export default function MessagesPage() {
                     <p className="text-sm text-[#657080]">{selected.participant?.subtitle || ""}</p>
                   </div>
                 </div>
-                <button type="button" aria-label="More options" className="flex size-9 items-center justify-center rounded-full transition hover:bg-[#f2f6f8] hover:shadow-[0_2px_8px_rgba(16,20,26,0.08)]">
-                  <MoreHorizontal className="size-5" />
+                <button
+                  type="button"
+                  aria-label="Delete conversation"
+                  onClick={() => handleDeleteConversation(selected.id)}
+                  className="flex size-9 items-center justify-center rounded-full text-[#ff3e66] transition hover:bg-[#fff1f4] hover:shadow-[0_2px_8px_rgba(16,20,26,0.08)]"
+                >
+                  <Trash2 className="size-5" />
                 </button>
               </header>
             }

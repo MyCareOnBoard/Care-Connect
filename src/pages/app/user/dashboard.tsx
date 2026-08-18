@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from "react"
-import { Heart } from "lucide-react"
+import { Bookmark } from "lucide-react"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { StatRow } from "@/components/app/StatRow"
@@ -45,13 +45,13 @@ function toConnection(profile: CareConnectProfile, index: number): Connection {
 
 function JobCard({
   job,
-  liked,
-  onToggleLike,
+  saved,
+  onToggleSave,
   style,
 }: {
   job: Job
-  liked: boolean
-  onToggleLike: () => void
+  saved: boolean
+  onToggleSave: () => void
   style?: CSSProperties
 }) {
   return (
@@ -63,14 +63,14 @@ function JobCard({
         <h3 className="text-base font-semibold leading-[1.35]">{job.title}</h3>
         <button
           type="button"
-          onClick={onToggleLike}
-          aria-pressed={liked}
-          aria-label={liked ? "Unsave job" : "Save job"}
+          onClick={onToggleSave}
+          aria-pressed={saved}
+          aria-label={saved ? "Unsave job" : "Save job"}
           className="shrink-0 cursor-pointer text-[#20242c] transition-transform duration-150 hover:scale-110 active:scale-90"
         >
-          <Heart
-            key={liked ? "liked" : "unliked"}
-            className={cn("size-5 transition-colors duration-200", liked && "fill-[#ff3e66] text-[#ff3e66] animate-heart-pop")}
+          <Bookmark
+            key={saved ? "saved" : "unsaved"}
+            className={cn("size-5 transition-colors duration-200", saved && "fill-[#00b4b8] text-[#00b4b8] animate-heart-pop")}
           />
         </button>
       </div>
@@ -211,7 +211,7 @@ export default function DashboardPage() {
     }
   }, [uid])
 
-  const toggleLike = async (id: string) => {
+  const toggleSaved = async (id: string) => {
     const isSaved = savedJobIds.has(id)
     setSavedJobIds((current) => {
       const next = new Set(current)
@@ -259,8 +259,8 @@ export default function DashboardPage() {
                 <JobCard
                   key={job.id}
                   job={job}
-                  liked={savedJobIds.has(job.id)}
-                  onToggleLike={() => toggleLike(job.id)}
+                  saved={savedJobIds.has(job.id)}
+                  onToggleSave={() => toggleSaved(job.id)}
                   style={{ animationDelay: `${index * 80}ms` }}
                 />
               ))}

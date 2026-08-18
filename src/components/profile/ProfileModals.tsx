@@ -64,10 +64,19 @@ type ProfileModalsProps = {
   onSkillsChange: (value: string[]) => void
   newSkill: string
   onNewSkillChange: (value: string) => void
+  specialtyOpen?: boolean
+  onSpecialtyOpenChange?: (open: boolean) => void
+  specialties?: string[]
+  onSpecialtiesChange?: (value: string[]) => void
+  newSpecialty?: string
+  onNewSpecialtyChange?: (value: string) => void
   certifications: ProfileCertification[]
   onCertificationsChange: (value: ProfileCertification[]) => void
   newCertification: { title: string; provider: string; date: string; endDate: string; file: string }
   onNewCertificationChange: (value: { title: string; provider: string; date: string; endDate: string; file: string }) => void
+  /** Index into `certifications` being edited, or null when adding a new one. */
+  editingCertificationIndex?: number | null
+  onEditingCertificationIndexChange?: (index: number | null) => void
   teamInviteOpen?: boolean
   onTeamInviteOpenChange?: (open: boolean) => void
   newTeamInvite?: { phone: string; email: string; fullName: string }
@@ -120,10 +129,18 @@ export function ProfileModals({
   onSkillsChange,
   newSkill,
   onNewSkillChange,
+  specialtyOpen = false,
+  onSpecialtyOpenChange = () => {},
+  specialties = [],
+  onSpecialtiesChange = () => {},
+  newSpecialty = "",
+  onNewSpecialtyChange = () => {},
   certifications,
   onCertificationsChange,
   newCertification,
   onNewCertificationChange,
+  editingCertificationIndex = null,
+  onEditingCertificationIndexChange = () => {},
   teamInviteOpen = false,
   onTeamInviteOpenChange = () => {},
   newTeamInvite = { phone: "", email: "", fullName: "" },
@@ -161,6 +178,31 @@ export function ProfileModals({
     onSkillsChange(Array.from(new Set(next)))
     onNewSkillChange("")
     onSkillOpenChange(false)
+  }
+
+  // Specialties follow the same local-draft pattern as skills.
+  const [specialtyDraft, setSpecialtyDraft] = useState<string[]>(specialties)
+
+  useEffect(() => {
+    if (specialtyOpen) setSpecialtyDraft(specialties)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [specialtyOpen])
+
+  const addDraftSpecialty = () => {
+    const specialty = newSpecialty.trim()
+    if (!specialty) return
+    setSpecialtyDraft((current) => [...current, specialty])
+    onNewSpecialtyChange("")
+  }
+
+  const saveSpecialties = () => {
+    const pending = newSpecialty.trim()
+    const next = [...specialtyDraft, ...(pending ? [pending] : [])]
+      .map((specialty) => specialty.trim())
+      .filter(Boolean)
+    onSpecialtiesChange(Array.from(new Set(next)))
+    onNewSpecialtyChange("")
+    onSpecialtyOpenChange(false)
   }
 
   // In-app password change (MFA re-auth). Step "form" collects passwords; if the
@@ -590,10 +632,75 @@ export function ProfileModals({
         </DialogContent>
       </Dialog>
 
+      <Dialog open={specialtyOpen} onOpenChange={onSpecialtyOpenChange}>
+        <DialogContent showCloseButton className="p-0 max-w-130">
+          <DialogHeader className="px-6 pt-6 text-left">
+            <DialogTitle className="text-xl font-semibold text-[#151922]">Edit specialties</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="px-6 pt-4 pb-6 space-y-5">
+            {specialtyDraft.length > 0 && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-[#151922]">Your specialties</label>
+                {specialtyDraft.map((specialty, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      value={specialty}
+                      onChange={(event) =>
+                        setSpecialtyDraft((current) => current.map((item, i) => (i === index ? event.target.value : item)))
+                      }
+                      placeholder="Specialty name"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setSpecialtyDraft((current) => current.filter((_, i) => i !== index))}
+                      aria-label={`Remove ${specialty || "specialty"}`}
+                      className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-[#e8edf2] text-[#d8442a] transition hover:bg-[#fff1f0]"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-[#151922]">Add a specialty</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={newSpecialty}
+                  onChange={(event) => onNewSpecialtyChange(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault()
+                      addDraftSpecialty()
+                    }
+                  }}
+                  placeholder="Enter specialty here, eg: Palliative care"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0 border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
+                  onClick={addDraftSpecialty}
+                >
+                  Add
+                </Button>
+              </div>
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <Button className="bg-[#00b4b8] text-white hover:opacity-90" onClick={saveSpecialties}>
+              Save specialties
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={certificationOpen} onOpenChange={onCertificationOpenChange}>
         <DialogContent showCloseButton className="p-0 max-w-155">
           <DialogHeader className="px-6 pt-6 text-left">
-            <DialogTitle className="text-xl font-semibold text-[#151922]">Add certification</DialogTitle>
+            <DialogTitle className="text-xl font-semibold text-[#151922]">
+              {editingCertificationIndex != null ? "Edit certification" : "Add certification"}
+            </DialogTitle>
           </DialogHeader>
           <DialogBody className="px-6 pt-4 pb-6 space-y-5">
             <div>
@@ -632,27 +739,47 @@ export function ProfileModals({
             </div>
           </DialogBody>
           <DialogFooter>
+            {editingCertificationIndex != null && (
+              <Button
+                type="button"
+                variant="outline"
+                className="border-[#d8442a] text-[#d8442a] hover:bg-[#fff1f0]"
+                onClick={() => {
+                  onCertificationsChange(certifications.filter((_, index) => index !== editingCertificationIndex))
+                  onNewCertificationChange({ title: "", provider: "", date: "", endDate: "", file: "" })
+                  onEditingCertificationIndexChange(null)
+                  setCertificateFile(null)
+                  onCertificationOpenChange(false)
+                }}
+              >
+                Delete
+              </Button>
+            )}
             <Button
               className="bg-[#00b4b8] text-white hover:opacity-90"
               onClick={() => {
-                if (newCertification.title.trim()) {
-                  onCertificationsChange([
-                    ...certifications,
-                    {
-                      title: newCertification.title.trim(),
-                      provider: newCertification.provider.trim(),
-                      date: newCertification.date,
-                      endDate: newCertification.endDate,
-                      status: certificationStatus(newCertification.endDate),
-                    },
-                  ])
-                  onNewCertificationChange({ title: "", provider: "", date: "", endDate: "", file: "" })
-                  setCertificateFile(null)
-                  onCertificationOpenChange(false)
+                if (!newCertification.title.trim()) return
+                const entry = {
+                  title: newCertification.title.trim(),
+                  provider: newCertification.provider.trim(),
+                  date: newCertification.date,
+                  endDate: newCertification.endDate,
+                  status: certificationStatus(newCertification.endDate),
                 }
+                if (editingCertificationIndex != null) {
+                  onCertificationsChange(
+                    certifications.map((cert, index) => (index === editingCertificationIndex ? entry : cert)),
+                  )
+                } else {
+                  onCertificationsChange([...certifications, entry])
+                }
+                onNewCertificationChange({ title: "", provider: "", date: "", endDate: "", file: "" })
+                onEditingCertificationIndexChange(null)
+                setCertificateFile(null)
+                onCertificationOpenChange(false)
               }}
             >
-              Update certificate
+              {editingCertificationIndex != null ? "Save changes" : "Update certificate"}
             </Button>
           </DialogFooter>
         </DialogContent>
