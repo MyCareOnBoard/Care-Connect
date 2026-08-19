@@ -292,13 +292,11 @@ export interface NotificationPreferences {
   emailNotifications: boolean
   inAppNotifications: boolean
   pushNotifications: boolean
-  smsAlerts: boolean
-  emailDigestWeekly: boolean
-  jobMatches: boolean
-  certificationExpiring: boolean
-  newMessages: boolean
-  mentorInvitations: boolean
-  appointmentReminders: boolean
+  applications: boolean
+  compliance: boolean
+  messages: boolean
+  shifts: boolean
+  approvals: boolean
 }
 
 /**
