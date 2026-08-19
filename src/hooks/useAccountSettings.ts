@@ -51,11 +51,11 @@ const defaultNotificationOptions = {
   emailNotifications: true,
   inAppNotifications: true,
   pushNotifications: true,
-  jobMatches: true,
-  certificationExpiring: true,
-  newMessages: true,
-  mentorInvitations: true,
-  appointmentReminders: true,
+  applications: true,
+  compliance: true,
+  messages: true,
+  shifts: true,
+  approvals: true,
 }
 
 // Mirrors PRIVACY_DEFAULTS. Only settings the API enforces.

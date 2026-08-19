@@ -34,11 +34,11 @@ type NotificationKey =
   | "emailNotifications"
   | "inAppNotifications"
   | "pushNotifications"
-  | "jobMatches"
-  | "certificationExpiring"
-  | "newMessages"
-  | "mentorInvitations"
-  | "appointmentReminders"
+  | "applications"
+  | "compliance"
+  | "messages"
+  | "shifts"
+  | "approvals"
 /**
  * Only settings the API enforces. `showEmailAddress` / `showPhoneNumber` were dropped —
  * the public profile response returns neither field, so there was nothing to hide — as was
@@ -363,23 +363,26 @@ export function ProfileModals({
           </DialogHeader>
           <DialogBody className="px-6 pt-4 pb-6 space-y-6">
             {[
+              // Labels name what each switch actually governs. An earlier draft promised
+              // "Job matches" and "Mentor invitations" — neither is a notification this
+              // system produces, and the latter was wired to expense/mileage approvals.
               {
-                title: "Career & jobs",
+                title: "Applications & onboarding",
                 options: [
-                  { label: "Job matches", key: "jobMatches" as NotificationKey },
-                  { label: "Certification expiring", key: "certificationExpiring" as NotificationKey },
+                  { label: "Application progress", key: "applications" as NotificationKey },
+                  { label: "Compliance & certifications", key: "compliance" as NotificationKey },
                 ],
               },
               {
                 title: "Communication",
-                options: [
-                  { label: "New messages", key: "newMessages" as NotificationKey },
-                  { label: "Mentor invitations", key: "mentorInvitations" as NotificationKey },
-                ],
+                options: [{ label: "Messages", key: "messages" as NotificationKey }],
               },
               {
-                title: "Health & appointments",
-                options: [{ label: "Appointment reminders", key: "appointmentReminders" as NotificationKey }],
+                title: "Work & approvals",
+                options: [
+                  { label: "Shifts & visits", key: "shifts" as NotificationKey },
+                  { label: "Expenses & reimbursements", key: "approvals" as NotificationKey },
+                ],
               },
               {
                 title: "Delivery methods",
