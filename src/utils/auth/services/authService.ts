@@ -282,6 +282,11 @@ export async function updateUserProfile(fields: UserProfileFields): Promise<Back
 /**
  * Notification preferences. Topic switches decide *whether* to notify; channel switches
  * decide *how*. Both are enforced server-side in `createNotification`.
+ *
+ * NOTE the `/userProfile` prefix on these and the privacy calls below: they live on the
+ * `userProfile` Cloud Function (mounted in shared-routes/routes.js), not `users`.
+ * `createUserProfileRouter` is commented out of the users function, so `/users/notifications`
+ * and `/users/privacy` return 404.
  */
 export interface NotificationPreferences {
   emailNotifications: boolean
@@ -307,26 +312,26 @@ export interface PrivacySettings {
 }
 
 export async function getNotificationPreferences(): Promise<NotificationPreferences> {
-  const { data } = await axiosClient.get('/users/notifications')
+  const { data } = await axiosClient.get('/userProfile/notifications')
   return data.notifications
 }
 
 export async function updateNotificationPreferences(
   prefs: Partial<NotificationPreferences>
 ): Promise<NotificationPreferences> {
-  const { data } = await axiosClient.put('/users/notifications', prefs)
+  const { data } = await axiosClient.put('/userProfile/notifications', prefs)
   return data.notifications
 }
 
 export async function getPrivacySettings(): Promise<PrivacySettings> {
-  const { data } = await axiosClient.get('/users/privacy')
+  const { data } = await axiosClient.get('/userProfile/privacy')
   return data.privacy
 }
 
 export async function updatePrivacySettings(
   settings: Partial<PrivacySettings>
 ): Promise<PrivacySettings> {
-  const { data } = await axiosClient.put('/users/privacy', settings)
+  const { data } = await axiosClient.put('/userProfile/privacy', settings)
   return data.privacy
 }
 
