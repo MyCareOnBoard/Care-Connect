@@ -263,6 +263,10 @@ export interface ProfileCertification {
   date: string
   /** Expiry date, `yyyy-MM-dd`. Omitted or empty means the certificate doesn't expire. */
   endDate?: string
+  /** Public URL of the uploaded certificate, from `uploadCareConnectDocument`. */
+  fileUrl?: string
+  /** Original filename, for a readable download link. */
+  fileName?: string
   status: string
 }
 

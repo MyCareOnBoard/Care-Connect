@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react"
 import { useNavigate } from "react-router"
-import { Banknote, Briefcase, Camera, Mail, MapPin, Pencil, Phone, UserPlus, UserRound, Users } from "lucide-react"
+import { Banknote, Briefcase, Camera, Mail, MapPin, Paperclip, Pencil, Phone, UserPlus, UserRound, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ProfileModals } from "@/components/profile/ProfileModals"
@@ -762,6 +762,19 @@ export default function ProfilePage() {
                       <p className="text-sm font-semibold text-[#151922]">{cert.title}</p>
                       {(cert.provider || period) && (
                         <p className="mt-1 text-sm text-[#00898c]">{[cert.provider, period].filter(Boolean).join(" · ")}</p>
+                      )}
+                      {/* The attachment was previously collected and discarded; surface it
+                          so an upload is visibly stored rather than silently gone. */}
+                      {cert.fileUrl && (
+                        <a
+                          href={cert.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-[#00898c] hover:underline"
+                        >
+                          <Paperclip className="size-3.5" />
+                          {cert.fileName || "View certificate"}
+                        </a>
                       )}
                     </div>
                     <div className="flex items-center gap-3">

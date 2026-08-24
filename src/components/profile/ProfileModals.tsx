@@ -20,6 +20,7 @@ import { PasswordField } from "@/components/auth/PasswordField"
 import CustomDatePicker from "@/components/ui/datePicker"
 import { TeamInviteDialog } from "@/components/profile/TeamInviteDialog"
 import { certificationStatus } from "@/components/profile/certifications"
+import { uploadCareConnectDocument } from "@/utils/auth/services/authService"
 import { Trash2 } from "lucide-react"
 import type { BulkInviteMemberInput, BulkInviteResult } from "@/utils/careconnect/services/teamService"
 import type { ProfileCertification } from "@/utils/careconnect/types"
@@ -299,6 +300,59 @@ export function ProfileModals({
 
   const [savingNotifications, setSavingNotifications] = useState(false)
   const [savingPrivacy, setSavingPrivacy] = useState(false)
+
+  const [savingCertification, setSavingCertification] = useState(false)
+
+  /**
+   * Persist a certification, uploading its attachment first.
+   *
+   * The attached file used to be collected and then dropped — the record was built without
+   * it, so a user's certificate PDF was silently discarded. Uploading before building the
+   * entry also means a rejected file (size, type, network) leaves the list untouched.
+   */
+  const saveCertification = async () => {
+    if (!newCertification.title.trim()) return
+    const existing =
+      editingCertificationIndex != null ? certifications[editingCertificationIndex] : undefined
+
+    setSavingCertification(true)
+    try {
+      let fileUrl = existing?.fileUrl
+      let fileName = existing?.fileName
+      if (certificateFile) {
+        const uploaded = await uploadCareConnectDocument(certificateFile, "certification")
+        fileUrl = uploaded.url
+        fileName = uploaded.fileName || certificateFile.name
+      }
+
+      const entry: ProfileCertification = {
+        title: newCertification.title.trim(),
+        provider: newCertification.provider.trim(),
+        date: newCertification.date,
+        endDate: newCertification.endDate,
+        status: certificationStatus(newCertification.endDate),
+        // Without this, editing a certification would drop an attachment added earlier.
+        ...(fileUrl ? { fileUrl, fileName } : {}),
+      }
+
+      if (editingCertificationIndex != null) {
+        onCertificationsChange(
+          certifications.map((cert, index) => (index === editingCertificationIndex ? entry : cert)),
+        )
+      } else {
+        onCertificationsChange([...certifications, entry])
+      }
+
+      onNewCertificationChange({ title: "", provider: "", date: "", endDate: "", file: "" })
+      onEditingCertificationIndexChange(null)
+      setCertificateFile(null)
+      onCertificationOpenChange(false)
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setSavingCertification(false)
+    }
+  }
 
   const saveNotifications = async () => {
     setSavingNotifications(true)
@@ -795,7 +849,23 @@ export function ProfileModals({
             </div>
             <div>
               <p className="mb-3 text-sm font-medium text-[#151922]">Upload your certificate here</p>
-              <FileDropzone file={certificateFile} onFileChange={setCertificateFile} accept=".pdf,.png,.jpg,.jpeg" hint="PDF, PNG, or JPEG (Max. 50 MB)" />
+              <FileDropzone file={certificateFile} onFileChange={setCertificateFile} accept=".pdf,.png,.jpg,.jpeg" maxSizeMb={10} />
+              {editingCertificationIndex != null &&
+                !certificateFile &&
+                certifications[editingCertificationIndex]?.fileUrl && (
+                  <p className="mt-2 text-xs text-[#657080]">
+                    Current file:{" "}
+                    <a
+                      href={certifications[editingCertificationIndex].fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-[#00898c] hover:underline"
+                    >
+                      {certifications[editingCertificationIndex].fileName || "View certificate"}
+                    </a>
+                    . Upload a new one to replace it.
+                  </p>
+                )}
             </div>
           </DialogBody>
           <DialogFooter>
@@ -817,29 +887,14 @@ export function ProfileModals({
             )}
             <Button
               className="bg-[#00b4b8] text-white hover:opacity-90"
-              onClick={() => {
-                if (!newCertification.title.trim()) return
-                const entry = {
-                  title: newCertification.title.trim(),
-                  provider: newCertification.provider.trim(),
-                  date: newCertification.date,
-                  endDate: newCertification.endDate,
-                  status: certificationStatus(newCertification.endDate),
-                }
-                if (editingCertificationIndex != null) {
-                  onCertificationsChange(
-                    certifications.map((cert, index) => (index === editingCertificationIndex ? entry : cert)),
-                  )
-                } else {
-                  onCertificationsChange([...certifications, entry])
-                }
-                onNewCertificationChange({ title: "", provider: "", date: "", endDate: "", file: "" })
-                onEditingCertificationIndexChange(null)
-                setCertificateFile(null)
-                onCertificationOpenChange(false)
-              }}
+              disabled={savingCertification}
+              onClick={() => void saveCertification()}
             >
-              {editingCertificationIndex != null ? "Save changes" : "Update certificate"}
+              {savingCertification
+                ? "Saving…"
+                : editingCertificationIndex != null
+                  ? "Save changes"
+                  : "Update certificate"}
             </Button>
           </DialogFooter>
         </DialogContent>

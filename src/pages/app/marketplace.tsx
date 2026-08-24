@@ -278,7 +278,8 @@ function ProductFormPanel({
           <p className="text-sm text-[#657080]">
             {isEdit ? "Upload a new image to replace the current one (optional)." : "Upload one image for your listing."}
           </p>
-          <FileDropzone file={image} onFileChange={setImage} accept=".pdf,.png,.jpg,.jpeg" hint="PDF, PNG, or JPEG (Max. 50 MB)" />
+          {/* Posts to /uploads/careconnect-product-image — IMAGE_CONFIG: 5 MB, images only. */}
+          <FileDropzone file={image} onFileChange={setImage} accept=".png,.jpg,.jpeg,.webp" maxSizeMb={5} />
         </div>
 
         <div className="space-y-2">
