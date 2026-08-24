@@ -51,7 +51,7 @@ export default function DocumentsPage() {
 
         <div className="flex-1 min-h-0 pr-1 space-y-2 overflow-y-auto">
           <div className="rounded-t-lg bg-[#f4f4f5] px-4 py-3 text-sm">
-            <h2 className="font-semibold text-center">Upload your CV here</h2>
+            <h2 className="font-semibold text-center">Upload your Resume here</h2>
           </div>
           <FileDropzone file={cv} onFileChange={setCv} />
           <div className="rounded-t-lg bg-[#f4f4f5d7] px-4 py-3 text-sm">
