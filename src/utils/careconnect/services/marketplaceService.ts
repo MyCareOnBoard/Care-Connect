@@ -27,6 +27,7 @@ export interface NewProductInput {
   description: string
   price: number
   currency: string
+  sellerLocation?: string
   image?: File | null
 }
 
@@ -78,6 +79,7 @@ export async function createProduct(input: NewProductInput): Promise<MarketProdu
     description: input.description,
     price: input.price,
     currency: input.currency,
+    sellerLocation: input.sellerLocation,
     imageUrl,
   })
   return data.data
