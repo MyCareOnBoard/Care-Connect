@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
-import { Pencil, Plus, Search, ShoppingBag, Trash2 } from "lucide-react"
+import { MapPin, Pencil, Plus, Search, ShoppingBag, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -128,6 +128,12 @@ function ProductCard({ product, onOpen, owner }: { product: Product; onOpen: () 
       </div>
       <div className="p-4">
         <h3 className="font-bold leading-snug truncate">{product.name}</h3>
+        {product.sellerLocation && (
+          <p className="mt-1 flex items-center gap-1 truncate text-xs text-[#8a8f98]">
+            <MapPin className="size-3 shrink-0" />
+            {product.sellerLocation}
+          </p>
+        )}
         <p className="mt-1 truncate text-sm text-[#657080]">
           {excerpt}
           <button
@@ -192,6 +198,12 @@ function ProductDetailsPanel({ product, onClose, onEnquire }: { product: Product
           <h3 className="text-lg font-bold">{product.name}</h3>
           <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${CATEGORY_STYLES[product.category] ?? ""}`}>{product.category}</span>
         </div>
+        {product.sellerLocation && (
+          <p className="flex items-center gap-1.5 text-sm text-[#657080]">
+            <MapPin className="size-4 shrink-0" />
+            {product.sellerLocation}
+          </p>
+        )}
         <p className="text-sm leading-6 text-[#565656]">
           {expanded || !isLong ? product.description : `${product.description.slice(0, 70)}.. `}
           {isLong && (
@@ -229,6 +241,7 @@ function ProductFormPanel({
   const [description, setDescription] = useState(product && product.description !== "No description provided." ? product.description : "")
   const [price, setPrice] = useState(product ? String(product.price) : "")
   const [currency, setCurrency] = useState(product?.currency ?? "USD")
+  const [location, setLocation] = useState(product?.sellerLocation ?? "")
   const [saving, setSaving] = useState(false)
 
   const handleSubmit = async () => {
@@ -244,6 +257,7 @@ function ProductFormPanel({
         description: description.trim(),
         price: Number(price) || 0,
         currency,
+        sellerLocation: location.trim(),
         image,
       })
       toast.success(isEdit ? "Listing updated!" : "Product uploaded!")
@@ -252,6 +266,7 @@ function ProductFormPanel({
         setName("")
         setDescription("")
         setPrice("")
+        setLocation("")
       }
       onClose()
     } catch (error) {
@@ -284,6 +299,11 @@ function ProductFormPanel({
         <div className="space-y-2">
           <label className="text-sm font-semibold">Product name</label>
           <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Enter product name" />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-semibold">Location</label>
+          <Input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="e.g. Austin, TX" />
         </div>
 
         <div className="space-y-2">
@@ -432,6 +452,7 @@ export default function MarketplacePage() {
         description: input.description,
         price: input.price,
         currency: input.currency,
+        sellerLocation: input.sellerLocation,
         image: input.image,
       }),
     )

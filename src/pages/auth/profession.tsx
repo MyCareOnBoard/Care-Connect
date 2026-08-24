@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
 import { AuthStepHeader } from "@/components/auth/AuthStepHeader"
 import { Routes } from "@/routes/constants"
@@ -22,14 +23,17 @@ export default function ProfessionPage() {
   const navigate = useNavigate()
   const { isProfessional, setProfession: setWizardProfession } = useSignupWizard()
   const [profession, setProfession] = useState("")
+  const [customProfession, setCustomProfession] = useState("")
   const [saving, setSaving] = useState(false)
+
+  const effectiveProfession = customProfession.trim() || profession
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setSaving(true)
     try {
-      await updateCareConnectProfile({ profession })
-      setWizardProfession(profession)
+      await updateCareConnectProfile({ profession: effectiveProfession })
+      setWizardProfession(effectiveProfession)
       navigate(Routes.auth.certifications)
     } catch (error: unknown) {
       toast.error(getAuthErrorMessage(error))
@@ -46,9 +50,12 @@ export default function ProfessionPage() {
 
         <select
           value={profession}
-          onChange={(event) => setProfession(event.target.value)}
-          className="h-11 w-full rounded-md pr-6 border border-[#e2e2e2] bg-white px-4 text-sm text-[#151922] outline-none focus:border-[#00b4b8] focus:ring-2 focus:ring-[#00b4b8]/20 cursor-pointer"
-          required
+          onChange={(event) => {
+            setProfession(event.target.value)
+            setCustomProfession("")
+          }}
+          disabled={!!customProfession.trim()}
+          className="h-11 w-full rounded-md pr-6 border border-[#e2e2e2] bg-white px-4 text-sm text-[#151922] outline-none focus:border-[#00b4b8] focus:ring-2 focus:ring-[#00b4b8]/20 cursor-pointer disabled:cursor-not-allowed disabled:bg-[#f4f4f5] disabled:text-[#8a8a8a]"
         >
           <option value="">-- Select your profession here --</option>
           {professions.map((item) => (
@@ -58,9 +65,21 @@ export default function ProfessionPage() {
           ))}
         </select>
 
+        <div className="flex items-center gap-3 my-4">
+          <span className="h-px flex-1 bg-[#e2e2e2]" />
+          <span className="text-xs font-medium text-[#8a8a8a]">OR</span>
+          <span className="h-px flex-1 bg-[#e2e2e2]" />
+        </div>
+
+        <Input
+          value={customProfession}
+          onChange={(event) => setCustomProfession(event.target.value)}
+          placeholder="Type your profession here"
+        />
+
         <Button
           type="submit"
-          disabled={!profession || saving}
+          disabled={!effectiveProfession || saving}
           className="mx-auto mt-8 h-11 w-[92%] bg-[#00b4b8] disabled:bg-[#d5d5d5] disabled:text-white"
         >
           {saving ? "Saving..." : "Continue"}
