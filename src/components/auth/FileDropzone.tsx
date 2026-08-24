@@ -10,7 +10,7 @@ type FileDropzoneProps = {
 
 export function FileDropzone({
   accept = ".pdf,.png,.doc,.docx",
-  hint = "PDF, PNG, or Docs (Max. 50 MB)",
+  hint = "PDF, PNG, or Docs (Max. 10 MB)",
   file,
   onFileChange,
 }: FileDropzoneProps) {
