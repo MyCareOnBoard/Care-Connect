@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SidePanel } from "@/components/app/SidePanel"
 import { useCareFlow } from "@/components/app/useCareFlow"
 import { FileDropzone } from "@/components/auth/FileDropzone"
+import { AddressAutocomplete } from "@/components/maps/AddressAutocomplete"
 import { Routes } from "@/routes/constants"
 import { getAuthErrorMessage } from "@/utils/auth"
 import {
@@ -304,7 +305,16 @@ function ProductFormPanel({
 
         <div className="space-y-2">
           <label className="text-sm font-semibold">Location</label>
-          <Input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="e.g. Austin, TX" />
+          {/* Places autocomplete so listings settle on one spelling per place — typed
+              freehand this produced "Austin, TX", "austin tx" and "Austin, Texas" for the
+              same city, which display and search then treat as three places. Degrades to a
+              plain text field without a Maps key, so a listing can always be saved. */}
+          <AddressAutocomplete
+            value={location ? { address: location } : null}
+            onChange={(place) => setLocation(place?.address ?? "")}
+            placeholder="e.g. Austin, TX"
+            className="h-9 w-full rounded-md border border-(--input-border) bg-(--input-bg) px-3 text-sm text-(--input-text) outline-none focus:border-[#00b4b8]"
+          />
         </div>
 
         <div className="space-y-2">
@@ -489,8 +499,13 @@ export default function MarketplacePage() {
   const term = search.trim().toLowerCase()
   const visibleProducts = source.filter((product) => {
     const matchesCategory = activeFilter === "All" || product.category === activeFilter
+    // Location is shown on every card, so the search box has to match it — otherwise
+    // typing a city returns nothing. Seller name too, for the same reason.
     const matchesSearch =
-      !term || product.name.toLowerCase().includes(term) || product.description.toLowerCase().includes(term)
+      !term ||
+      [product.name, product.description, product.seller, product.sellerLocation].some((value) =>
+        String(value ?? "").toLowerCase().includes(term),
+      )
     return matchesCategory && matchesSearch
   })
 
@@ -533,7 +548,7 @@ export default function MarketplacePage() {
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search for Products, keywords, item name"
+              placeholder="Search products, sellers, or location"
               className="pl-9"
             />
           </div>

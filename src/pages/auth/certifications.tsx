@@ -80,10 +80,10 @@ export default function CertificationsPage() {
   const continueFlow = async () => {
     setSaving(true)
     try {
-      // Upload before the profile write: the upload is the step that can reject (size,
-      // type, network), so doing it first means a failure leaves nothing half-saved. The
-      // other order persisted the certifications, then showed an error implying it hadn't.
-      if (certificationFile) await uploadCareConnectDocument(certificationFile, "certification")
+      // NOTE: PR #60 (cb400a7) removed the certification upload this step used to do —
+      // FileDropzone, `certificationFile`, and the uploadCareConnectDocument call were all
+      // deleted a day after PR #58 added them. Left removed here rather than reinstated
+      // unilaterally; if that deletion was unintended, restoring it belongs in its own change.
       await updateCareConnectProfile({ certifications: selected })
       setWizardCertifications(selected)
       navigate(Routes.auth.documents)
