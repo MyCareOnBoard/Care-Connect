@@ -106,7 +106,8 @@ type OwnerActions = {
 }
 
 function ProductCard({ product, onOpen, owner }: { product: Product; onOpen: () => void; owner?: OwnerActions }) {
-  const excerpt = product.description.length > 40 ? `${product.description.slice(0, 40)}.. ` : `${product.description} `
+  const isLong = product.description.length > 40
+  const excerpt = isLong ? `${product.description.slice(0, 40)}.. ` : product.description
 
   return (
     <article
@@ -137,16 +138,18 @@ function ProductCard({ product, onOpen, owner }: { product: Product; onOpen: () 
         )}
         <p className="mt-1 truncate text-sm text-[#657080]">
           {excerpt}
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation()
-              onOpen()
-            }}
-            className="font-semibold text-[#151922] hover:underline"
-          >
-            Read more
-          </button>
+          {isLong && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                onOpen()
+              }}
+              className="font-semibold text-[#151922] hover:underline"
+            >
+              Read more
+            </button>
+          )}
         </p>
         <div className="flex items-center justify-between mt-3">
           <span className="font-bold text-[#00b4b8]">{priceLabel(product.price, product.currency)}</span>
