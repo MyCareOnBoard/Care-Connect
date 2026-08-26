@@ -21,8 +21,12 @@ export default function DocumentsPage() {
   const finishSetup = async () => {
     setFinishing(true)
     try {
-      if (cv) await uploadCareConnectDocument(cv, "resume")
-      if (coverLetter) await uploadCareConnectDocument(coverLetter, "coverLetter")
+      // Concurrent rather than sequential: uploading one then failing on the other left the
+      // first stored, so retrying uploaded it a second time.
+      await Promise.all([
+        cv ? uploadCareConnectDocument(cv, "resume") : null,
+        coverLetter ? uploadCareConnectDocument(coverLetter, "coverLetter") : null,
+      ])
 
       if (isProfessional) {
         // Availability (step 4 of 4) still needs to run, so onboarding is completed there.

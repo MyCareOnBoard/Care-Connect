@@ -80,6 +80,10 @@ export default function CertificationsPage() {
   const continueFlow = async () => {
     setSaving(true)
     try {
+      // NOTE: PR #60 (cb400a7) removed the certification upload this step used to do —
+      // FileDropzone, `certificationFile`, and the uploadCareConnectDocument call were all
+      // deleted a day after PR #58 added them. Left removed here rather than reinstated
+      // unilaterally; if that deletion was unintended, restoring it belongs in its own change.
       await updateCareConnectProfile({ certifications: selected })
       setWizardCertifications(selected)
       navigate(Routes.auth.documents)

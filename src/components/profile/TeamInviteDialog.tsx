@@ -218,6 +218,7 @@ export function TeamInviteDialog({
                   file={file}
                   onFileChange={handleFileChange}
                   accept={TEAM_ROSTER_ACCEPT}
+                  maxSizeMb={5}
                   hint={`Excel (.xlsx) or CSV — up to ${TEAM_ROSTER_MAX_ROWS} team members`}
                 />
 

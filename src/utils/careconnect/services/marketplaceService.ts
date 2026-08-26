@@ -46,6 +46,8 @@ export interface UpdateProductInput {
 export interface ListProductsParams {
   category?: string
   search?: string
+  /** Substring match on the listing's seller location, for browsing by area. */
+  location?: string
   sellerId?: string
   status?: ProductStatus
   limit?: number
