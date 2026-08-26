@@ -3,13 +3,13 @@ import { useNavigate } from "react-router"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { ButtonLoader } from "@/components/ui/loader"
+import { Input } from "@/components/ui/input"
 import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
 import { AuthStepHeader } from "@/components/auth/AuthStepHeader"
 import { CertificationChip } from "@/components/auth/CertificationChip"
-import { FileDropzone } from "@/components/auth/FileDropzone"
 import { Routes } from "@/routes/constants"
 import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
-import { updateCareConnectProfile, uploadCareConnectDocument } from "@/utils/auth/services/authService"
+import { updateCareConnectProfile } from "@/utils/auth/services/authService"
 import { getAuthErrorMessage } from "@/utils/auth/helpers/errorMessages"
 
 const certificationGroups = [
@@ -56,13 +56,25 @@ export default function CertificationsPage() {
   const navigate = useNavigate()
   const { setCertifications: setWizardCertifications } = useSignupWizard()
   const [selected, setSelected] = useState<string[]>(["CPR", "Wound Care Certification"])
-  const [certificationFile, setCertificationFile] = useState<File | null>(null)
+  const [customByGroup, setCustomByGroup] = useState<Record<string, string[]>>({})
+  const [draftByGroup, setDraftByGroup] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
 
   const toggleCertification = (label: string) => {
     setSelected((current) =>
       current.includes(label) ? current.filter((item) => item !== label) : [...current, label]
     )
+  }
+
+  const addCustomCertification = (groupTitle: string) => {
+    const value = (draftByGroup[groupTitle] ?? "").trim()
+    if (!value) return
+    setCustomByGroup((current) => ({
+      ...current,
+      [groupTitle]: current[groupTitle]?.includes(value) ? current[groupTitle] : [...(current[groupTitle] ?? []), value],
+    }))
+    setSelected((current) => (current.includes(value) ? current : [...current, value]))
+    setDraftByGroup((current) => ({ ...current, [groupTitle]: "" }))
   }
 
   const continueFlow = async () => {
@@ -91,28 +103,54 @@ export default function CertificationsPage() {
         </div>
 
         <div className="flex-1 min-h-0 pr-1 space-y-8 overflow-y-auto">
-          {certificationGroups.map((group) => (
-            <section key={group.title}>
-              <h2 className="mb-4 text-sm font-semibold text-[#353941]">{group.title}</h2>
-              <div className="flex flex-wrap gap-3">
-                {group.items.map((item) => (
-                  <CertificationChip
-                    key={item}
-                    label={item}
-                    selected={selected.includes(item)}
-                    onClick={() => toggleCertification(item)}
+          {certificationGroups.map((group) => {
+            const customItems = customByGroup[group.title] ?? []
+            return (
+              <section key={group.title}>
+                <h2 className="mb-4 text-sm font-semibold text-[#353941]">{group.title}</h2>
+                <div className="flex flex-wrap gap-3">
+                  {group.items.map((item) => (
+                    <CertificationChip
+                      key={item}
+                      label={item}
+                      selected={selected.includes(item)}
+                      onClick={() => toggleCertification(item)}
+                    />
+                  ))}
+                  {customItems.map((item) => (
+                    <CertificationChip
+                      key={item}
+                      label={item}
+                      selected={selected.includes(item)}
+                      onClick={() => toggleCertification(item)}
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 mt-3">
+                  <Input
+                    value={draftByGroup[group.title] ?? ""}
+                    onChange={(event) => setDraftByGroup((current) => ({ ...current, [group.title]: event.target.value }))}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault()
+                        addCustomCertification(group.title)
+                      }
+                    }}
+                    placeholder={`Don't see it? Type another ${group.title.toLowerCase()} certification`}
+                    className="h-10"
                   />
-                ))}
-              </div>
-            </section>
-          ))}
-
-          <section className="space-y-2">
-            <div className="rounded-t-lg bg-[#f4f4f5] px-4 py-3 text-sm">
-              <h2 className="font-semibold text-center">Upload all certifications here</h2>
-            </div>
-            <FileDropzone file={certificationFile} onFileChange={setCertificationFile} />
-          </section>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 shrink-0 border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
+                    onClick={() => addCustomCertification(group.title)}
+                  >
+                    Add
+                  </Button>
+                </div>
+              </section>
+            )
+          })}
         </div>
 
         <div className="flex justify-end gap-2 pt-6 mt-auto">
