@@ -20,6 +20,7 @@ const userNavItems = [
   { label: "Market place", href: Routes.app.user.marketplace },
   { label: "Schedule", href: Routes.app.user.schedule },
   { label: "Tele health", href: Routes.app.user.telehealth },
+  { label: "My health", href: Routes.app.user.healthProfile },
 ]
 
 const agencyNavItems = [

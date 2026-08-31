@@ -1,5 +1,4 @@
 import { Link } from "react-router"
-import { toast } from "sonner"
 import { Routes } from "@/routes/constants"
 import type { TelehealthBooking } from "@/utils/careconnect/types"
 import type { RowStatus } from "@/utils/careconnect/bookingStatus"
@@ -10,11 +9,18 @@ export function BookingRowAction({
   rowStatus,
   isProfessional,
   onDetails,
+  onRecord,
 }: {
   booking: TelehealthBooking
   rowStatus: RowStatus
   isProfessional: boolean
   onDetails: (booking: TelehealthBooking) => void
+  /**
+   * Opens the visit record for a completed booking. Optional so hosts that have
+   * no record surface (the agency analytics table) keep working unchanged and
+   * simply fall back to the details dialog.
+   */
+  onRecord?: (booking: TelehealthBooking) => void
 }) {
   const linkClass = "text-sm font-semibold text-[#151922] hover:underline cursor-pointer"
 
@@ -27,11 +33,21 @@ export function BookingRowAction({
   }
 
   if (rowStatus === "completed") {
-    return isProfessional ? (
-      <button type="button" className={linkClass} onClick={() => toast("Downloading notes...")}>
-        Download notes
-      </button>
-    ) : (
+    // A completed visit is where the record lives. Without the client's consent
+    // there is nothing to write, so fall back to the booking details.
+    if (isProfessional) {
+      const canRecord = onRecord && booking.recordConsent?.granted === true
+      return (
+        <button
+          type="button"
+          className={linkClass}
+          onClick={() => (canRecord ? onRecord(booking) : onDetails(booking))}
+        >
+          {canRecord ? (booking.hasRecord ? "View record" : "Add record") : "Details"}
+        </button>
+      )
+    }
+    return (
       <button type="button" className={linkClass} onClick={() => onDetails(booking)}>
         View
       </button>

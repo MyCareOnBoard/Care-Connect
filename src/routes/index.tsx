@@ -38,6 +38,10 @@ const ServiceAnalyticsPage = lazy(() => import("@/pages/app/agency/service-analy
 const ProfilePage = lazy(() => import("@/pages/app/profile"));
 const ViewProfilePage = lazy(() => import("@/pages/app/view-profile"));
 const SettingsPage = lazy(() => import("@/pages/app/settings"));
+const HealthProfilePage = lazy(() => import("@/pages/app/user/health-profile"));
+const MyRecordsPage = lazy(() => import("@/pages/app/user/records"));
+const ClientRecordsPage = lazy(() => import("@/pages/app/professional/client-records"));
+const FollowUpsPage = lazy(() => import("@/pages/app/user/follow-ups"));
 
 export const router = createBrowserRouter([
   {
@@ -89,6 +93,10 @@ export const router = createBrowserRouter([
           { path: Routes.app.user.profile, Component: ProfilePage },
           { path: `${Routes.app.user.profile}/:id`, Component: ViewProfilePage },
           { path: Routes.app.user.settings, Component: SettingsPage },
+          { path: Routes.app.user.healthProfile, Component: HealthProfilePage },
+          { path: Routes.app.user.records, Component: MyRecordsPage },
+          { path: `${Routes.app.user.records}/:clientId`, Component: ClientRecordsPage },
+          { path: Routes.app.user.followUps, Component: FollowUpsPage },
           { path: Routes.app.agency.dashboard, Component: AgencyDashboardPage },
           { path: Routes.app.agency.network, Component: NetworkPage },
           { path: Routes.app.agency.messages, Component: MessagesPage },

@@ -5,16 +5,26 @@ import { LocationMap } from "@/components/maps/LocationMap"
 import { directionsUrl } from "@/components/maps/directions"
 import {
   CalendarDays,
+  CalendarPlus,
   Check,
+  ChevronDown,
   Clock,
   Copy,
+  FileText,
+  HeartPulse,
   Info,
   MessageSquare,
   Navigation,
+  Users,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Switch } from "@/components/ui/switch"
+import {
+  HealthProfileSummary,
+  IntakeConsentBlocked,
+} from "@/components/health/HealthProfileSummary"
 import { useCareFlow } from "@/components/app/useCareFlow"
 import { Routes } from "@/routes/constants"
 import { cn, getInitials } from "@/lib/utils"
@@ -24,9 +34,21 @@ import {
   getBooking,
   recordVisitEvent,
   reportBookingIssue,
+  updateBookingRecordConsent,
   updateBookingStatus,
 } from "@/utils/careconnect/services/telehealthService"
-import { SERVICE_MODE_LABELS, minutesToLabel, toDate, type CareConnectProfile, type TelehealthBooking } from "@/utils/careconnect/types"
+import {
+  getBookingIntake,
+  getConsentPolicies,
+} from "@/utils/careconnect/services/clinicalService"
+import {
+  SERVICE_MODE_LABELS,
+  minutesToLabel,
+  toDate,
+  type CareConnectProfile,
+  type HealthProfileSnapshot,
+  type TelehealthBooking,
+} from "@/utils/careconnect/types"
 import { bookingStart, formatDurationLabel, videoJoinWindow } from "@/utils/careconnect/bookingStatus"
 import { VideoCallFrame } from "@/components/professional/VideoCallFrame"
 
@@ -86,23 +108,38 @@ const ISSUE_REASONS = [
  *   → a countdown to completion → Complete service, alongside the existing quick
  *   Cancel/Mark-complete shortcut.
  * - Client, in-person bookings → a tracking panel (approaching → arrived → in progress)
- *   with a "Raise an issue" side-branch. MOCK: its "Professional location" map is a CSS
- *   grid with two hardcoded pins and a fixed polyline — no coordinates are read, so every
- *   booking renders the same picture — and "approaching → arrived" is a 9-second local
- *   timer, not location data. Nothing reports the professional's position yet.
- * All status changes call the real backend status endpoint. The tracking timer is
- * local-only; the service countdown resumes from the persisted `startedAt`.
+ *   with a "Raise an issue" side-branch. The map renders the booking's own coordinates,
+ *   and arrival comes from polling the server-stamped `arrivedAt` (`ARRIVAL_POLL_MS`).
+ *   What still does not exist is any reporting of the professional's live position, so
+ *   the panel shows the destination rather than their whereabouts.
+ * - Clinical layer → the frozen intake snapshot (fetched only when asked for, so opening
+ *   a booking does not record a PHI read), the visit record, follow-up proposals, and the
+ *   client's per-visit record consent. All handed off via optional callbacks, so this
+ *   component holds no record state.
+ * All status changes call the real backend status endpoint. The service countdown resumes
+ * from the persisted `startedAt`.
  */
 export function BookingDetailsDialog({
   booking,
   onOpenChange,
   canManage = false,
   onStatusChanged,
+  onWriteRecord,
+  onProposeFollowUp,
+  onViewRecords,
 }: {
   booking: TelehealthBooking | null
   onOpenChange: (open: boolean) => void
   canManage?: boolean
   onStatusChanged?: (updated: TelehealthBooking) => void
+  /**
+   * Clinical-layer hand-offs. All optional, and all callbacks rather than state,
+   * so this dialog holds no record state and gains no new `Step` values — the
+   * host renders the record and follow-up dialogs as siblings.
+   */
+  onWriteRecord?: (booking: TelehealthBooking) => void
+  onProposeFollowUp?: (booking: TelehealthBooking) => void
+  onViewRecords?: (booking: TelehealthBooking) => void
 }) {
   const navigate = useNavigate()
   const { flow } = useCareFlow()
@@ -114,6 +151,22 @@ export function BookingDetailsDialog({
   const [agencyProfile, setAgencyProfile] = useState<CareConnectProfile | null>(null)
   const [trackingPhase, setTrackingPhase] = useState<TrackingPhase>("approaching")
   const [issueReason, setIssueReason] = useState<string | null>(null)
+  // Intake is fetched only when the professional asks for it, so opening a
+  // booking does not record a PHI read nobody wanted.
+  const [intakeOpen, setIntakeOpen] = useState(false)
+  const [intake, setIntake] = useState<HealthProfileSnapshot | null>(null)
+  const [intakeLoading, setIntakeLoading] = useState(false)
+  const [intakeDenied, setIntakeDenied] = useState(false)
+  const [consentSaving, setConsentSaving] = useState(false)
+  const [localConsent, setLocalConsent] = useState<boolean | null>(null)
+
+  // Clear per-booking clinical state when the dialog switches booking.
+  useEffect(() => {
+    setIntakeOpen(false)
+    setIntake(null)
+    setIntakeDenied(false)
+    setLocalConsent(null)
+  }, [booking?.id])
   const isTerminal = booking?.status === "completed" || booking?.status === "cancelled"
   const totalSeconds = booking ? booking.durationMinutes * 60 : 0
   const isClientInPersonTracking = !canManage && booking?.mode === "in_person" && !isTerminal
@@ -218,6 +271,49 @@ export function BookingDetailsDialog({
     }, 1000)
     return () => window.clearInterval(timer)
   }, [step, isClientInPersonTracking, trackingPhase, booking?.startedAt])
+
+  /** Fetch the frozen intake snapshot on demand. */
+  const loadIntake = async () => {
+    if (!booking) return
+    setIntakeOpen(true)
+    if (intake || intakeDenied) return
+    setIntakeLoading(true)
+    try {
+      setIntake(await getBookingIntake(booking.id))
+    } catch (error) {
+      const status = (error as { response?: { status?: number } })?.response?.status
+      // 403 here means the client did not consent for this visit - a choice, not
+      // a failure, so it gets an explanatory panel rather than a toast.
+      if (status === 403) setIntakeDenied(true)
+      else toast.error(getAuthErrorMessage(error))
+    } finally {
+      setIntakeLoading(false)
+    }
+  }
+
+  /** The client allows or withdraws record consent for this visit. */
+  const toggleRecordConsent = async (next: boolean) => {
+    if (!booking) return
+    const previous = localConsent ?? booking.recordConsent?.granted === true
+    setLocalConsent(next)
+    setConsentSaving(true)
+    try {
+      let policyVersion: string | undefined
+      if (next) {
+        const policies = await getConsentPolicies()
+        policyVersion = policies.record.version
+      }
+      const updated = await updateBookingRecordConsent(booking.id, next, policyVersion)
+      onStatusChanged?.(updated)
+      setLocalConsent(updated.recordConsent?.granted === true)
+      toast.success(next ? "Visit record allowed" : "Visit record not allowed")
+    } catch (error) {
+      setLocalConsent(previous)
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setConsentSaving(false)
+    }
+  }
 
   const changeStatus = async (status: "completed" | "cancelled" | "confirmed") => {
     if (!booking) return
@@ -578,6 +674,130 @@ export function BookingDetailsDialog({
                 {joinWindow.state === "ended" && (
                   <p className="mt-2 text-center text-xs text-[#8a8f98]">This session has ended.</p>
                 )}
+              </div>
+            )}
+
+            {/* ── Clinical layer ─────────────────────────────────────────
+                All hand-offs are callbacks, so this dialog stays free of record
+                state and keeps its existing step machine untouched. */}
+            {canManage && booking.hasIntakeSnapshot && (
+              <div className="border-t border-[#eef1f3] pt-4">
+                <button
+                  type="button"
+                  onClick={() => (intakeOpen ? setIntakeOpen(false) : void loadIntake())}
+                  className="flex w-full items-center justify-between gap-2 text-left"
+                >
+                  <span className="flex items-center gap-2 text-sm font-semibold text-[#151922]">
+                    <HeartPulse className="size-4 text-[#00898c]" />
+                    Health details the client shared
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      "size-4 shrink-0 text-[#8a8f98] transition-transform",
+                      intakeOpen && "rotate-180",
+                    )}
+                  />
+                </button>
+                {intakeOpen && (
+                  <div className="mt-3">
+                    {intakeDenied ? (
+                      <IntakeConsentBlocked />
+                    ) : (
+                      <HealthProfileSummary
+                        profile={intake}
+                        loading={intakeLoading}
+                        capturedFor={booking.dateKey}
+                        emptyMessage="The client attached their profile but it has no details in it."
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {canManage && (
+              <div className="space-y-3 border-t border-[#eef1f3] pt-4">
+                {booking.status === "completed" ? (
+                  booking.recordConsent?.granted === true ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
+                      onClick={() => onWriteRecord?.(booking)}
+                    >
+                      <FileText className="size-4" />
+                      {booking.hasRecord ? "Open visit record" : "Write visit record"}
+                    </Button>
+                  ) : (
+                    <p className="flex items-start gap-2 rounded-xl bg-[#fdf3e3] px-4 py-3 text-sm text-[#8a6d1f]">
+                      <Info className="mt-0.5 size-4 shrink-0" />
+                      <span>
+                        {booking.clientName} has not consented to a visit record for this
+                        appointment, so one cannot be written. They can allow it from their booking.
+                      </span>
+                    </p>
+                  )
+                ) : null}
+
+                {booking.status === "completed" && onProposeFollowUp && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => onProposeFollowUp(booking)}
+                  >
+                    <CalendarPlus className="size-4" />
+                    Propose a follow-up
+                  </Button>
+                )}
+
+                {onViewRecords && (
+                  <button
+                    type="button"
+                    onClick={() => onViewRecords(booking)}
+                    className="flex w-full items-center justify-center gap-1.5 text-sm font-semibold text-[#00898c] hover:opacity-80"
+                  >
+                    <Users className="size-4" />
+                    All records for {booking.clientName}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* The client's own control over this visit's record. Locked once a
+                record has been signed - that consent authorized documenting a
+                visit that happened, and the honest remedy is record sharing. */}
+            {!canManage && !booking.hasRecord && (
+              <div className="border-t border-[#eef1f3] pt-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[#151922]">Visit record</p>
+                    <p className="mt-1 text-sm text-[#657080]">
+                      Let {booking.professionalName} write a record of this visit.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={localConsent ?? booking.recordConsent?.granted === true}
+                    disabled={consentSaving}
+                    onCheckedChange={toggleRecordConsent}
+                    aria-label="Allow a visit record for this booking"
+                  />
+                </div>
+              </div>
+            )}
+
+            {!canManage && booking.hasRecord && (
+              <div className="border-t border-[#eef1f3] pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => onViewRecords?.(booking)}
+                  disabled={!onViewRecords}
+                >
+                  <FileText className="size-4" />
+                  View visit record
+                </Button>
               </div>
             )}
 

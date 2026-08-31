@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { Link, useNavigate } from "react-router"
-import { format, addDays } from "date-fns"
+import { format } from "date-fns"
 import {
   Banknote,
   CalendarCheck,
@@ -12,6 +12,8 @@ import {
   Copy,
   CreditCard,
   Heart,
+  HeartPulse,
+  Info,
   MapPin,
   MessageSquare,
   Navigation,
@@ -21,19 +23,30 @@ import {
   Sparkles,
   Video,
 } from "lucide-react"
-import paypalIcon from "@/assets/imgs/PayPal Icon.png"
-import applePayIcon from "@/assets/imgs/Apple Pay Icon.png"
-import googlePayIcon from "@/assets/imgs/Google Pay Icon.png"
 import { Button } from "@/components/ui/button"
 import { AddressAutocomplete } from "@/components/maps/AddressAutocomplete"
 import { LocationMap } from "@/components/maps/LocationMap"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
 import { Radio } from "@/components/ui/radio"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
+import { PaymentMethodDialog } from "@/components/booking/PaymentMethodDialog"
+import { SlotPicker } from "@/components/booking/SlotPicker"
+import {
+  HealthProfileForm,
+  BOOKING_FLOW_SECTIONS,
+} from "@/components/health/HealthProfileForm"
+import { isHealthProfileEmpty } from "@/utils/careconnect/healthProfile"
+import {
+  getConsentPolicies,
+  getMyHealthProfile,
+  upsertMyHealthProfile,
+} from "@/utils/careconnect/services/clinicalService"
 import { useCareFlow } from "@/components/app/useCareFlow"
 import { Routes } from "@/routes/constants"
 import { getInitials } from "@/lib/utils"
@@ -41,7 +54,6 @@ import { getAuthErrorMessage } from "@/utils/auth"
 import {
   createService,
   createBooking,
-  getSlots,
   listBookings,
   listMyServices,
   listServices,
@@ -56,7 +68,8 @@ import {
   toDateKey,
   SERVICE_MODE_LABELS,
   type BookingLocation,
-  type BookingSlot,
+  type ClientHealthProfile,
+  type ConsentPolicies,
   type ServiceMode,
   type TeamMember,
   type TelehealthBooking,
@@ -567,97 +580,6 @@ function BookingsSidebar({ bookings }: { bookings: TelehealthBooking[] }) {
   )
 }
 
-/* ── Payment (record-only) ────────────────────────────────────────────────── */
-
-type PaymentOption = { id: string; label: string; iconBg: string; icon?: typeof CreditCard; image?: string }
-
-const PAYMENT_METHODS: { group: string; options: PaymentOption[] }[] = [
-  {
-    group: "Bank payment",
-    options: [{ id: "card", label: "Debit/credit card", icon: CreditCard, iconBg: "bg-[#eef1f3] text-[#151922]" }],
-  },
-  {
-    group: "Mobile payment",
-    options: [
-      { id: "paypal", label: "Paypal", image: paypalIcon, iconBg: "bg-white border border-[#e2e2e2]" },
-      { id: "apple-pay", label: "Apple Pay", image: applePayIcon, iconBg: "bg-white border border-[#e2e2e2]" },
-      { id: "google-pay", label: "Google pay", image: googlePayIcon, iconBg: "bg-white border border-[#e2e2e2]" },
-    ],
-  },
-]
-
-function PaymentMethodDialog({
-  open,
-  onOpenChange,
-  selected,
-  onSelect,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  selected: string | null
-  onSelect: (label: string) => void
-}) {
-  const [localSelected, setLocalSelected] = useState<string | null>(selected)
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (next) setLocalSelected(selected)
-        onOpenChange(next)
-      }}
-    >
-      <DialogContent showCloseButton className="p-0 max-w-130">
-        <DialogHeader className="px-6 pt-6 text-left">
-          <DialogTitle className="text-xl font-semibold text-[#151922]">Select payment method</DialogTitle>
-        </DialogHeader>
-        <DialogBody className="px-6 pt-4 pb-6 space-y-6">
-          {PAYMENT_METHODS.map((group) => (
-            <div key={group.group} className="space-y-3">
-              <p className="text-sm font-semibold text-[#151922]">{group.group}</p>
-              <div className="space-y-2">
-                {group.options.map((option) => (
-                  <label
-                    key={option.id}
-                    className="flex cursor-pointer items-center justify-between rounded-xl border border-[#eef1f3] px-4 py-3 hover:bg-[#f8fbff]"
-                  >
-                    <span className="flex items-center gap-3">
-                      <span className={`flex size-9 items-center justify-center overflow-hidden rounded-full ${option.iconBg}`}>
-                        {option.icon ? <option.icon className="size-4" /> : <img src={option.image} alt="" loading="lazy" decoding="async" className="size-10 object-contain" />}
-                      </span>
-                      <span className="text-sm font-medium text-[#151922]">{option.label}</span>
-                    </span>
-                    <span className="flex size-5 items-center justify-center rounded-full border-2 border-[#00b4b8]">
-                      {localSelected === option.label && <span className="size-2.5 rounded-full bg-[#00b4b8]" />}
-                    </span>
-                    <input
-                      type="radio"
-                      className="sr-only"
-                      checked={localSelected === option.label}
-                      onChange={() => setLocalSelected(option.label)}
-                    />
-                  </label>
-                ))}
-              </div>
-            </div>
-          ))}
-          <Button
-            className="w-full bg-[#00b4b8] text-white hover:opacity-90"
-            disabled={!localSelected}
-            onClick={() => {
-              if (!localSelected) return
-              onSelect(localSelected)
-              onOpenChange(false)
-            }}
-          >
-            Select payment method
-          </Button>
-        </DialogBody>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 function ProfessionalPicker({
   members,
   selectedId,
@@ -738,9 +660,93 @@ function ProfessionalPicker({
   )
 }
 
-type BookingStep = "location" | "request" | "schedule" | "confirmed"
+/**
+ * The one place the booking flow offers intake.
+ *
+ * Two states rather than one form: a client with nothing saved is invited to add
+ * details, and a returning client is told their saved profile is being used and
+ * given a switch to leave it off this time. Neither state blocks Continue.
+ */
+function HealthIntakePrompt({
+  loading,
+  profile,
+  attach,
+  onAttachChange,
+  onReview,
+}: {
+  loading: boolean
+  profile: ClientHealthProfile | null
+  attach: boolean
+  onAttachChange: (next: boolean) => void
+  onReview: () => void
+}) {
+  if (loading) return <Skeleton className="h-20 rounded-xl" />
 
-function BookServiceDialog({
+  const hasProfile = !isHealthProfileEmpty(profile)
+
+  if (!hasProfile) {
+    return (
+      <div className="rounded-xl border border-[#eef1f3] p-4">
+        <p className="text-sm font-medium text-[#151922]">
+          Share health details with your professional?
+        </p>
+        <p className="mt-1 text-sm text-[#657080]">
+          Optional, and it helps them prepare for your visit.
+        </p>
+        <button
+          type="button"
+          onClick={onReview}
+          className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-[#00898c] hover:opacity-80"
+        >
+          <HeartPulse className="size-4" />
+          Add health details
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-xl border border-[#eef1f3] p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-[#151922]">Using your saved health profile</p>
+          <p className="mt-1 text-sm text-[#657080]">
+            {profile?.updatedAt ? `Updated ${formatRelative(profile.updatedAt)}` : "Saved earlier"}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="text-sm text-[#657080]">Attach</span>
+          <Switch
+            checked={attach}
+            onCheckedChange={onAttachChange}
+            aria-label="Attach my health profile to this booking"
+          />
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onReview}
+        className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-[#00898c] hover:opacity-80"
+      >
+        <HeartPulse className="size-4" />
+        Review details
+      </button>
+    </div>
+  )
+}
+
+/**
+ * `health` is never on the default path: it is entered only by explicit opt-in
+ * from the request step, and always offers a same-weight Skip. Intake must never
+ * become a precondition for booking.
+ */
+type BookingStep = "location" | "request" | "health" | "schedule" | "confirmed"
+
+/**
+ * Exported for tests: the guarantee that intake and consent never block a
+ * booking is worth asserting directly rather than through the whole page.
+ */
+export function BookServiceDialog({
   service,
   open,
   onOpenChange,
@@ -755,9 +761,7 @@ function BookServiceDialog({
   const [step, setStep] = useState<BookingStep>("request")
   const [professionalId, setProfessionalId] = useState<string | null>(null)
   const [need, setNeed] = useState("")
-  const [dateIndex, setDateIndex] = useState(0)
-  const [slots, setSlots] = useState<BookingSlot[]>([])
-  const [slotsLoading, setSlotsLoading] = useState(false)
+  const [dateKey, setDateKey] = useState("")
   const [startMinutes, setStartMinutes] = useState<number | null>(null)
   const [bookingMode, setBookingMode] = useState<ServiceMode>("online")
   const [bookingLocation, setBookingLocation] = useState<BookingLocation | null>(null)
@@ -770,11 +774,18 @@ function BookServiceDialog({
   // serves both entry points: up-front for in-person-only services, and on demand
   // when someone picks In-person on a service that also offers Online.
   const [locationReturnStep, setLocationReturnStep] = useState<BookingStep>("request")
+  // Clinical layer. `healthDraft` is edited in the health step and saved to the
+  // reusable profile on continue; `attachHealth` decides whether the server
+  // freezes a snapshot onto this booking; `recordConsent` is the per-visit
+  // agreement that the professional may write a record.
+  const [healthProfile, setHealthProfile] = useState<ClientHealthProfile | null>(null)
+  const [healthDraft, setHealthDraft] = useState<ClientHealthProfile>({})
+  const [healthLoading, setHealthLoading] = useState(false)
+  const [savingHealth, setSavingHealth] = useState(false)
+  const [attachHealth, setAttachHealth] = useState(true)
+  const [recordConsent, setRecordConsent] = useState(true)
+  const [consentPolicies, setConsentPolicies] = useState<ConsentPolicies | null>(null)
 
-  // Compute the 10-day window once per mount so `selectedDate` keeps a stable
-  // reference across renders (an unstable one previously looped the slots effect).
-  const dates = useMemo(() => Array.from({ length: 10 }, (_, index) => addDays(new Date(), index)), [])
-  const selectedDate = dates[dateIndex]
   const members = service?.teamMembers ?? []
   // Only when in-person is the *only* option is the address needed before anything
   // else; a service offering both can't know it's wanted until Session type is picked.
@@ -787,41 +798,43 @@ function BookServiceDialog({
     setLocationReturnStep("request")
     setProfessionalId(members[0]?.id ?? null)
     setNeed("")
-    setDateIndex(0)
-    setSlots([])
+    setDateKey("")
     setStartMinutes(null)
     setBookingMode(service?.modes[0] ?? "online")
     setBookingLocation(null)
     setPaymentMethod(null)
     setBookingCode("")
     setLocatingCurrent(false)
+    setAttachHealth(true)
+    setRecordConsent(true)
     // members derives from service; safe to depend on open + service id.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, service?.id])
 
-  // Fetch availability-constrained slots when the professional/date changes.
+  // Prefill from the saved profile, and fetch the consent wording so the version
+  // the client agreed to is recorded. Both degrade quietly: a failure here must
+  // not stop anyone booking.
   useEffect(() => {
-    if (step !== "schedule" || !service || !professionalId) return
+    if (!open) return
     let active = true
-    setSlotsLoading(true)
-    setStartMinutes(null)
-    getSlots(service.id, professionalId, toDateKey(selectedDate))
-      .then((result) => {
-        if (active) setSlots(result.slots)
-      })
-      .catch(() => {
-        if (active) setSlots([])
+    setHealthLoading(true)
+    Promise.all([
+      getMyHealthProfile().catch(() => null),
+      getConsentPolicies().catch(() => null),
+    ])
+      .then(([profile, policies]) => {
+        if (!active) return
+        setHealthProfile(profile)
+        setHealthDraft(profile ?? {})
+        setConsentPolicies(policies)
       })
       .finally(() => {
-        if (active) setSlotsLoading(false)
+        if (active) setHealthLoading(false)
       })
     return () => {
       active = false
     }
-    // Depend on primitives — `service`/`selectedDate` are recreated every render,
-    // so using them here caused the effect (and getSlots) to fire on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, service?.id, professionalId, dateIndex])
+  }, [open])
 
   if (!service) return null
 
@@ -862,12 +875,18 @@ function BookServiceDialog({
       const created = await createBooking({
         serviceId: service.id,
         teamMemberId: professionalId,
-        dateKey: toDateKey(selectedDate),
+        dateKey,
         startMinutes,
         mode: bookingMode,
         note: need,
         paymentMethod: paymentMethod ?? "",
         location: bookingMode === "in_person" && bookingLocation ? bookingLocation : undefined,
+        attachHealthProfile: attachHealth,
+        // Only claim consent when we know which wording was shown.
+        recordConsent:
+          recordConsent && consentPolicies
+            ? { accepted: true, policyVersion: consentPolicies.record.version }
+            : undefined,
       })
       setBookingCode(created.bookingCode)
       setStep("confirmed")
@@ -974,6 +993,14 @@ function BookServiceDialog({
                   />
                 </div>
 
+                <HealthIntakePrompt
+                  loading={healthLoading}
+                  profile={healthProfile}
+                  attach={attachHealth}
+                  onAttachChange={setAttachHealth}
+                  onReview={() => setStep("health")}
+                />
+
                 <div className="flex justify-end">
                   <Button
                     className="bg-[#00b4b8] text-white hover:opacity-90"
@@ -981,6 +1008,74 @@ function BookServiceDialog({
                     onClick={() => setStep("schedule")}
                   >
                     Continue
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {step === "health" && (
+              <>
+                <div>
+                  <p className="text-base font-semibold text-[#151922]">
+                    Share health details
+                  </p>
+                  <p className="mt-1 text-sm text-[#657080]">
+                    All optional. This is saved to your health profile, so you only enter it once.
+                  </p>
+                </div>
+
+                {healthLoading ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-24 rounded-xl" />
+                    <Skeleton className="h-24 rounded-xl" />
+                  </div>
+                ) : (
+                  <HealthProfileForm
+                    value={healthDraft}
+                    onChange={setHealthDraft}
+                    sections={BOOKING_FLOW_SECTIONS}
+                    includeHomeAccess={bookingMode === "in_person"}
+                  />
+                )}
+
+                {/* Skip carries the same visual weight as continuing, so the
+                    optionality is real rather than nominal. */}
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    disabled={savingHealth}
+                    onClick={() => {
+                      setAttachHealth(false)
+                      setStep("schedule")
+                    }}
+                  >
+                    Skip for now
+                  </Button>
+                  <Button
+                    className="flex-1 bg-[#00b4b8] text-white hover:opacity-90"
+                    disabled={savingHealth}
+                    onClick={async () => {
+                      setSavingHealth(true)
+                      try {
+                        // Save to the reusable profile immediately, so the effort
+                        // is not lost if this booking is abandoned.
+                        if (!isHealthProfileEmpty(healthDraft)) {
+                          const saved = await upsertMyHealthProfile(healthDraft)
+                          setHealthProfile(saved)
+                          setHealthDraft(saved)
+                          setAttachHealth(true)
+                        }
+                      } catch (error) {
+                        // Never block the booking on a profile save.
+                        toast.error(getAuthErrorMessage(error))
+                      } finally {
+                        setSavingHealth(false)
+                        setStep("schedule")
+                      }
+                    }}
+                  >
+                    {savingHealth ? "Saving..." : "Save & continue"}
                   </Button>
                 </div>
               </>
@@ -998,61 +1093,13 @@ function BookServiceDialog({
                   </div>
                 </div>
 
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-[#151922]">Select date & time</label>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-base font-semibold text-[#151922]">{format(selectedDate, "MMM d")}</p>
-                      <p className="text-sm text-[#656f80]">{format(selectedDate, "EEEE")}</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-                    {dates.map((date, index) => (
-                      <button
-                        key={date.toISOString()}
-                        type="button"
-                        onClick={() => setDateIndex(index)}
-                        className={`flex shrink-0 flex-col items-center rounded-xl border px-3 py-2 text-sm transition ${
-                          index === dateIndex ? "border-[#00b4b8] bg-[#e3f8f8] text-[#00b4b8]" : "border-[#eef1f3] text-[#656f80]"
-                        }`}
-                      >
-                        <span className="font-semibold">{format(date, "d")}</span>
-                        <span className="text-xs">{format(date, "EEE")}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-sm font-medium text-[#151922]">Select time</p>
-                  <p className="text-sm text-[#656f80]">Available slots for this professional</p>
-                  {slotsLoading ? (
-                    <div className="mt-3 grid grid-cols-3 gap-2">
-                      {Array.from({ length: 6 }).map((_, index) => (
-                        <Skeleton key={index} className="h-10 rounded-xl" />
-                      ))}
-                    </div>
-                  ) : slots.length === 0 ? (
-                    <p className="mt-3 rounded-xl border border-dashed border-[#e5ecf5] p-4 text-center text-sm text-[#657080]">
-                      No open slots on this day.
-                    </p>
-                  ) : (
-                    <div className="mt-3 grid grid-cols-3 gap-2">
-                      {slots.map((slot) => (
-                        <button
-                          key={slot.value}
-                          type="button"
-                          onClick={() => setStartMinutes(slot.value)}
-                          className={`rounded-xl border px-4 py-2 text-sm font-semibold transition ${
-                            startMinutes === slot.value ? "border-[#00b4b8] bg-[#e3f8f8] text-[#00b4b8]" : "border-[#eef1f3] text-[#151922]"
-                          }`}
-                        >
-                          {slot.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <SlotPicker
+                  serviceId={service.id}
+                  teamMemberId={professionalId}
+                  startMinutes={startMinutes}
+                  onStartMinutesChange={setStartMinutes}
+                  onDateKeyChange={setDateKey}
+                />
 
                 {service.modes.length > 1 && (
                   <div>
@@ -1125,6 +1172,30 @@ function BookServiceDialog({
                   </button>
                 </div>
 
+                {/* Record consent, immediately before committing. Default on:
+                    a care visit without a note is the anomaly. Deliberately does
+                    NOT feed the button's `disabled` expression below - consent is
+                    a choice, not a gate. */}
+                <div className="space-y-2 rounded-xl border border-[#eef1f3] p-4">
+                  <Checkbox
+                    checked={recordConsent}
+                    onChange={(event) => setRecordConsent(event.target.checked)}
+                    label={`I agree that ${professional.name} may write a visit record for this appointment.`}
+                  />
+                  <p className="pl-10 text-sm text-[#657080]">
+                    They can only add a record for this visit. You can read it any time.
+                  </p>
+                  {!recordConsent && (
+                    <p className="flex items-start gap-2 rounded-xl bg-[#fdf3e3] px-4 py-3 text-sm text-[#8a6d1f]">
+                      <Info className="mt-0.5 size-4 shrink-0" />
+                      <span>
+                        Your professional will not be able to leave a visit record. You can allow
+                        this later from the booking.
+                      </span>
+                    </p>
+                  )}
+                </div>
+
                 <Button
                   className="w-full bg-[#00b4b8] text-white hover:opacity-90"
                   disabled={
@@ -1135,8 +1206,17 @@ function BookServiceDialog({
                   }
                   onClick={checkout}
                 >
-                  {booking ? "Booking..." : `Checkout at ${formatPrice(service.price, service.currency)}`}
+                  {booking
+                    ? "Booking..."
+                    : service.price > 0
+                      ? `Confirm booking · ${formatPrice(service.price, service.currency)}`
+                      : "Confirm booking"}
                 </Button>
+                {service.price > 0 && (
+                  <p className="text-center text-sm text-[#657080]">
+                    Payment is recorded, not charged - your professional will confirm arrangements.
+                  </p>
+                )}
               </>
             )}
 
