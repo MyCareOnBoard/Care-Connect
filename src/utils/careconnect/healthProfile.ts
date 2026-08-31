@@ -133,6 +133,82 @@ export function formatBloodPressure(
 }
 
 /**
+ * Plausibility bounds, mirroring `client-health.schema.js` on the backend.
+ *
+ * These exist client-side so an out-of-range value is caught at the field that
+ * caused it, rather than coming back as a whole-document 400 naming a nested
+ * path like `about.heightCm`. Keep them in step with the Joi schema — the server
+ * stays the enforcement point; this is only the earlier, kinder message.
+ */
+export const HEALTH_BOUNDS = {
+  heightCm: { min: 20, max: 280 },
+  weightKg: { min: 1, max: 500 },
+  systolic: { min: 40, max: 300 },
+  diastolic: { min: 20, max: 200 },
+  restingHeartRate: { min: 20, max: 250 },
+} as const
+
+/**
+ * Height in centimetres. The common mistakes are entering feet (5) or metres
+ * (1.7), so the message names the unit instead of just restating the bound.
+ */
+export function validateHeightCm(cm: number | null | undefined): string | null {
+  if (cm === null || cm === undefined) return null
+  const { min, max } = HEALTH_BOUNDS.heightCm
+  if (cm < min) return `That looks like feet or metres — enter height in cm (e.g. 170)`
+  if (cm > max) return `That height looks too large — enter it in cm (e.g. 170)`
+  return null
+}
+
+/** Weight in kilograms. Same shape as height: name the unit, not the bound. */
+export function validateWeightKg(kg: number | null | undefined): string | null {
+  if (kg === null || kg === undefined) return null
+  const { min, max } = HEALTH_BOUNDS.weightKg
+  if (kg < min) return `That looks too small — enter weight in kg (e.g. 72)`
+  if (kg > max) return `That weight looks too large — enter it in kg (e.g. 72)`
+  return null
+}
+
+export interface HealthProfileFieldError {
+  field: string
+  message: string
+}
+
+/**
+ * Every plausibility problem in a profile, so a caller can block a save that the
+ * server would reject anyway. Empty array means the document is safe to send.
+ *
+ * Deliberately does NOT require anything: an entirely empty profile is valid.
+ * This only catches values that are present and impossible.
+ */
+export function healthProfileErrors(
+  profile: ClientHealthProfile | null | undefined,
+): HealthProfileFieldError[] {
+  if (!profile) return []
+  const errors: HealthProfileFieldError[] = []
+  const add = (field: string, message: string | null) => {
+    if (message) errors.push({ field, message })
+  }
+
+  add("about.heightCm", validateHeightCm(profile.about?.heightCm))
+  add("about.weightKg", validateWeightKg(profile.about?.weightKg))
+  add(
+    "baselines.bloodPressure",
+    validateBloodPressure(profile.baselines?.systolic, profile.baselines?.diastolic),
+  )
+
+  const heartRate = profile.baselines?.restingHeartRate
+  if (heartRate !== null && heartRate !== undefined) {
+    const { min, max } = HEALTH_BOUNDS.restingHeartRate
+    if (heartRate < min || heartRate > max) {
+      add("baselines.restingHeartRate", "That resting heart rate looks out of range")
+    }
+  }
+
+  return errors
+}
+
+/**
  * Whether a blood pressure pair is plausible. Returns a message rather than a
  * boolean so the form can say what is wrong.
  */

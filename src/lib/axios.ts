@@ -49,19 +49,46 @@ const waitForAuthInit = (): Promise<void> => {
   return authInitPromise;
 };
 
-let cachedToken: { value: string; expiresAt: number } | null = null;
+/**
+ * Cached Firebase ID token, keyed by the uid it was minted for.
+ *
+ * The uid is load-bearing, not bookkeeping. Without it, a token cached for one
+ * user was reused after `auth.currentUser` changed — which broke signup for
+ * anyone who landed with a restored session: `createUserWithEmailAndPassword`
+ * switched the current user, but `POST /users` still carried the previous
+ * user's token, so the server resolved the OLD uid, found that user's doc, and
+ * returned 409 "User already exists". A page refresh cleared this module state,
+ * which is why retrying after a refresh appeared to fix it.
+ *
+ * Keying by uid rather than subscribing to `onAuthStateChanged` because the
+ * listener can fire after a request has already read the cache.
+ */
+let cachedToken: { uid: string; value: string; expiresAt: number } | null = null;
 
 export const clearAuthCache = (): void => {
   cachedToken = null;
 };
 
-const getCachedIdToken = async (forceRefresh = false): Promise<string | null> => {
-  if (!forceRefresh && cachedToken && Date.now() < cachedToken.expiresAt - 60_000) {
+export const getCachedIdToken = async (forceRefresh = false): Promise<string | null> => {
+  const uid = auth.currentUser?.uid ?? null;
+  // Signed out: there is no token to serve, and certainly not a previous one.
+  if (!uid) return null;
+
+  if (
+    !forceRefresh &&
+    cachedToken &&
+    cachedToken.uid === uid &&
+    Date.now() < cachedToken.expiresAt - 60_000
+  ) {
     return cachedToken.value;
   }
-  const token = await getIdToken();
+
+  // Forward `forceRefresh`: without it the 401 retry only bypassed this local
+  // cache while Firebase happily returned its own cached token, so a retry
+  // re-sent the same rejected credential.
+  const token = await getIdToken(forceRefresh);
   if (token) {
-    cachedToken = { value: token, expiresAt: Date.now() + 55 * 60 * 1000 };
+    cachedToken = { uid, value: token, expiresAt: Date.now() + 55 * 60 * 1000 };
   }
   return token ?? null;
 };

@@ -18,6 +18,7 @@ import type { LoginResult } from "../types/login.types"
 import { PageLoader } from "@/components/ui/loader"
 import { auth, isFirebaseConfigured } from "@/lib/firebase";
 import { clearAuthCache } from "@/lib/axios";
+import { clearSignupWizardStorage } from "@/utils/auth/context/SignupWizardContext";
 import type { User } from "../types/user.types"
 
 interface AuthContextType {
@@ -171,6 +172,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     await dispatch(logoutUser())  // Firebase signOut + triggers root reducer reset (clears all RTK Query caches)
     clearAuthCache()
+    // A half-finished signup must not leak into whoever uses this tab next.
+    clearSignupWizardStorage()
     removeUserData()
     await persistor.purge()       // clears redux-persist localStorage keys (auth)
     setUserState(null)
