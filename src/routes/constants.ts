@@ -13,6 +13,12 @@ export const Routes = {
             profile: "/user/profile",
             viewProfile: (id: string) => `/user/profile/${id}`,
             settings: "/user/settings",
+            // Clinical layer. Professionals share the /user/* prefix, exactly as
+            // they do for /user/schedule — there is no /professional/* prefix.
+            healthProfile: "/user/health-profile",
+            records: "/user/records",
+            clientRecords: (clientId: string) => `/user/records/${clientId}`,
+            followUps: "/user/follow-ups",
         },
         agency: {
             dashboard: "/agency/dashboard",

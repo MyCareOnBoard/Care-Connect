@@ -22,6 +22,7 @@ import { listBookings } from "@/utils/careconnect/services/telehealthService"
 import { minutesToLabel, toDateKey, type TelehealthBooking } from "@/utils/careconnect/types"
 import { ROW_STATUS_PILL, bookingStart, formatDurationLabel, rowStatusFor } from "@/utils/careconnect/bookingStatus"
 import { BookingDetailsDialog } from "@/components/professional/BookingDetailsDialog"
+import { useRecordSurfaces } from "@/components/records/useRecordSurfaces"
 import { BookingRowAction } from "@/components/professional/BookingRowAction"
 import { AvailabilityModal } from "@/components/professional/AvailabilityModal"
 
@@ -158,6 +159,17 @@ function ScheduleTable({
   const [tableSearch, setTableSearch] = useState("")
   const [detailsBooking, setDetailsBooking] = useState<TelehealthBooking | null>(null)
 
+  // Clinical surfaces (record editor, follow-up proposal, record viewer). The
+  // two schedule pages are near-duplicates, so this stays a single hook call
+  // plus one {surfaces} in each rather than forty duplicated lines.
+  const {
+    openRecordEditor,
+    openFollowUpProposal,
+    openClientRecords,
+    openRecordViewer,
+    surfaces: recordSurfaces,
+  } = useRecordSurfaces({ onBookingPatched: onBookingUpdated })
+
   const now = new Date()
   const todayKey = toDateKey(now)
   const week = { start: startOfWeek(now), end: endOfWeek(now) }
@@ -250,7 +262,7 @@ function ScheduleTable({
                 <th className="py-3 pr-4 font-medium">{isProfessional ? "Client" : "Care Professional"}</th>
                 {!isProfessional && <th className="py-3 pr-4 font-medium">Service</th>}
                 <th className="py-3 pr-4 font-medium">Duration</th>
-                <th className="py-3 pr-4 font-medium">PA Rate</th>
+                <th className="py-3 pr-4 font-medium">Status</th>
                 <th className="py-3 pr-4 font-medium text-right">Action</th>
               </tr>
             </thead>
@@ -280,7 +292,13 @@ function ScheduleTable({
                       <span className={`rounded-full px-3 py-1 text-xs font-semibold ${pill.className}`}>{pill.label}</span>
                     </td>
                     <td className="py-4 pr-4 text-right whitespace-nowrap">
-                      <BookingRowAction booking={booking} rowStatus={rowStatus} isProfessional={isProfessional} onDetails={setDetailsBooking} />
+                      <BookingRowAction
+                        booking={booking}
+                        rowStatus={rowStatus}
+                        isProfessional={isProfessional}
+                        onDetails={setDetailsBooking}
+                        onRecord={openRecordEditor}
+                      />
                     </td>
                   </tr>
                 )
@@ -295,7 +313,12 @@ function ScheduleTable({
         onOpenChange={(open) => !open && setDetailsBooking(null)}
         canManage={isProfessional}
         onStatusChanged={onBookingUpdated}
+        onWriteRecord={openRecordEditor}
+        onProposeFollowUp={openFollowUpProposal}
+        onViewRecords={isProfessional ? openClientRecords : openRecordViewer}
       />
+
+      {recordSurfaces}
     </div>
   )
 }
@@ -366,6 +389,17 @@ export default function ProfessionalSchedulePage() {
     setAllBookings((current) => current.map((booking) => (booking.id === updated.id ? updated : booking)))
     setRangeBookings((current) => current.map((booking) => (booking.id === updated.id ? updated : booking)))
   }
+
+  // Clinical surfaces (record editor, follow-up proposal, record viewer). The
+  // two schedule pages are near-duplicates, so this stays a single hook call
+  // plus one {surfaces} in each rather than forty duplicated lines.
+  const {
+    openRecordEditor,
+    openFollowUpProposal,
+    openClientRecords,
+    openRecordViewer,
+    surfaces: recordSurfaces,
+  } = useRecordSurfaces({ onBookingPatched: handleBookingUpdated })
 
   const goToPrevious = () => {
     setCurrentDate((current) => (view === "Month" || view === "Week" ? addMonths(current, -1) : addDays(current, -1)))
@@ -728,7 +762,12 @@ export default function ProfessionalSchedulePage() {
         onOpenChange={(open) => !open && setDetailsBooking(null)}
         canManage={isProfessional}
         onStatusChanged={handleBookingUpdated}
+        onWriteRecord={openRecordEditor}
+        onProposeFollowUp={openFollowUpProposal}
+        onViewRecords={isProfessional ? openClientRecords : openRecordViewer}
       />
+
+      {recordSurfaces}
 
       <AvailabilityModal open={availabilityOpen} onOpenChange={setAvailabilityOpen} />
     </div>

@@ -12,16 +12,19 @@ import {
   endOfMonth,
   eachDayOfInterval,
 } from "date-fns"
-import { Calendar, ChevronLeft, ChevronRight, List, Search } from "lucide-react"
+import { Calendar, ChevronLeft, ChevronRight, Info, List, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Routes } from "@/routes/constants"
 import { getInitials } from "@/lib/utils"
 import { listBookings } from "@/utils/careconnect/services/telehealthService"
+import { listFollowUps } from "@/utils/careconnect/services/clinicalService"
 import { minutesToLabel, toDateKey, type TelehealthBooking } from "@/utils/careconnect/types"
 import { ROW_STATUS_PILL, bookingStart, formatDurationLabel, rowStatusFor } from "@/utils/careconnect/bookingStatus"
 import { BookingDetailsDialog } from "@/components/professional/BookingDetailsDialog"
+import { useRecordSurfaces } from "@/components/records/useRecordSurfaces"
 import { BookingRowAction } from "@/components/professional/BookingRowAction"
+import { isFollowUpExpired } from "@/components/records/FollowUpCard"
 
 const isProfessional = false
 
@@ -156,6 +159,17 @@ function ScheduleTable({
   const [tableSearch, setTableSearch] = useState("")
   const [detailsBooking, setDetailsBooking] = useState<TelehealthBooking | null>(null)
 
+  // Clinical surfaces (record editor, follow-up proposal, record viewer). The
+  // two schedule pages are near-duplicates, so this stays a single hook call
+  // plus one {surfaces} in each rather than forty duplicated lines.
+  const {
+    openRecordEditor,
+    openFollowUpProposal,
+    openClientRecords,
+    openRecordViewer,
+    surfaces: recordSurfaces,
+  } = useRecordSurfaces({ onBookingPatched: onBookingUpdated })
+
   const now = new Date()
   const todayKey = toDateKey(now)
   const week = { start: startOfWeek(now), end: endOfWeek(now) }
@@ -248,7 +262,7 @@ function ScheduleTable({
                 <th className="py-3 pr-4 font-medium">{isProfessional ? "Client" : "Care Professional"}</th>
                 {!isProfessional && <th className="py-3 pr-4 font-medium">Service</th>}
                 <th className="py-3 pr-4 font-medium">Duration</th>
-                <th className="py-3 pr-4 font-medium">PA Rate</th>
+                <th className="py-3 pr-4 font-medium">Status</th>
                 <th className="py-3 pr-4 font-medium text-right">Action</th>
               </tr>
             </thead>
@@ -278,7 +292,13 @@ function ScheduleTable({
                       <span className={`rounded-full px-3 py-1 text-xs font-semibold ${pill.className}`}>{pill.label}</span>
                     </td>
                     <td className="py-4 pr-4 text-right whitespace-nowrap">
-                      <BookingRowAction booking={booking} rowStatus={rowStatus} isProfessional={isProfessional} onDetails={setDetailsBooking} />
+                      <BookingRowAction
+                        booking={booking}
+                        rowStatus={rowStatus}
+                        isProfessional={isProfessional}
+                        onDetails={setDetailsBooking}
+                        onRecord={openRecordEditor}
+                      />
                     </td>
                   </tr>
                 )
@@ -293,7 +313,12 @@ function ScheduleTable({
         onOpenChange={(open) => !open && setDetailsBooking(null)}
         canManage={isProfessional}
         onStatusChanged={onBookingUpdated}
+        onWriteRecord={openRecordEditor}
+        onProposeFollowUp={openFollowUpProposal}
+        onViewRecords={isProfessional ? openClientRecords : openRecordViewer}
       />
+
+      {recordSurfaces}
     </div>
   )
 }
@@ -308,6 +333,26 @@ export default function UserSchedulePage() {
   const [calendarLoading, setCalendarLoading] = useState(true)
   const [tableLoading, setTableLoading] = useState(true)
   const [detailsBooking, setDetailsBooking] = useState<TelehealthBooking | null>(null)
+  // Follow-up proposals awaiting an answer. Lives on the client page only: this
+  // file already dispatches on role, so keeping the banner here means zero
+  // duplication with professional/schedule.tsx.
+  const [pendingFollowUps, setPendingFollowUps] = useState(0)
+
+  useEffect(() => {
+    let active = true
+    listFollowUps({ scope: "client", status: "proposed" })
+      .then((list) => {
+        if (!active) return
+        // A slot that has already passed is not awaiting anything.
+        setPendingFollowUps(list.filter((item) => !isFollowUpExpired(item)).length)
+      })
+      .catch(() => {
+        if (active) setPendingFollowUps(0)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   // The visible date range depends on the active view — a single day, or a full month
   // (padded to whole weeks) for both Week and Month views. Week view shows every week of
@@ -364,6 +409,17 @@ export default function UserSchedulePage() {
     setAllBookings((current) => current.map((booking) => (booking.id === updated.id ? updated : booking)))
     setRangeBookings((current) => current.map((booking) => (booking.id === updated.id ? updated : booking)))
   }
+
+  // Clinical surfaces (record editor, follow-up proposal, record viewer). The
+  // two schedule pages are near-duplicates, so this stays a single hook call
+  // plus one {surfaces} in each rather than forty duplicated lines.
+  const {
+    openRecordEditor,
+    openFollowUpProposal,
+    openClientRecords,
+    openRecordViewer,
+    surfaces: recordSurfaces,
+  } = useRecordSurfaces({ onBookingPatched: handleBookingUpdated })
 
   const goToPrevious = () => {
     setCurrentDate((current) => (view === "Month" || view === "Week" ? addMonths(current, -1) : addDays(current, -1)))
@@ -437,6 +493,21 @@ export default function UserSchedulePage() {
 
   return (
     <div className="p-5 sm:p-8">
+      {pendingFollowUps > 0 && (
+        <Link
+          to={Routes.app.user.followUps}
+          className="mb-5 flex items-center justify-between gap-3 rounded-2xl bg-[#fdf3e3] px-4 py-3 text-sm text-[#8a6d1f] transition hover:opacity-90"
+        >
+          <span className="flex items-center gap-2">
+            <Info className="size-4 shrink-0" />
+            {pendingFollowUps === 1
+              ? "A professional has recommended a follow-up visit."
+              : `${pendingFollowUps} professionals have recommended follow-up visits.`}
+          </span>
+          <span className="shrink-0 font-semibold underline">Review</span>
+        </Link>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center rounded-xl border border-[#e2e2e2] p-1">
@@ -714,7 +785,12 @@ export default function UserSchedulePage() {
         onOpenChange={(open) => !open && setDetailsBooking(null)}
         canManage={isProfessional}
         onStatusChanged={handleBookingUpdated}
+        onWriteRecord={openRecordEditor}
+        onProposeFollowUp={openFollowUpProposal}
+        onViewRecords={isProfessional ? openClientRecords : openRecordViewer}
       />
+
+      {recordSurfaces}
     </div>
   )
 }

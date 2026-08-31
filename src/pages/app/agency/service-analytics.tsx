@@ -177,7 +177,7 @@ export default function ServiceAnalyticsPage() {
                   <th className="py-3 pr-4 font-medium">Client</th>
                   <th className="py-3 pr-4 font-medium">Care Professional</th>
                   <th className="py-3 pr-4 font-medium">Duration</th>
-                  <th className="py-3 pr-4 font-medium">PA Rate</th>
+                  <th className="py-3 pr-4 font-medium">Status</th>
                   <th className="py-3 pr-4 font-medium text-right">Action</th>
                 </tr>
               </thead>

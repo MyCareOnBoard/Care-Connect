@@ -44,6 +44,19 @@ export interface NewBookingInput {
   note?: string
   paymentMethod?: string
   location?: BookingLocation
+  /**
+   * Whether the client agrees the assigned professional may write a visit record
+   * for this appointment, and which wording they were shown. Both optional:
+   * omitting them books normally with no record consent, so the clinical layer
+   * can never block a booking.
+   */
+  recordConsent?: { accepted: boolean; policyVersion: string }
+  /**
+   * Set false to book WITHOUT attaching health information the client has on
+   * file. The snapshot is always read server-side from their stored profile, so
+   * the client never sends health data through this call.
+   */
+  attachHealthProfile?: boolean
 }
 
 export interface ListBookingsParams {
@@ -161,6 +174,26 @@ export async function updateBookingStatus(
   status: string,
 ): Promise<TelehealthBooking> {
   const { data } = await axiosClient.patch(`/careconnectBookings/${id}/status`, { status })
+  return data.data
+}
+
+/**
+ * The client grants or withdraws consent for a visit record after booking, for
+ * when they skipped it in the booking flow.
+ *
+ * Rejects with 409 once a record has been signed: that consent authorized
+ * documenting a visit that happened, and the note is now the professional's
+ * clinical record. Turning off record sharing is the remedy instead.
+ */
+export async function updateBookingRecordConsent(
+  id: string,
+  allowed: boolean,
+  policyVersion?: string,
+): Promise<TelehealthBooking> {
+  const { data } = await axiosClient.patch(`/careconnectBookings/${id}/record-consent`, {
+    allowed,
+    policyVersion,
+  })
   return data.data
 }
 
