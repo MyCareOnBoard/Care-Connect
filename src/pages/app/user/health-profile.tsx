@@ -14,6 +14,7 @@ import {
 } from "@/utils/careconnect/services/clinicalService"
 import {
   healthProfileCompleteness,
+  healthProfileErrors,
   isHealthProfileEmpty,
 } from "@/utils/careconnect/healthProfile"
 import { formatRelative, type ClientHealthProfile } from "@/utils/careconnect/types"
@@ -81,6 +82,10 @@ export default function HealthProfilePage() {
 
   const completeness = healthProfileCompleteness(profile)
   const empty = isHealthProfileEmpty(profile)
+  // Catch implausible values here rather than letting the whole-document PUT come
+  // back as a 400 naming a nested path like `about.heightCm`. Each field also
+  // shows its own message; this only gates the save.
+  const errors = healthProfileErrors(profile)
 
   return (
     <div className="space-y-6 p-5 sm:p-8">
@@ -140,11 +145,19 @@ export default function HealthProfilePage() {
           }}
         />
 
-        <div className="mt-6 flex items-center justify-end gap-3 border-t border-[#eef1f3] pt-5">
-          {dirty && <span className="text-sm text-[#657080]">Unsaved changes</span>}
+        <div className="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-[#eef1f3] pt-5">
+          {errors.length > 0 ? (
+            <span className="mr-auto text-sm text-[#ff3e66]">
+              {errors.length === 1
+                ? "One value needs a look before saving."
+                : `${errors.length} values need a look before saving.`}
+            </span>
+          ) : (
+            dirty && <span className="mr-auto text-sm text-[#657080]">Unsaved changes</span>
+          )}
           <Button
             className="bg-[#00b4b8] text-white hover:opacity-90"
-            disabled={saving || !dirty}
+            disabled={saving || !dirty || errors.length > 0}
             onClick={save}
           >
             {saving ? "Saving..." : "Save profile"}

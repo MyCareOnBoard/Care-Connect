@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -9,7 +10,15 @@ import {
 } from "@/components/ui/select"
 import { ChipMultiSelect } from "@/components/health/ChipMultiSelect"
 import { AllergyRows, MedicationRows } from "@/components/health/RepeatableRows"
-import { validateBloodPressure } from "@/utils/careconnect/healthProfile"
+import {
+  cmToFeetInches,
+  feetInchesToCm,
+  kgToLb,
+  lbToKg,
+  validateBloodPressure,
+  validateHeightCm,
+  validateWeightKg,
+} from "@/utils/careconnect/healthProfile"
 import {
   ALCOHOL_LABELS,
   BLOOD_TYPES,
@@ -110,6 +119,208 @@ function toNumberOrNull(raw: string): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+/**
+ * Height entry in either unit.
+ *
+ * The profile always stores centimetres, but plenty of people only know their
+ * height in feet and inches — and typing "5" into a centimetres box produced a
+ * server-side 400. The unit toggle makes that a supported path rather than a
+ * mistake, converting on the way in.
+ *
+ * Both fields below hold what the user typed in local state rather than deriving
+ * the input value from the stored canonical number. Round-tripping through cm/kg
+ * loses precision, so a derived input fights the typist: entering "159" lb
+ * becomes 72.1 kg and renders back as "158.9". The stored value stays canonical;
+ * only the display is sticky.
+ */
+function UnitToggle<T extends string>({
+  options,
+  value,
+  onChange,
+  labels,
+}: {
+  options: readonly T[]
+  value: T
+  onChange: (next: T) => void
+  labels?: Partial<Record<T, string>>
+}) {
+  return (
+    <div className="flex items-center rounded-lg border border-[#eef1f3] p-0.5">
+      {options.map((option) => (
+        <button
+          key={option}
+          type="button"
+          onClick={() => onChange(option)}
+          className={`rounded-md px-2 py-0.5 text-xs font-semibold transition ${
+            value === option ? "bg-[#e3f8f8] text-[#00898c]" : "text-[#657080]"
+          }`}
+        >
+          {labels?.[option] ?? option}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function FieldHeader({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-1.5 flex items-center justify-between gap-2">
+      <label className="text-sm font-medium text-[#151922]">{label}</label>
+      {children}
+    </div>
+  )
+}
+
+function HeightField({
+  valueCm,
+  onChange,
+}: {
+  valueCm: number | null | undefined
+  onChange: (cm: number | null) => void
+}) {
+  const [unit, setUnit] = useState<"cm" | "ftin">("cm")
+  // Seeded from the stored value, then owned by the typist.
+  const [raw, setRaw] = useState(() => {
+    const imperial = cmToFeetInches(valueCm ?? null)
+    return {
+      cm: valueCm != null ? String(valueCm) : "",
+      feet: imperial ? String(imperial.feet) : "",
+      inches: imperial ? String(imperial.inches) : "",
+    }
+  })
+  const error = validateHeightCm(valueCm)
+  const asImperial = cmToFeetInches(valueCm ?? null)
+
+  const switchUnit = (next: "cm" | "ftin") => {
+    // Re-seed the incoming unit from the stored value, so a switch shows the
+    // equivalent rather than a stale draft.
+    const imperial = cmToFeetInches(valueCm ?? null)
+    setRaw({
+      cm: valueCm != null ? String(valueCm) : "",
+      feet: imperial ? String(imperial.feet) : "",
+      inches: imperial ? String(imperial.inches) : "",
+    })
+    setUnit(next)
+  }
+
+  const commitImperial = (feet: string, inches: string) => {
+    setRaw((current) => ({ ...current, feet, inches }))
+    if (!feet.trim() && !inches.trim()) return onChange(null)
+    onChange(feetInchesToCm(Number(feet) || 0, Number(inches) || 0))
+  }
+
+  return (
+    <div>
+      <FieldHeader label="Height">
+        <UnitToggle
+          options={["cm", "ftin"] as const}
+          value={unit}
+          onChange={switchUnit}
+          labels={{ ftin: "ft/in" }}
+        />
+      </FieldHeader>
+
+      {unit === "cm" ? (
+        <Input
+          type="number"
+          inputMode="decimal"
+          value={raw.cm}
+          onChange={(event) => {
+            setRaw((current) => ({ ...current, cm: event.target.value }))
+            onChange(toNumberOrNull(event.target.value))
+          }}
+          placeholder="e.g. 170"
+          aria-label="Height in centimetres"
+          className="h-11"
+        />
+      ) : (
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            inputMode="numeric"
+            value={raw.feet}
+            onChange={(event) => commitImperial(event.target.value, raw.inches)}
+            placeholder="5"
+            aria-label="Height, feet"
+            className="h-11"
+          />
+          <span className="text-sm text-[#657080]">ft</span>
+          <Input
+            type="number"
+            inputMode="numeric"
+            value={raw.inches}
+            onChange={(event) => commitImperial(raw.feet, event.target.value)}
+            placeholder="9"
+            aria-label="Height, inches"
+            className="h-11"
+          />
+          <span className="text-sm text-[#657080]">in</span>
+        </div>
+      )}
+
+      {error ? (
+        <p className="mt-1.5 text-sm text-[#ff3e66]">{error}</p>
+      ) : (
+        unit === "cm" &&
+        asImperial && (
+          <p className="mt-1.5 text-sm text-[#657080]">
+            {asImperial.feet}ft {asImperial.inches}in
+          </p>
+        )
+      )}
+    </div>
+  )
+}
+
+/** Weight entry in kg or lb, stored as kg. Same rationale as HeightField. */
+function WeightField({
+  valueKg,
+  onChange,
+}: {
+  valueKg: number | null | undefined
+  onChange: (kg: number | null) => void
+}) {
+  const [unit, setUnit] = useState<"kg" | "lb">("kg")
+  const [raw, setRaw] = useState(() => (valueKg != null ? String(valueKg) : ""))
+  const error = validateWeightKg(valueKg)
+  const asPounds = kgToLb(valueKg ?? null)
+
+  const switchUnit = (next: "kg" | "lb") => {
+    if (valueKg == null) setRaw("")
+    else setRaw(String(next === "kg" ? valueKg : kgToLb(valueKg)))
+    setUnit(next)
+  }
+
+  return (
+    <div>
+      <FieldHeader label="Weight">
+        <UnitToggle options={["kg", "lb"] as const} value={unit} onChange={switchUnit} />
+      </FieldHeader>
+
+      <Input
+        type="number"
+        inputMode="decimal"
+        value={raw}
+        onChange={(event) => {
+          setRaw(event.target.value)
+          const entered = toNumberOrNull(event.target.value)
+          if (entered === null) return onChange(null)
+          onChange(unit === "kg" ? entered : lbToKg(entered))
+        }}
+        placeholder={unit === "kg" ? "e.g. 72" : "e.g. 159"}
+        aria-label={`Weight in ${unit === "kg" ? "kilograms" : "pounds"}`}
+        className="h-11"
+      />
+
+      {error ? (
+        <p className="mt-1.5 text-sm text-[#ff3e66]">{error}</p>
+      ) : (
+        unit === "kg" && asPounds !== null && <p className="mt-1.5 text-sm text-[#657080]">{asPounds} lb</p>
+      )}
+    </div>
+  )
+}
+
 export function HealthProfileForm({
   value,
   onChange,
@@ -176,26 +387,14 @@ export function HealthProfileForm({
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Height (cm)">
-              <Input
-                type="number"
-                inputMode="decimal"
-                value={value.about?.heightCm ?? ""}
-                onChange={(event) => setAbout({ heightCm: toNumberOrNull(event.target.value) })}
-                placeholder="e.g. 170"
-                className="h-11"
-              />
-            </Field>
-            <Field label="Weight (kg)">
-              <Input
-                type="number"
-                inputMode="decimal"
-                value={value.about?.weightKg ?? ""}
-                onChange={(event) => setAbout({ weightKg: toNumberOrNull(event.target.value) })}
-                placeholder="e.g. 72"
-                className="h-11"
-              />
-            </Field>
+            <HeightField
+              valueCm={value.about?.heightCm}
+              onChange={(heightCm) => setAbout({ heightCm })}
+            />
+            <WeightField
+              valueKg={value.about?.weightKg}
+              onChange={(weightKg) => setAbout({ weightKg })}
+            />
             <Field label="Blood type">
               <Select
                 value={value.about?.bloodType ?? ""}

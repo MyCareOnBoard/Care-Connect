@@ -5,13 +5,24 @@ import { useNavigate } from "react-router"
 import { Button } from "@/components/ui/button"
 import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
 import { Routes } from "@/routes/constants"
-import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
+import {
+  clearSignupWizardStorage,
+  useSignupWizard,
+} from "@/utils/auth/context/SignupWizardContext"
 
 export default function WelcomePage() {
   const navigate = useNavigate()
   const { fullName } = useSignupWizard()
   const firstName = fullName.trim().split(" ")[0] || "there"
   const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  // Onboarding is done, so the persisted wizard has served its purpose. Dropping
+  // it here stops a spent invite token being inherited by the next signup in
+  // this tab. Only the stored copy goes — in-memory state still backs the
+  // greeting above.
+  useEffect(() => {
+    clearSignupWizardStorage()
+  }, [])
 
   useEffect(() => {
     if (!canvasRef.current) return

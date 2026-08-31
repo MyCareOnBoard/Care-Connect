@@ -24,9 +24,18 @@ export default function ProfessionalAvailabilityPage() {
     try {
       await completeOnboarding()
       // Attach this professional to the inviting agency's roster, then persist the
-      // availability they just set (both best-effort — onboarding still completes).
+      // availability they just set. Neither blocks onboarding — but a failed
+      // attach is reported rather than swallowed: it used to look like a clean
+      // signup while leaving the professional off the roster entirely, with the
+      // agency still seeing them as pending and nothing to explain why.
       if (inviteToken) {
-        await acceptInvite(inviteToken).catch(() => undefined)
+        try {
+          await acceptInvite(inviteToken)
+        } catch {
+          toast.warning(
+            "Your account is ready, but we could not add you to the agency's team. Ask them to resend your invite.",
+          )
+        }
       }
       await updateMyAvailability(availability).catch(() => undefined)
       navigate(Routes.auth.welcome)

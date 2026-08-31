@@ -5,12 +5,16 @@ import {
   describeMedication,
   feetInchesToCm,
   formatBloodPressure,
+  HEALTH_BOUNDS,
   healthProfileCompleteness,
+  healthProfileErrors,
   isHealthProfileEmpty,
   kgToLb,
   lbToKg,
   summarizeHealthProfile,
   validateBloodPressure,
+  validateHeightCm,
+  validateWeightKg,
 } from "@/utils/careconnect/healthProfile"
 import type { ClientHealthProfile } from "@/utils/careconnect/types"
 
@@ -196,5 +200,73 @@ describe("summarizeHealthProfile", () => {
     })
     expect(sections).toHaveLength(1)
     expect(sections[0].rows[0].value).toBe("COPD")
+  })
+})
+
+describe("height and weight plausibility", () => {
+  it("accepts a blank value — every field is optional", () => {
+    expect(validateHeightCm(null)).toBeNull()
+    expect(validateHeightCm(undefined)).toBeNull()
+    expect(validateWeightKg(null)).toBeNull()
+    expect(validateWeightKg(undefined)).toBeNull()
+  })
+
+  it("accepts plausible values", () => {
+    expect(validateHeightCm(170)).toBeNull()
+    expect(validateHeightCm(HEALTH_BOUNDS.heightCm.min)).toBeNull()
+    expect(validateHeightCm(HEALTH_BOUNDS.heightCm.max)).toBeNull()
+    expect(validateWeightKg(72)).toBeNull()
+  })
+
+  it("names the unit for the two mistakes people actually make", () => {
+    // Feet, and metres — the values that produced a server 400 naming
+    // `about.heightCm`, which told the user nothing useful.
+    expect(validateHeightCm(5)).toMatch(/feet or metres/i)
+    expect(validateHeightCm(1.7)).toMatch(/feet or metres/i)
+    expect(validateHeightCm(5)).toMatch(/cm/)
+  })
+
+  it("catches values above the bound too", () => {
+    expect(validateHeightCm(281)).toMatch(/too large/i)
+    expect(validateWeightKg(501)).toMatch(/too large/i)
+    expect(validateWeightKg(0.5)).toMatch(/too small/i)
+  })
+
+  it("keeps its bounds in step with the backend schema", () => {
+    // client-health.schema.js: heightCm 20-280, weightKg 1-500.
+    expect(HEALTH_BOUNDS.heightCm).toEqual({ min: 20, max: 280 })
+    expect(HEALTH_BOUNDS.weightKg).toEqual({ min: 1, max: 500 })
+  })
+})
+
+describe("healthProfileErrors", () => {
+  it("finds nothing wrong with an empty or absent profile", () => {
+    expect(healthProfileErrors(null)).toEqual([])
+    expect(healthProfileErrors({})).toEqual([])
+    expect(healthProfileErrors({ history: { conditions: ["Asthma"] } })).toEqual([])
+  })
+
+  it("reports the field path so the caller can gate a save", () => {
+    const errors = healthProfileErrors({ about: { heightCm: 5 } })
+    expect(errors).toHaveLength(1)
+    expect(errors[0].field).toBe("about.heightCm")
+    expect(errors[0].message).toMatch(/cm/)
+  })
+
+  it("collects every problem, not just the first", () => {
+    const errors = healthProfileErrors({
+      about: { heightCm: 5, weightKg: 900 },
+      baselines: { systolic: 120, diastolic: null },
+    })
+    expect(errors.map((e) => e.field)).toEqual([
+      "about.heightCm",
+      "about.weightKg",
+      "baselines.bloodPressure",
+    ])
+  })
+
+  it("catches an out-of-range resting heart rate", () => {
+    expect(healthProfileErrors({ baselines: { restingHeartRate: 400 } })).toHaveLength(1)
+    expect(healthProfileErrors({ baselines: { restingHeartRate: 70 } })).toEqual([])
   })
 })

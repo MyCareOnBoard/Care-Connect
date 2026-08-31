@@ -184,3 +184,88 @@ describe("blood pressure validation", () => {
     expect(screen.getByText(/both the top and bottom numbers/i)).toBeInTheDocument()
   })
 })
+
+describe("height and weight units", () => {
+  it("stores centimetres when entered in cm, and shows the imperial equivalent", async () => {
+    let latest: ClientHealthProfile = {}
+    render(
+      <Harness
+        sections={["basics"] as typeof ALL_SECTIONS}
+        onValue={(value) => {
+          latest = value
+        }}
+      />,
+    )
+
+    await userEvent.type(screen.getByLabelText("Height in centimetres"), "175")
+    expect(latest.about?.heightCm).toBe(175)
+    expect(screen.getByText("5ft 9in")).toBeInTheDocument()
+  })
+
+  it("lets someone enter height in feet and inches, storing cm", async () => {
+    // Typing "5" into a centimetres box used to produce a server 400 naming
+    // `about.heightCm`. Feet/inches is now a supported path.
+    let latest: ClientHealthProfile = {}
+    render(
+      <Harness
+        sections={["basics"] as typeof ALL_SECTIONS}
+        onValue={(value) => {
+          latest = value
+        }}
+      />,
+    )
+
+    await userEvent.click(screen.getByRole("button", { name: "ft/in" }))
+    await userEvent.type(screen.getByLabelText("Height, feet"), "5")
+    await userEvent.type(screen.getByLabelText("Height, inches"), "9")
+
+    expect(latest.about?.heightCm).toBeGreaterThan(174)
+    expect(latest.about?.heightCm).toBeLessThan(176)
+    // And no complaint, because the value is plausible.
+    expect(screen.queryByText(/feet or metres/i)).not.toBeInTheDocument()
+  })
+
+  it("explains an implausible centimetre value at the field", async () => {
+    render(<Harness sections={["basics"] as typeof ALL_SECTIONS} />)
+    await userEvent.type(screen.getByLabelText("Height in centimetres"), "5")
+    expect(screen.getByText(/feet or metres/i)).toBeInTheDocument()
+  })
+
+  it("does not fight the typist when entering pounds", async () => {
+    // Round-tripping lb -> kg -> lb loses precision, so a derived input would
+    // rewrite "159" as "158.9" mid-typing.
+    let latest: ClientHealthProfile = {}
+    render(
+      <Harness
+        sections={["basics"] as typeof ALL_SECTIONS}
+        onValue={(value) => {
+          latest = value
+        }}
+      />,
+    )
+
+    await userEvent.click(screen.getByRole("button", { name: "lb" }))
+    const input = screen.getByLabelText("Weight in pounds")
+    await userEvent.type(input, "159")
+
+    expect(input).toHaveValue(159)
+    expect(latest.about?.weightKg).toBeGreaterThan(71)
+    expect(latest.about?.weightKg).toBeLessThan(73)
+  })
+
+  it("clears the stored value when the field is emptied", async () => {
+    let latest: ClientHealthProfile = {}
+    render(
+      <Harness
+        sections={["basics"] as typeof ALL_SECTIONS}
+        initial={{ about: { heightCm: 170 } }}
+        onValue={(value) => {
+          latest = value
+        }}
+      />,
+    )
+
+    await userEvent.clear(screen.getByLabelText("Height in centimetres"))
+    expect(latest.about?.heightCm).toBeNull()
+  })
+})
