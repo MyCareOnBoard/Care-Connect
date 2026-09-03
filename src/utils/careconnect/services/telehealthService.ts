@@ -209,9 +209,15 @@ export async function recordVisitEvent(id: string, event: VisitEvent): Promise<T
 /** One participant's access to a booking's Daily room. The token is short-lived. */
 export interface VideoRoomAccess {
   roomUrl: string
-  token: string
+  /** Null for a public test room (DAILY_TEST_ROOM_URL), which needs no token to join. */
+  token: string | null
   /** ISO instant when the room and token expire (end of the join window). */
   expiresAt: string
+  /**
+   * True when the server served a shared public test room rather than a per-booking
+   * secured one. Testing only — it should never be true against production.
+   */
+  testRoom?: boolean
 }
 
 /**
