@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
 import { MapPin, Pencil, Plus, Search, ShoppingBag, Trash2 } from "lucide-react"
@@ -28,6 +28,9 @@ import {
 // and the style/gradient maps all derive from this so labels can't drift apart.
 const CATEGORIES = ["Course", "Equipment", "Templates", "Uniforms", "Books", "Services", "Consulting"] as const
 const FILTERS = ["All", ...CATEGORIES]
+
+// Infinite scroll: how many products are revealed at a time (two 4-col rows).
+const PRODUCTS_PAGE_SIZE = 8
 
 const CURRENCY_SYMBOLS: Record<string, string> = { USD: "$", GBP: "£", EUR: "€" }
 function priceLabel(price: number, currency: string): string {
@@ -394,6 +397,9 @@ export default function MarketplacePage() {
   const [search, setSearch] = useState("")
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [visibleCount, setVisibleCount] = useState(PRODUCTS_PAGE_SIZE)
+  const scrollSentinelRef = useRef<HTMLDivElement | null>(null)
+  const scrollObserverRef = useRef<IntersectionObserver | null>(null)
   // Deep-link: /market-place?add=1 (e.g. the dashboard "Sell an Item" promo) opens the panel.
   const [isAddOpen, setIsAddOpen] = useState(searchParams.get("add") === "1")
 
@@ -437,6 +443,32 @@ export default function MarketplacePage() {
       active = false
     }
   }, [view, myLoaded])
+
+  // Reset how many cards are revealed whenever the tab/filter/search changes the underlying list.
+  useEffect(() => {
+    setVisibleCount(PRODUCTS_PAGE_SIZE)
+  }, [view, activeFilter, search])
+
+  // Infinite scroll: a single long-lived observer, attached/detached from the sentinel
+  // via a callback ref as it mounts/unmounts (it only renders while more cards remain).
+  useEffect(() => {
+    scrollObserverRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleCount((current) => current + PRODUCTS_PAGE_SIZE)
+        }
+      },
+      { rootMargin: "200px" },
+    )
+    return () => scrollObserverRef.current?.disconnect()
+  }, [])
+
+  const sentinelRef = (node: HTMLDivElement | null) => {
+    const observer = scrollObserverRef.current
+    if (scrollSentinelRef.current && observer) observer.unobserve(scrollSentinelRef.current)
+    scrollSentinelRef.current = node
+    if (node && observer) observer.observe(node)
+  }
 
   /** Reflect an edited/status-changed listing in both lists without a refetch. */
   const applyLocalUpdate = (updated: Product) => {
@@ -511,6 +543,8 @@ export default function MarketplacePage() {
       )
     return matchesCategory && matchesSearch
   })
+  const shownProducts = visibleProducts.slice(0, visibleCount)
+  const hasMore = visibleCount < visibleProducts.length
 
   const emptyMessage =
     view === "mine"
@@ -582,24 +616,38 @@ export default function MarketplacePage() {
       ) : visibleProducts.length === 0 ? (
         <p className="rounded-xl border border-dashed border-[#e2e2e2] p-10 text-center text-sm text-[#657080]">{emptyMessage}</p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {visibleProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              onOpen={() => setSelectedProduct(product)}
-              owner={
-                view === "mine"
-                  ? {
-                      onEdit: () => setEditingProduct(product),
-                      onDelete: () => handleDelete(product),
-                      onSetStatus: (status) => handleSetStatus(product, status),
-                    }
-                  : undefined
-              }
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {shownProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onOpen={() => setSelectedProduct(product)}
+                owner={
+                  view === "mine"
+                    ? {
+                        onEdit: () => setEditingProduct(product),
+                        onDelete: () => handleDelete(product),
+                        onSetStatus: (status) => handleSetStatus(product, status),
+                      }
+                    : undefined
+                }
+              />
+            ))}
+          </div>
+
+          {/* Invisible trigger — scrolling this into view (200px early) reveals the next
+              page. No "Load more" button; it only renders while more cards remain. */}
+          {hasMore && (
+            <div ref={sentinelRef} aria-hidden className="flex justify-center py-4">
+              <div className="grid w-full gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {Array.from({ length: Math.min(PRODUCTS_PAGE_SIZE, visibleProducts.length - visibleCount) }).map((_, index) => (
+                  <Skeleton key={index} className="h-72 rounded-xl" />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <ProductDetailsPanel

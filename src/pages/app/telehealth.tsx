@@ -21,6 +21,8 @@ import {
   Plus,
   Search,
   Sparkles,
+  UserPlus,
+  Users,
   Video,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -33,10 +35,13 @@ import { Switch } from "@/components/ui/switch"
 import { Radio } from "@/components/ui/radio"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { PaymentMethodDialog } from "@/components/booking/PaymentMethodDialog"
 import { SlotPicker } from "@/components/booking/SlotPicker"
+import { TeamInviteDialog } from "@/components/profile/TeamInviteDialog"
+import { TeamMembersDialog } from "@/components/profile/TeamMembersDialog"
 import {
   HealthProfileForm,
   BOOKING_FLOW_SECTIONS,
@@ -61,7 +66,14 @@ import {
   updateService,
   type SearchedService,
 } from "@/utils/careconnect/services/telehealthService"
-import { listMyTeam } from "@/utils/careconnect/services/teamService"
+import {
+  bulkInviteTeamMembers,
+  inviteTeamMember,
+  listMyTeam,
+  removeTeamMember,
+  type BulkInviteMemberInput,
+  type BulkInviteResult,
+} from "@/utils/careconnect/services/teamService"
 import {
   formatRelative,
   minutesToLabel,
@@ -1568,6 +1580,9 @@ function AgencyTelehealthPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editingService, setEditingService] = useState<TelehealthService | null>(null)
   const [visibleServiceCount, setVisibleServiceCount] = useState(SERVICES_PAGE_SIZE)
+  const [teamInviteOpen, setTeamInviteOpen] = useState(false)
+  const [viewTeamOpen, setViewTeamOpen] = useState(false)
+  const [newTeamInvite, setNewTeamInvite] = useState({ phone: "", email: "", fullName: "" })
 
   // Reset "Load more" progress whenever the search term changes the underlying list.
   useEffect(() => {
@@ -1599,6 +1614,77 @@ function AgencyTelehealthPage() {
     }
   }, [])
 
+  const withdrawTeamMember = async (id: string) => {
+    const previous = team
+    setTeam((current) => current.filter((member) => member.id !== id))
+    try {
+      await removeTeamMember(id)
+    } catch (error) {
+      setTeam(previous)
+      toast.error(getAuthErrorMessage(error))
+    }
+  }
+
+  const handleInviteTeamMember = async (input: { fullName: string; email: string; phone: string }) => {
+    try {
+      const email = input.email.trim()
+      const inviteUrlBase = new URL(Routes.auth.professionalInvite, window.location.origin).toString()
+      const member = await inviteTeamMember({
+        name: input.fullName.trim(),
+        email: email || undefined,
+        phone: input.phone.trim() || undefined,
+        inviteUrlBase,
+      })
+      setTeam((current) => [member, ...current])
+
+      // Always copy the link as a fallback; the backend also emails it when an address is given.
+      const inviteUrl = new URL(Routes.auth.professionalInvite, window.location.origin)
+      inviteUrl.searchParams.set("invite", member.inviteToken)
+      inviteUrl.searchParams.set("name", member.name)
+      if (member.email) inviteUrl.searchParams.set("email", member.email)
+      if (member.phone) inviteUrl.searchParams.set("phone", member.phone)
+      await navigator.clipboard?.writeText(inviteUrl.toString()).catch(() => undefined)
+
+      if (member.emailed) {
+        toast.success(`Invitation emailed to ${email} — link also copied.`)
+      } else if (email) {
+        toast.success("Invite link copied. (Email delivery is unavailable — send the link directly.)")
+      } else {
+        toast.success("Invite link copied — send it to the new team member to set up their dashboard.")
+      }
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    }
+  }
+
+  /**
+   * Spreadsheet import. Rows were already validated client-side; the backend
+   * still reports per-row outcomes, which the dialog renders as a summary.
+   */
+  const handleBulkInviteTeamMembers = async (
+    members: BulkInviteMemberInput[],
+  ): Promise<BulkInviteResult | undefined> => {
+    try {
+      const inviteUrlBase = new URL(Routes.auth.professionalInvite, window.location.origin).toString()
+      const result = await bulkInviteTeamMembers({ members, inviteUrlBase })
+      if (result.members.length > 0) {
+        setTeam((current) => [...result.members, ...current])
+      }
+      if (result.invited > 0) {
+        toast.success(
+          `${result.invited} invitation${result.invited === 1 ? "" : "s"} sent` +
+            (result.skipped > 0 ? ` — ${result.skipped} row${result.skipped === 1 ? "" : "s"} skipped.` : "."),
+        )
+      } else {
+        toast.error("No invitations were sent — every row was rejected.")
+      }
+      return result
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+      return undefined
+    }
+  }
+
   if (loading) return <TelehealthSkeleton />
 
   const visibleServices = search
@@ -1620,6 +1706,35 @@ function AgencyTelehealthPage() {
               className="pl-9"
             />
           </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
+              >
+                <Users className="size-4" />
+                Team Members
+                <ChevronDown className="size-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-xl border-[#eef1f3] bg-white">
+              <DropdownMenuItem
+                className="gap-2 rounded-lg data-highlighted:bg-[#e3f8f8] data-highlighted:text-[#00898c]"
+                onSelect={() => setViewTeamOpen(true)}
+              >
+                <Users className="size-4" />
+                View Team Members
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2 rounded-lg data-highlighted:bg-[#e3f8f8] data-highlighted:text-[#00898c]"
+                onSelect={() => setTeamInviteOpen(true)}
+              >
+                <UserPlus className="size-4" />
+                Add Team Members
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button className="rounded-full bg-[#00b4b8] text-white hover:opacity-90" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
             Create service
@@ -1673,6 +1788,22 @@ function AgencyTelehealthPage() {
         team={team}
         service={editingService}
         onUpdated={(updated) => setServices((current) => current.map((item) => (item.id === updated.id ? updated : item)))}
+      />
+
+      <TeamInviteDialog
+        open={teamInviteOpen}
+        onOpenChange={setTeamInviteOpen}
+        newTeamInvite={newTeamInvite}
+        onNewTeamInviteChange={setNewTeamInvite}
+        onInviteTeamMember={handleInviteTeamMember}
+        onBulkInviteTeamMembers={handleBulkInviteTeamMembers}
+      />
+
+      <TeamMembersDialog
+        open={viewTeamOpen}
+        onOpenChange={setViewTeamOpen}
+        members={team}
+        onWithdrawInvite={withdrawTeamMember}
       />
     </div>
   )
