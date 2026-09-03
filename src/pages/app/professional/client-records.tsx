@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, Navigate, useParams } from "react-router"
-import { ChevronLeft, UserX } from "lucide-react"
+import { ChevronLeft, FileText, UserX } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { RecordCard } from "@/components/records/RecordCard"
 import { RecordViewerDialog } from "@/components/records/RecordViewerDialog"
@@ -10,6 +10,7 @@ import {
   HealthProfileSummary,
   SharingDisabledPanel,
 } from "@/components/health/HealthProfileSummary"
+import { MedicalDocumentViewer } from "@/components/health/MedicalDocumentViewer"
 import { Routes } from "@/routes/constants"
 import { useAuthUser } from "@/utils/auth"
 import { useProfessionalMembership } from "@/utils/professional/useProfessionalMembership"
@@ -17,12 +18,16 @@ import { listBookings } from "@/utils/careconnect/services/telehealthService"
 import {
   getBookingIntake,
   listClientRecords,
+  listMedicalDocuments,
 } from "@/utils/careconnect/services/clinicalService"
 import { ROW_STATUS_PILL, rowStatusFor } from "@/utils/careconnect/bookingStatus"
 import {
   formatDate,
   minutesToLabel,
+  MEDICAL_DOCUMENT_CATEGORY_LABELS,
+  formatFileSize,
   type HealthProfileSnapshot,
+  type MedicalDocument,
   type TelehealthBooking,
   type VisitRecord,
 } from "@/utils/careconnect/types"
@@ -36,11 +41,12 @@ import {
  * booking with this client, the record list returns 403.
  */
 
-type Tab = "records" | "health" | "visits"
+type Tab = "records" | "health" | "documents" | "visits"
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "records", label: "Records" },
   { id: "health", label: "Health profile" },
+  { id: "documents", label: "Documents" },
   { id: "visits", label: "Visits" },
 ]
 
@@ -104,6 +110,13 @@ export default function ClientRecordsPage() {
   const [snapshotLoading, setSnapshotLoading] = useState(false)
   const [snapshotBooking, setSnapshotBooking] = useState<TelehealthBooking | null>(null)
 
+  // Documents the client chose to share with their care team. Fetched only when
+  // the tab is opened, so simply viewing a client does not record a PHI read.
+  const [documents, setDocuments] = useState<MedicalDocument[]>([])
+  const [documentsLoading, setDocumentsLoading] = useState(false)
+  const [documentsLoaded, setDocumentsLoaded] = useState(false)
+  const [openDocument, setOpenDocument] = useState<MedicalDocument | null>(null)
+
   useEffect(() => {
     if (!clientId || roleLoading || !isProfessional) return
     let active = true
@@ -166,6 +179,27 @@ export default function ClientRecordsPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, latestIntakeBooking?.id])
+
+  useEffect(() => {
+    if (tab !== "documents" || !clientId || documentsLoaded) return
+    let active = true
+    setDocumentsLoading(true)
+    listMedicalDocuments({ clientId })
+      .then((list) => {
+        if (!active) return
+        setDocuments(list)
+        setDocumentsLoaded(true)
+      })
+      .catch(() => {
+        if (active) setDocuments([])
+      })
+      .finally(() => {
+        if (active) setDocumentsLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [tab, clientId, documentsLoaded])
 
   if (roleLoading) return <ClientRecordsSkeleton />
   // Not a professional: this page has nothing for them, so send them to their own.
@@ -272,6 +306,54 @@ export default function ClientRecordsPage() {
         </section>
       )}
 
+      {tab === "documents" && (
+        <section className="space-y-3">
+          <p className="text-sm text-[#657080]">
+            Files {clientName} uploaded and chose to share with their care team. Opening one is
+            recorded in their access log.
+          </p>
+          {documentsLoading ? (
+            <>
+              <Skeleton className="h-20 rounded-2xl" />
+              <Skeleton className="h-20 rounded-2xl" />
+            </>
+          ) : documents.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-[#e5ecf5] p-8 text-center text-sm text-[#657080]">
+              No shared documents. The client may have none, or may have kept them private.
+            </p>
+          ) : (
+            documents.map((document) => (
+              <button
+                key={document.id}
+                type="button"
+                onClick={() => setOpenDocument(document)}
+                className="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#e5ecf5] bg-white p-4 text-left transition hover:border-[#d7dde5]"
+              >
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#f5f8fb]">
+                    <FileText className="size-4 text-[#657080]" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-[#151922]">
+                      {document.title}
+                    </p>
+                    <p className="mt-0.5 text-sm text-[#657080]">
+                      {MEDICAL_DOCUMENT_CATEGORY_LABELS[document.category]}
+                      {document.sizeBytes ? ` · ${formatFileSize(document.sizeBytes)}` : ""}
+                      {document.uploadedAt ? ` · ${formatDate(document.uploadedAt)}` : ""}
+                    </p>
+                    {document.notes && (
+                      <p className="mt-1 line-clamp-2 text-sm text-[#657080]">{document.notes}</p>
+                    )}
+                  </div>
+                </div>
+                <span className="shrink-0 text-sm font-semibold text-[#00898c]">View</span>
+              </button>
+            ))
+          )}
+        </section>
+      )}
+
       {tab === "visits" && (
         <section className="space-y-3">
           {bookings.length === 0 ? (
@@ -346,6 +428,14 @@ export default function ClientRecordsPage() {
           if (!next) setEditorBooking(null)
         }}
         onSaved={patchRecord}
+      />
+
+      <MedicalDocumentViewer
+        document={openDocument}
+        open={openDocument !== null}
+        onOpenChange={(next) => {
+          if (!next) setOpenDocument(null)
+        }}
       />
 
       <FollowUpProposalDialog

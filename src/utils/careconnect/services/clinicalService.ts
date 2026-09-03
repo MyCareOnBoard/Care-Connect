@@ -14,6 +14,9 @@ import type {
   ConsentPolicies,
   FollowUp,
   HealthProfileSnapshot,
+  MedicalDocument,
+  MedicalDocumentCategory,
+  MedicalDocumentVisibility,
   RecordAccessEntry,
   RecordVitals,
   SharingConsent,
@@ -234,4 +237,112 @@ export async function respondToFollowUp(
 /** The proposing professional pulls the offer back. Only while still proposed. */
 export async function withdrawFollowUp(id: string): Promise<void> {
   await axiosClient.delete(`${BASE}/follow-ups/${id}`)
+}
+
+/* ── Medical documents (client-uploaded) ─────────────────────────────────── */
+
+export interface MedicalDocumentInput {
+  title?: string
+  category?: MedicalDocumentCategory
+  visibility?: MedicalDocumentVisibility
+  notes?: string
+}
+
+export interface ListMedicalDocumentsParams {
+  clientId?: string
+  category?: MedicalDocumentCategory
+}
+
+/**
+ * Upload one file. Multipart, because the metadata rides alongside the bytes and
+ * the server validates both in a single request.
+ *
+ * Note the deliberate absence of a two-step "upload then attach" flow: the other
+ * uploaders in this app return a public URL that the caller then saves, which is
+ * exactly the pattern that would make a lab result world-readable. Here nothing
+ * is ever addressable by URL.
+ */
+export async function uploadMedicalDocument(
+  file: File,
+  input: MedicalDocumentInput = {},
+): Promise<MedicalDocument> {
+  const formData = new FormData()
+  formData.append("file", file)
+  if (input.title) formData.append("title", input.title)
+  if (input.category) formData.append("category", input.category)
+  if (input.visibility) formData.append("visibility", input.visibility)
+  if (input.notes) formData.append("notes", input.notes)
+  const { data } = await axiosClient.post(`${BASE}/medical-documents`, formData)
+  return data.data
+}
+
+/**
+ * The caller's own documents, or a client's care-team-visible ones when
+ * `clientId` is given. Rejects with 403 for a professional with no treating
+ * relationship; private documents are simply absent rather than refused.
+ */
+export async function listMedicalDocuments(
+  params: ListMedicalDocumentsParams = {},
+): Promise<MedicalDocument[]> {
+  const { data } = await axiosClient.get(`${BASE}/medical-documents`, { params })
+  return data.data
+}
+
+export async function getMedicalDocument(id: string): Promise<MedicalDocument> {
+  const { data } = await axiosClient.get(`${BASE}/medical-documents/${id}`)
+  return data.data
+}
+
+/**
+ * Fetch the file itself as a blob URL for viewing.
+ *
+ * A plain `<img src>` or `<iframe src>` cannot be used: the endpoint requires the
+ * Authorization header, and the object has no public URL by design. So the bytes
+ * come through axios and become a short-lived object URL.
+ *
+ * **The caller must revoke the returned URL** (`URL.revokeObjectURL`) when the
+ * view closes, or the blob is retained for the life of the document.
+ */
+export async function fetchMedicalDocumentBlobUrl(id: string): Promise<string> {
+  const { data } = await axiosClient.get(`${BASE}/medical-documents/${id}/content`, {
+    responseType: "blob",
+  })
+  return URL.createObjectURL(data as Blob)
+}
+
+/** Trigger a download of the file, prompting a save rather than rendering it. */
+export async function downloadMedicalDocument(
+  id: string,
+  fileName: string,
+): Promise<void> {
+  const { data } = await axiosClient.get(`${BASE}/medical-documents/${id}/content`, {
+    params: { download: "1" },
+    responseType: "blob",
+  })
+  const url = URL.createObjectURL(data as Blob)
+  const link = document.createElement("a")
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  // Revoked on the next tick so the click has already been handled.
+  window.setTimeout(() => URL.revokeObjectURL(url), 0)
+}
+
+/** Owner edits title, category, visibility or notes. The file itself is immutable. */
+export async function updateMedicalDocument(
+  id: string,
+  input: MedicalDocumentInput,
+): Promise<MedicalDocument> {
+  const { data } = await axiosClient.patch(`${BASE}/medical-documents/${id}`, input)
+  return data.data
+}
+
+/**
+ * Delete the document. A real deletion — the stored file is removed, not flagged.
+ * Owner only; a professional gets a 403.
+ */
+export async function deleteMedicalDocument(id: string): Promise<void> {
+  await axiosClient.delete(`${BASE}/medical-documents/${id}`)
 }

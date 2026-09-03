@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { HealthProfileForm } from "@/components/health/HealthProfileForm"
 import { ConsentPanel } from "@/components/records/ConsentPanel"
+import { MedicalDocumentsSection } from "@/components/health/MedicalDocumentsSection"
 import { Routes } from "@/routes/constants"
 import { getAuthErrorMessage } from "@/utils/auth"
 import {
@@ -127,6 +128,8 @@ export default function HealthProfilePage() {
       </section>
 
       <ConsentPanel />
+
+      <MedicalDocumentsSection />
 
       <section className="rounded-2xl border border-[#e5ecf5] bg-white p-5">
         <div className="mb-5 flex items-start gap-2 rounded-xl bg-[#f5f8fb] px-4 py-3 text-sm text-[#657080]">
