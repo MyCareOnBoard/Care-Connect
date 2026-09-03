@@ -886,7 +886,7 @@ export default function AgencyJobsPage() {
                   <path d="M314 0.5C323.113 0.500016 330.5 7.88731 330.5 17V208C330.5 217.113 323.113 224.5 314 224.5H17C7.8873 224.5 0.5 217.113 0.5 208V50.627C0.500016 41.5143 7.88731 34.127 17 34.127H224.948C231.357 34.1269 237.106 30.1824 239.411 24.2021L244.475 11.0654C246.929 4.69946 253.048 0.500175 259.87 0.5H314Z" stroke="#D9D9D9" strokeWidth="1" />
                 </svg>
 
-                <div className="absolute z-20 right-4 top-4 ">
+                <div className="absolute z-50 right-4 top-4">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
@@ -898,7 +898,14 @@ export default function AgencyJobsPage() {
                         <MoreVertical className="size-4" />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="bg-white" align="end">
+                    {/* React re-parents portal content into the component tree for synthetic
+                        events, so a click here would otherwise still bubble to the card's
+                        onClick and open the job details view underneath. */}
+                    <DropdownMenuContent
+                      className="z-100 bg-white"
+                      align="end"
+                      onClick={(event) => event.stopPropagation()}
+                    >
                       <DropdownMenuItem className="hover:bg-[#00b5b856]" onSelect={() => handleEditPosting(posting)}>Edit</DropdownMenuItem>
                       {posting.status === "open" && (
                         <DropdownMenuItem className="hover:bg-[#00b5b856]" onSelect={() => handleChangeJobStatus(posting, "closed")}>

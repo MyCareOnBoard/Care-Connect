@@ -25,9 +25,9 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
           className={cn(
             "relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition-colors",
             "border-(--input-border) bg-white",
-            "peer-checked:border-primary peer-checked:bg-primary",
+            "peer-checked:border-[#00b4b8] peer-checked:bg-[#00b4b8]",
             "peer-checked:[&>svg]:opacity-100",
-            "peer-focus-visible:ring-2 peer-focus-visible:ring-ring/25",
+            "peer-focus-visible:ring-2 peer-focus-visible:ring-[#00b4b8]/25",
             "peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
             className
           )}
@@ -37,7 +37,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
         {label && (
           <span
             className={cn(
-              "text-sm font-medium leading-[1.4] text-foreground peer-disabled:opacity-50",
+              "text-sm font-medium leading-[1.4] text-[#10141a] peer-disabled:opacity-50",
               labelClassName
             )}
           >

@@ -90,7 +90,7 @@ export default function HealthProfilePage() {
   return (
     <div className="space-y-6 p-5 sm:p-8">
       <header>
-        <h1 className="text-2xl font-bold text-[#151922]">My health</h1>
+        <h1 className="text-2xl font-bold text-[#151922]">My Health Records</h1>
         <p className="mt-1 text-sm text-[#657080]">
           Everything here is optional. Share only what you want your professionals to know.
         </p>
