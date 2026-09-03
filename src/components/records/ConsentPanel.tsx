@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { getAuthErrorMessage } from "@/utils/auth"
+import { describeAccessEvent } from "@/utils/careconnect/accessLog"
 import {
   getConsentPolicies,
   getSharingConsent,
@@ -168,35 +169,44 @@ export function ConsentPanel() {
         <div className="flex items-start gap-3">
           <Eye className="mt-0.5 size-5 shrink-0 text-[#657080]" />
           <div className="min-w-0 flex-1">
-            <h3 className="text-base font-semibold text-[#151922]">Who has opened your records</h3>
+            <h3 className="text-base font-semibold text-[#151922]">
+              Who has opened your health information
+            </h3>
             <p className="mt-1 text-sm text-[#657080]">
-              Every time someone other than you reads one of your records, it is logged here.
+              Every time someone other than you reads a visit record, an uploaded document, or the
+              health details you shared for a visit, it is logged here.
             </p>
 
             {accessLog.length === 0 ? (
               <p className="mt-4 rounded-xl border border-dashed border-[#e5ecf5] p-4 text-center text-sm text-[#657080]">
-                No one has opened your records yet.
+                No one else has opened your health information yet.
               </p>
             ) : (
               <ul className="mt-4 divide-y divide-[#eef1f3] rounded-xl border border-[#eef1f3]">
-                {accessLog.map((entry) => (
-                  <li key={entry.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm text-[#151922]">
-                        {entry.actorRole === "professional" ? "A professional" : "Someone"}{" "}
-                        {entry.decision === "denied" ? "was refused access" : "opened a record"}
-                      </p>
-                      {entry.resource?.bookingId && (
-                        <p className="truncate text-xs text-[#657080]">
-                          Booking {entry.resource.bookingId}
+                {accessLog.map((entry) => {
+                  const described = describeAccessEvent(entry)
+                  return (
+                    <li key={entry.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                      <div className="min-w-0">
+                        <p
+                          className={`text-sm ${
+                            described.denied ? "text-[#8a6d1f]" : "text-[#151922]"
+                          }`}
+                        >
+                          {described.text}
                         </p>
-                      )}
-                    </div>
-                    <span className="shrink-0 text-xs text-[#657080]">
-                      {formatRelative(entry.timestamp ?? entry.createdAt)}
-                    </span>
-                  </li>
-                ))}
+                        {described.denied && (
+                          <p className="mt-0.5 text-xs text-[#657080]">
+                            They did not see it. Refused attempts are logged too.
+                          </p>
+                        )}
+                      </div>
+                      <span className="shrink-0 text-xs text-[#657080]">
+                        {formatRelative(entry.timestamp ?? entry.createdAt)}
+                      </span>
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </div>

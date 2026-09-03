@@ -635,11 +635,20 @@ export interface RecordAccessEntry {
   action: string
   decision: "allowed" | "denied"
   denyReason?: string | null
+  /**
+   * Allow-listed audit fields only — mirrors PHI_AUDIT_RESOURCE_FIELDS on the
+   * backend. Notably absent: document titles and notes, which can name a
+   * condition and are deliberately never logged.
+   */
   resource?: {
     bookingId?: string
     recordId?: string
     recordCount?: number
     scope?: string
+    documentId?: string
+    documentCount?: number
+    category?: string
+    visibility?: string
   }
   timestamp?: Timestampish
   createdAt?: string
@@ -794,3 +803,85 @@ export const CARE_TASKS = [
   "Companionship",
   "Household support",
 ]
+
+/* ── Medical documents (client-uploaded) ─────────────────────────────────── */
+
+export type MedicalDocumentCategory =
+  | "lab_result"
+  | "imaging"
+  | "discharge_summary"
+  | "prescription"
+  | "referral"
+  | "vaccination"
+  | "insurance"
+  | "other"
+
+/**
+ * Who may read one document, chosen per file by the client.
+ *
+ * Separate from the account-level sharing consent: that governs professionals
+ * reading each other's past notes, this governs the care team reading a file the
+ * client uploaded themselves.
+ */
+export type MedicalDocumentVisibility = "private" | "care_team"
+
+/**
+ * A file the client uploaded about their own health.
+ *
+ * Note there is no `url` field, deliberately. The stored object is private and
+ * no URL to it is ever issued — bytes come from an authorized, audited endpoint
+ * via `fetchMedicalDocumentBlobUrl`. `storagePath` is stripped server-side too.
+ */
+export interface MedicalDocument {
+  id: string
+  clientId: string
+  title: string
+  category: MedicalDocumentCategory
+  visibility: MedicalDocumentVisibility
+  notes: string
+  fileName: string
+  contentType: string
+  sizeBytes: number
+  uploadedByUid: string
+  uploadedByRole: string
+  uploadedAt?: Timestampish
+  updatedAt?: Timestampish
+}
+
+export const MEDICAL_DOCUMENT_CATEGORY_LABELS: Record<MedicalDocumentCategory, string> = {
+  lab_result: "Lab result",
+  imaging: "Scan or X-ray",
+  discharge_summary: "Hospital discharge",
+  prescription: "Prescription",
+  referral: "Referral letter",
+  vaccination: "Vaccination record",
+  insurance: "Insurance document",
+  other: "Other",
+}
+
+export const MEDICAL_DOCUMENT_CATEGORIES = Object.keys(
+  MEDICAL_DOCUMENT_CATEGORY_LABELS,
+) as MedicalDocumentCategory[]
+
+/** Mirrors ALLOWED_MIME_TYPES in the backend's medical-document.schema.js. */
+export const MEDICAL_DOCUMENT_ACCEPT =
+  ".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif"
+
+/** Mirrors MAX_FILE_BYTES in the backend schema. */
+export const MEDICAL_DOCUMENT_MAX_BYTES = 10 * 1024 * 1024
+
+/** "2.4 MB" — for a file-size hint next to a document row. */
+export function formatFileSize(bytes: number | null | undefined): string {
+  if (bytes === null || bytes === undefined || !Number.isFinite(bytes)) return ""
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+/** Whether this document can be shown inline rather than only downloaded. */
+export function isViewableInline(contentType: string | null | undefined): boolean {
+  if (!contentType) return false
+  if (contentType === "application/pdf" || contentType === "application/x-pdf") return true
+  // HEIC is an image but browsers do not render it, so it is download-only.
+  return ["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(contentType)
+}
