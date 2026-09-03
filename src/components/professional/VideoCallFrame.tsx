@@ -5,6 +5,17 @@ import { getAuthErrorMessage } from "@/utils/auth"
 import { getVideoRoom } from "@/utils/careconnect/services/telehealthService"
 
 /**
+ * TESTING ONLY — a fixed public Daily room that replaces the per-booking room lookup.
+ *
+ * Only honoured in a dev build. A production bundle resolves this to null regardless of
+ * the environment variable, because a public room needs no token: anyone with the URL
+ * could join, and every booking would share one room.
+ */
+const TEST_ROOM_URL: string | null = import.meta.env.DEV
+  ? (import.meta.env.VITE_DAILY_TEST_ROOM_URL as string | undefined)?.trim() || null
+  : null
+
+/**
  * Daily Prebuilt embed for a booking's video call.
  *
  * Prebuilt brings its own controls — camera, mic, screen share, chat, participants,
@@ -33,7 +44,16 @@ export function VideoCallFrame({
 
     ;(async () => {
       try {
-        const access = await getVideoRoom(bookingId)
+        // TESTING ONLY. With VITE_DAILY_TEST_ROOM_URL set, join a fixed public Daily room
+        // instead of asking the API for a per-booking one. Exists so the call UI can be
+        // exercised while the backend's Daily key is unset or invalid (which surfaces as a
+        // 502 from /video-room), with no deploy needed.
+        //
+        // Guarded on import.meta.env.DEV so a production bundle ignores it entirely — a
+        // public room takes no token, so anyone with the link could otherwise join.
+        const access = TEST_ROOM_URL
+          ? { roomUrl: TEST_ROOM_URL, token: null, expiresAt: "", testRoom: true }
+          : await getVideoRoom(bookingId)
         // The dialog can close while the token request is in flight — don't build a
         // frame nobody will see, or it leaks and blocks the next one.
         if (cancelled || !containerRef.current) return
@@ -56,7 +76,11 @@ export function VideoCallFrame({
           setError(event?.errorMsg || "The call ended unexpectedly.")
         })
 
-        await call.join({ url: access.roomUrl, token: access.token })
+        // A public test room (DAILY_TEST_ROOM_URL on the server) comes back without a
+        // token, and passing an explicit null/undefined one makes daily-js reject the join.
+        await call.join(
+          access.token ? { url: access.roomUrl, token: access.token } : { url: access.roomUrl },
+        )
         if (!cancelled) setJoining(false)
       } catch (requestError) {
         if (!cancelled) {
