@@ -2,18 +2,26 @@ import { useEffect, useRef, useState } from "react"
 import DailyIframe, { type DailyCall } from "@daily-co/daily-js"
 import { Button } from "@/components/ui/button"
 import { getAuthErrorMessage } from "@/utils/auth"
-import { getVideoRoom } from "@/utils/careconnect/services/telehealthService"
+import {
+  getVideoRoom,
+  type VideoRoomAccess,
+} from "@/utils/careconnect/services/telehealthService"
 
 /**
- * TESTING ONLY — a fixed public Daily room that replaces the per-booking room lookup.
+ * TESTING ONLY — a fixed public Daily room, used solely as a fallback when the API cannot
+ * provision a per-booking room (a placeholder DAILY_API_KEY surfaces as a 502 from
+ * /video-room).
  *
- * Only honoured in a dev build. A production bundle resolves this to null regardless of
- * the environment variable, because a public room needs no token: anyone with the URL
- * could join, and every booking would share one room.
+ * Never pre-empts a working call: the real endpoint is always tried first and this is only
+ * reached from the failure path, so it self-disables the moment the key is valid.
+ *
+ * SECURITY: a public Daily room needs no token, so while this variable is set any booking
+ * whose provisioning fails lands in ONE shared room that anyone with the URL can join,
+ * including someone party to no booking. Clear the variable once DAILY_API_KEY is real —
+ * it must not be set for live clinical calls.
  */
-const TEST_ROOM_URL: string | null = import.meta.env.DEV
-  ? (import.meta.env.VITE_DAILY_TEST_ROOM_URL as string | undefined)?.trim() || null
-  : null
+const TEST_ROOM_URL: string | null =
+  (import.meta.env.VITE_DAILY_TEST_ROOM_URL as string | undefined)?.trim() || null
 
 /**
  * Daily Prebuilt embed for a booking's video call.
@@ -37,6 +45,8 @@ export function VideoCallFrame({
   onLeaveRef.current = onLeave
   const [error, setError] = useState<string | null>(null)
   const [joining, setJoining] = useState(true)
+  // Surfaced on screen so a shared test room is never mistaken for a real, private call.
+  const [usingTestRoom, setUsingTestRoom] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -44,16 +54,21 @@ export function VideoCallFrame({
 
     ;(async () => {
       try {
-        // TESTING ONLY. With VITE_DAILY_TEST_ROOM_URL set, join a fixed public Daily room
-        // instead of asking the API for a per-booking one. Exists so the call UI can be
-        // exercised while the backend's Daily key is unset or invalid (which surfaces as a
-        // 502 from /video-room), with no deploy needed.
-        //
-        // Guarded on import.meta.env.DEV so a production bundle ignores it entirely — a
-        // public room takes no token, so anyone with the link could otherwise join.
-        const access = TEST_ROOM_URL
-          ? { roomUrl: TEST_ROOM_URL, token: null, expiresAt: "", testRoom: true }
-          : await getVideoRoom(bookingId)
+        // Always try the real per-booking room first. Only if that fails — and only while
+        // VITE_DAILY_TEST_ROOM_URL is set — fall back to the shared public test room, so
+        // the call UI stays testable while the backend's Daily key is a placeholder.
+        let access: VideoRoomAccess
+        try {
+          access = await getVideoRoom(bookingId)
+        } catch (provisionError) {
+          if (!TEST_ROOM_URL) throw provisionError
+          console.warn(
+            "[VideoCallFrame] room provisioning failed; falling back to VITE_DAILY_TEST_ROOM_URL (shared public room, testing only)",
+            provisionError,
+          )
+          access = { roomUrl: TEST_ROOM_URL, token: null, expiresAt: "", testRoom: true }
+        }
+        if (!cancelled) setUsingTestRoom(access.testRoom === true)
         // The dialog can close while the token request is in flight — don't build a
         // frame nobody will see, or it leaks and blocks the next one.
         if (cancelled || !containerRef.current) return
@@ -115,6 +130,13 @@ export function VideoCallFrame({
       {joining && (
         <p className="absolute inset-0 z-10 flex items-center justify-center text-sm text-white/70">
           Connecting…
+        </p>
+      )}
+      {/* Unmissable on purpose: this room is shared across bookings and joinable by anyone
+          with the link, so nobody should mistake it for a private call. */}
+      {usingTestRoom && (
+        <p className="absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full bg-[#d8442a] px-3 py-1 text-xs font-semibold text-white shadow-lg">
+          Shared test room — not private
         </p>
       )}
       <div ref={containerRef} className="h-full w-full" />
