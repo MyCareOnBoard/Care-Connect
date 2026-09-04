@@ -14,6 +14,8 @@ import { useAuth, useAuthUser } from "@/utils/auth"
 import { getInitials } from "@/lib/utils"
 import { ProfileModals } from "@/components/profile/ProfileModals"
 import { useAccountSettings } from "@/hooks/useAccountSettings"
+import { useNotifications } from "@/hooks/useNotifications"
+import { notificationTarget } from "@/utils/careconnect/notificationTarget"
 import { AvailabilityModal } from "@/components/professional/AvailabilityModal"
 import { useProfessionalMembership } from "@/utils/professional/useProfessionalMembership"
 import type { CareFlow } from "./useCareFlow"
@@ -26,6 +28,7 @@ type AccountControlsProps = {
 export function AccountControls({ flow = "user", notificationSize = "md" }: AccountControlsProps) {
   const { logout } = useAuth()
   const { user } = useAuthUser()
+  const { notifications, unreadCount, loading, markRead, markAllRead } = useNotifications()
 
   const displayName = user?.fullName || "—"
   const initials = getInitials(user?.fullName)
@@ -80,16 +83,105 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            aria-label="Notifications"
+            aria-label={
+              unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications"
+            }
             className={`relative flex ${notificationButtonSize} items-center justify-center rounded-full bg-white text-[#151922] outline-none transition hover:bg-[#f2f6f8] cursor-pointer`}
           >
             <Bell className="size-4 fill-[#151922]" />
-            <span className="absolute right-3 top-2 size-2 rounded-full bg-[#ed2f20]" />
+            {/* Was unconditional: the bell always claimed something was waiting while the
+                dropdown always said "No notifications". Now it reflects the real count. */}
+            {unreadCount > 0 && (
+              <span
+                aria-hidden
+                className="absolute right-3 top-2 size-2 rounded-full bg-[#ed2f20]"
+              />
+            )}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-64 rounded-xl border-[#dce2e6] bg-white p-3">
-          <DropdownMenuLabel className="px-1 text-sm font-semibold">Notifications</DropdownMenuLabel>
-          <div className="px-1 py-5 text-center text-sm text-[#737780]">No notifications</div>
+        <DropdownMenuContent align="end" className="w-80 rounded-xl border-[#dce2e6] bg-white p-3">
+          <div className="flex items-center justify-between gap-2 px-1">
+            <DropdownMenuLabel className="p-0 text-sm font-semibold">
+              Notifications
+            </DropdownMenuLabel>
+            {unreadCount > 0 && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  // Keep the menu open — marking all read then having it vanish gives no
+                  // chance to read what was just cleared.
+                  event.preventDefault()
+                  void markAllRead()
+                }}
+                className="text-xs font-semibold text-[#00898c] hover:opacity-80"
+              >
+                Mark all read
+              </button>
+            )}
+          </div>
+
+          {loading && notifications.length === 0 ? (
+            <div className="px-1 py-5 text-center text-sm text-[#737780]">Loading…</div>
+          ) : notifications.length === 0 ? (
+            <div className="px-1 py-5 text-center text-sm text-[#737780]">No notifications</div>
+          ) : (
+            <ul className="mt-1 max-h-96 overflow-y-auto">
+              {notifications.map((item) => {
+                const unread = item.status === "unread"
+                const target = notificationTarget(item, flow)
+                const body = (
+                  <>
+                    <span className="flex items-start gap-2">
+                      {/* Per-row unread marker. The bell's own dot is now derived from
+                          the same count, rather than being permanently lit. */}
+                      <span
+                        className={`mt-1.5 size-1.5 shrink-0 rounded-full ${
+                          unread ? "bg-[#00b4b8]" : "bg-transparent"
+                        }`}
+                      />
+                      <span className="min-w-0">
+                        <span
+                          className={`block truncate text-sm ${
+                            unread ? "font-semibold text-[#151922]" : "text-[#4a5260]"
+                          }`}
+                        >
+                          {item.title}
+                        </span>
+                        <span className="mt-0.5 block text-xs leading-snug text-[#737780]">
+                          {item.message}
+                        </span>
+                      </span>
+                    </span>
+                  </>
+                )
+
+                return (
+                  <li key={item.id} className="border-b border-[#f1f4f6] last:border-0">
+                    {target ? (
+                      <Link
+                        to={target}
+                        onClick={() => unread && void markRead(item.id)}
+                        className="block rounded-lg px-1 py-2.5 transition hover:bg-[#f7fafb]"
+                      >
+                        {body}
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.preventDefault()
+                          if (unread) void markRead(item.id)
+                        }}
+                        className="block w-full rounded-lg px-1 py-2.5 text-left transition hover:bg-[#f7fafb]"
+                      >
+                        {body}
+                      </button>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

@@ -410,8 +410,50 @@ export interface TelehealthBooking {
   /** Set when this booking was created by accepting a follow-up. */
   followUpOf?: string | null
   followUpId?: string | null
+  /**
+   * The course of care this visit belongs to. A standalone visit is an episode of one
+   * (the id is its own booking id); a follow-up carries its source visit's episode
+   * forward. Absent on bookings written before episodes existed — treat a missing value
+   * as the booking's own id, as `episodeOf` does server-side.
+   */
+  episodeId?: string | null
   createdAt?: Timestampish
   updatedAt?: Timestampish
+}
+
+/** One visit as the episode timeline reports it — the shape of a visit, never its notes. */
+export interface EpisodeVisit {
+  bookingId: string
+  serviceId: string | null
+  serviceTitle: string | null
+  mode: ServiceMode | null
+  professionalUid: string | null
+  professionalName: string | null
+  agencyName: string | null
+  dateKey: string | null
+  startMinutes: number | null
+  durationMinutes: number | null
+  status: BookingStatus | null
+  /** Whether a record exists. Its content comes from the records API, under its own rules. */
+  hasRecord: boolean
+  followUpOf: string | null
+}
+
+/** A professional who has attended this course of care. */
+export interface EpisodeCareTeamMember {
+  professionalUid: string
+  professionalName: string | null
+  agencyName: string | null
+  firstVisitDateKey: string | null
+}
+
+export interface CareEpisode {
+  episodeId: string
+  clientId: string
+  visits: EpisodeVisit[]
+  careTeam: EpisodeCareTeamMember[]
+  /** How the caller is entitled to see it — "client" or "professional". */
+  viewerRole: "client" | "professional"
 }
 
 /** An open booking slot — `value` is minutes-from-midnight, `label` is display. */
@@ -625,6 +667,20 @@ export interface ConsentEvent {
 export interface ConsentPolicies {
   record: { version: string; text: string }
   sharing: { version: string; text: string }
+  /** Per-course-of-care sharing. Absent from older deployments of the API. */
+  episodeShare?: { version: string; text: string }
+}
+
+/** One course of care the client has agreed its care team may read. */
+export interface EpisodeShareGrant {
+  episodeId: string
+  granted: boolean
+  /** False once revoked or expired — the only field worth branching on. */
+  active: boolean
+  inactiveReason: string | null
+  expiresAt: string | null
+  /** Professionals the client removed individually, leaving the rest reading. */
+  revokedFor: string[]
 }
 
 /** One row of "who opened my records", for the client's transparency view. */
@@ -662,6 +718,9 @@ export interface RecordAccessEntry {
 
 export type FollowUpStatus = "proposed" | "accepted" | "declined" | "withdrawn" | "expired"
 
+/** Whether the proposed visit is with the same professional or a handover to another. */
+export type FollowUpKind = "self" | "referral"
+
 export interface FollowUp {
   id: string
   sourceBookingId: string
@@ -684,6 +743,19 @@ export interface FollowUp {
   currency: string
   message: string
   status: FollowUpStatus
+  /**
+   * `professionalUid`/`professionalName` above are always whoever will DELIVER the visit.
+   * On a referral that is not the person who proposed it — see `referredByUid`.
+   *
+   * Absent on follow-ups written before referrals existed; treat a missing value as
+   * `"self"`.
+   */
+  kind?: FollowUpKind
+  /** The professional who proposed it. Equal to `professionalUid` on a self-follow-up. */
+  referredByUid?: string | null
+  referredByName?: string | null
+  /** The course of care this continues. */
+  episodeId?: string | null
   materializedBookingId?: string | null
   paymentMethod?: string
   respondedAt?: Timestampish

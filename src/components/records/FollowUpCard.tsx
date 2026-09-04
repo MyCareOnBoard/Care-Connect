@@ -2,6 +2,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { CalendarClock } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { PaymentMethodDialog } from "@/components/booking/PaymentMethodDialog"
 import { getAuthErrorMessage } from "@/utils/auth"
 import {
@@ -75,6 +76,8 @@ export function FollowUpCard({
   onBooked?: (booking: TelehealthBooking) => void
 }) {
   const [busy, setBusy] = useState(false)
+  // Off by default: a pre-ticked box is not a decision. See the label below.
+  const [shareEpisode, setShareEpisode] = useState(false)
   const [paymentOpen, setPaymentOpen] = useState(false)
 
   const expired = followUp.status === "proposed" && isFollowUpExpired(followUp)
@@ -87,18 +90,26 @@ export function FollowUpCard({
       // Consent is captured fresh for each visit; it never carries over from the
       // one that prompted this follow-up.
       let recordConsent: { accepted: boolean; policyVersion: string } | undefined
+      let episodeShare: { accepted: boolean; policyVersion: string } | undefined
       try {
         const policies = await getConsentPolicies()
         recordConsent = { accepted: true, policyVersion: policies.record.version }
+        // Only claim it when the client actually ticked the box AND we know which wording
+        // they were shown. Same rule as record consent: no wording, no claim of consent.
+        if (shareEpisode && policies.episodeShare) {
+          episodeShare = { accepted: true, policyVersion: policies.episodeShare.version }
+        }
       } catch {
         // Without the wording we cannot claim informed consent, so book without
         // it — the client can allow a record from the booking afterwards.
         recordConsent = undefined
+        episodeShare = undefined
       }
 
       const result = await respondToFollowUp(followUp.id, "accepted", {
         paymentMethod,
         recordConsent,
+        episodeShare,
       })
       onChanged?.(result.followUp)
       if (result.booking) onBooked?.(result.booking)
@@ -142,6 +153,11 @@ export function FollowUpCard({
   }
 
   const counterpartName = role === "client" ? followUp.professionalName : followUp.clientName
+  // `kind` is absent on follow-ups written before referrals existed, and the name check
+  // covers a referral recorded without one.
+  const isReferral =
+    followUp.kind === "referral" ||
+    Boolean(followUp.referredByUid && followUp.referredByUid !== followUp.professionalUid)
 
   return (
     <>
@@ -154,7 +170,15 @@ export function FollowUpCard({
             <div className="min-w-0">
               <p className="text-sm font-semibold text-[#151922]">{followUp.serviceTitle}</p>
               <p className="mt-0.5 text-sm text-[#657080]">
-                {role === "client" ? `Proposed by ${counterpartName}` : `For ${counterpartName}`}
+                {role === "client"
+                  ? isReferral
+                    ? // On a referral the proposer and the person delivering it are two
+                      // different people. Naming only one of them would make the client's
+                      // acceptance uninformed — they would be agreeing to see someone
+                      // whose name they were never shown.
+                      `${followUp.referredByName || "Your professional"} referred you to ${counterpartName}`
+                    : `Proposed by ${counterpartName}`
+                  : `For ${counterpartName}`}
               </p>
             </div>
           </div>
@@ -186,6 +210,32 @@ export function FollowUpCard({
 
         {open && role === "client" && (
           <>
+            {/* Only on a referral, and only as an explicit choice. The professional being
+                referred to has no history with this client, so this is the moment the
+                question is real — a specific thread and a named colleague, rather than the
+                account-wide switch buried in settings. Defaulting it on would make the
+                consent nominal, so it starts off. */}
+            {isReferral && (
+              <div className="mt-4 flex items-start gap-3 rounded-xl border border-[#eef1f3] bg-[#f7fafb] px-4 py-3">
+                <Checkbox
+                  id={`share-episode-${followUp.id}`}
+                  checked={shareEpisode}
+                  onChange={(event) => setShareEpisode(event.target.checked)}
+                />
+                <label
+                  htmlFor={`share-episode-${followUp.id}`}
+                  className="cursor-pointer text-sm text-[#151922]"
+                >
+                  Let {counterpartName} read the visit records from this course of care
+                  <span className="mt-0.5 block text-xs text-[#657080]">
+                    Only this course of care, not your other records. Lasts six months
+                    unless you end it sooner, and you can withdraw it any time in Privacy
+                    and security.
+                  </span>
+                </label>
+              </div>
+            )}
+
             <div className="mt-4 flex gap-2">
               <Button variant="outline" className="flex-1" disabled={busy} onClick={decline}>
                 Decline

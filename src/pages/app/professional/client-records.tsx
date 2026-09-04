@@ -6,6 +6,7 @@ import { RecordCard } from "@/components/records/RecordCard"
 import { RecordViewerDialog } from "@/components/records/RecordViewerDialog"
 import { RecordEditorDialog } from "@/components/records/RecordEditorDialog"
 import { FollowUpProposalDialog } from "@/components/records/FollowUpProposalDialog"
+import { EpisodeTimeline } from "@/components/records/EpisodeTimeline"
 import {
   HealthProfileSummary,
   SharingDisabledPanel,
@@ -16,6 +17,8 @@ import { useAuthUser } from "@/utils/auth"
 import { useProfessionalMembership } from "@/utils/professional/useProfessionalMembership"
 import { listBookings } from "@/utils/careconnect/services/telehealthService"
 import {
+  episodeOfBooking,
+  type RecordReadScope,
   getBookingIntake,
   listClientRecords,
   listMedicalDocuments,
@@ -41,13 +44,14 @@ import {
  * booking with this client, the record list returns 403.
  */
 
-type Tab = "records" | "health" | "documents" | "visits"
+type Tab = "records" | "health" | "documents" | "visits" | "episodes"
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "records", label: "Records" },
   { id: "health", label: "Health profile" },
   { id: "documents", label: "Documents" },
   { id: "visits", label: "Visits" },
+  { id: "episodes", label: "Course of care" },
 ]
 
 function ClientRecordsSkeleton() {
@@ -99,8 +103,14 @@ export default function ClientRecordsPage() {
   const [forbidden, setForbidden] = useState(false)
   const [records, setRecords] = useState<VisitRecord[]>([])
   const [sharingEnabled, setSharingEnabled] = useState(false)
+  // What the server actually let this professional read. "own" is the only state where
+  // the sharing-disabled explanation is true — under "episode" they DO see colleagues'
+  // records inside the courses of care the client granted.
+  const [readScope, setReadScope] = useState<RecordReadScope>("own")
   const [bookings, setBookings] = useState<TelehealthBooking[]>([])
   const [tab, setTab] = useState<Tab>("records")
+  // Which course of care is expanded. Only one at a time: each expansion is a PHI read.
+  const [openEpisodeId, setOpenEpisodeId] = useState<string | null>(null)
 
   const [openRecord, setOpenRecord] = useState<VisitRecord | null>(null)
   const [editorBooking, setEditorBooking] = useState<TelehealthBooking | null>(null)
@@ -131,6 +141,7 @@ export default function ClientRecordsPage() {
         if (!active) return
         setRecords(recordResult.records)
         setSharingEnabled(recordResult.sharingEnabled)
+        setReadScope(recordResult.scope)
         setBookings(allBookings.filter((booking) => booking.clientId === clientId))
       } catch (error) {
         if (!active) return
@@ -146,6 +157,35 @@ export default function ClientRecordsPage() {
       active = false
     }
   }, [clientId, roleLoading, isProfessional])
+
+  /**
+   * This professional's visits grouped into the courses of care they belong to.
+   *
+   * Derived client-side because every booking already carries its `episodeId` — no request
+   * needed to know which of *my* visits are one thread. What it cannot show is the other
+   * professionals in that thread, which is what `EpisodeTimeline` fetches on demand.
+   */
+  const episodeGroups = useMemo(() => {
+    const byEpisode = new Map<string, TelehealthBooking[]>()
+    for (const booking of bookings) {
+      const key = episodeOfBooking(booking)
+      byEpisode.set(key, [...(byEpisode.get(key) ?? []), booking])
+    }
+    return [...byEpisode.entries()]
+      .map(([episodeId, group]) => {
+        const newestFirst = [...group].sort((a, b) => (a.dateKey < b.dateKey ? 1 : -1))
+        return {
+          episodeId,
+          mine: group.length,
+          // The episode's own subject: the service the thread began with.
+          title: newestFirst[newestFirst.length - 1]?.serviceTitle ?? "",
+          startedDateKey: newestFirst[newestFirst.length - 1]?.dateKey ?? "",
+          latestMineId: newestFirst[0]?.id,
+          latestDateKey: newestFirst[0]?.dateKey ?? "",
+        }
+      })
+      .sort((a, b) => (a.latestDateKey < b.latestDateKey ? 1 : -1))
+  }, [bookings])
 
   // The most recent booking this professional holds that actually froze a
   // snapshot — what the client attested, not their live profile.
@@ -281,7 +321,13 @@ export default function ClientRecordsPage() {
 
       {tab === "records" && (
         <section className="space-y-4">
-          {!sharingEnabled && <SharingDisabledPanel clientName={clientName} />}
+          {readScope === "own" && <SharingDisabledPanel clientName={clientName} />}
+          {readScope === "episode" && (
+            <p className="rounded-2xl bg-[#f2fbfb] px-4 py-3 text-sm text-[#00707a]">
+              {clientName} has shared specific courses of care with their care team. You can
+              see records from those visits and your own notes, not their whole history.
+            </p>
+          )}
           <h2 className="text-sm font-semibold text-[#151922]">
             {sharingEnabled ? "All shared records" : "Your records with this client"}
           </h2>
@@ -423,6 +469,61 @@ export default function ClientRecordsPage() {
                   </div>
                 )
               })
+          )}
+        </section>
+      )}
+
+      {/* Course of care. Grouped from this professional's own bookings — which is why the
+          full thread has to be fetched: `listBookings({ scope: "professional" })` returns
+          only their visits, so anything another professional did in the same episode is
+          invisible until the timeline is opened. Opening it is a deliberate act, and it
+          records a PHI read, so it is never fetched just because the tab was clicked. */}
+      {tab === "episodes" && (
+        <section className="space-y-4">
+          {episodeGroups.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-[#e5ecf5] p-8 text-center text-sm text-[#657080]">
+              No visits with this client yet.
+            </p>
+          ) : (
+            episodeGroups.map((group) => {
+              const expanded = openEpisodeId === group.episodeId
+              return (
+                <div
+                  key={group.episodeId}
+                  className="rounded-2xl border border-[#e5ecf5] bg-white p-4"
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[#151922]">
+                        {group.title || "Course of care"}
+                      </p>
+                      <p className="mt-0.5 text-sm text-[#657080]">
+                        Started {formatDate(group.startedDateKey)} · {group.mine} of your
+                        visit{group.mine === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenEpisodeId(expanded ? null : group.episodeId)
+                      }
+                      className="text-sm font-semibold text-[#00898c] hover:opacity-80"
+                    >
+                      {expanded ? "Hide history" : "View full history"}
+                    </button>
+                  </div>
+
+                  {expanded && (
+                    <div className="mt-4 border-t border-[#eef1f3] pt-4">
+                      <EpisodeTimeline
+                        episodeId={group.episodeId}
+                        currentBookingId={group.latestMineId}
+                      />
+                    </div>
+                  )}
+                </div>
+              )
+            })
           )}
         </section>
       )}
