@@ -175,10 +175,47 @@ describe("denials", () => {
 })
 
 describe("actor wording", () => {
-  it("never invents a name, since the log stores only a uid", () => {
+  it("falls back to the role when the API resolved no name", () => {
     expect(describeAccessEvent(entry({ actorRole: "professional" })).actor).toBe("A professional")
     expect(describeAccessEvent(entry({ actorRole: "agency" })).actor).toBe("An agency")
     expect(describeAccessEvent(entry({ actorRole: "client" })).actor).toBe("You")
     expect(describeAccessEvent(entry({ actorRole: null })).actor).toBe("Someone")
+    expect(describeAccessEvent(entry({ actorRole: "professional" })).named).toBe(false)
+  })
+
+  it("names the actor when the API resolved one — the question the log answers", () => {
+    const described = describeAccessEvent(
+      entry({ actorRole: "professional", actorName: "Ama Mensah", action: "record_read" }),
+    )
+    expect(described.actor).toBe("Ama Mensah")
+    expect(described.named).toBe(true)
+    expect(described.actorRole).toBe("professional")
+    expect(described.text).toBe("Ama Mensah opened a visit record")
+  })
+
+  it("names them on a refused attempt too", () => {
+    const described = describeAccessEvent(
+      entry({
+        actorRole: "professional",
+        actorName: "Ama Mensah",
+        action: "record_list",
+        decision: "denied",
+      }),
+    )
+    expect(described.text).toBe("Ama Mensah was refused access to your visit records")
+  })
+
+  it("keeps 'You' for the viewer's own actions, whatever name comes back", () => {
+    const described = describeAccessEvent(entry({ actorRole: "client", actorName: "Ama Mensah" }))
+    expect(described.actor).toBe("You")
+    expect(described.named).toBe(false)
+  })
+
+  it("ignores a blank or whitespace name rather than showing an empty actor", () => {
+    for (const actorName of ["", "   ", null, undefined]) {
+      const described = describeAccessEvent(entry({ actorRole: "professional", actorName }))
+      expect(described.actor).toBe("A professional")
+      expect(described.named).toBe(false)
+    }
   })
 })

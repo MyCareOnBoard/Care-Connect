@@ -43,8 +43,12 @@ export type AccessLogAction =
 export type AccessLogSubject = "record" | "document" | "intake" | "profile" | "consent" | "other"
 
 export interface AccessEventDescription {
-  /** e.g. "A professional" — the actor, never a name (the log stores only a uid). */
+  /** Who acted: their name when the API resolved one, else their role ("A professional"). */
   actor: string
+  /** The bare role word ("professional"), so a UI can qualify a name it just showed. */
+  actorRole: string
+  /** True when `actor` is a person's name rather than a role. */
+  named: boolean
   /** e.g. "opened a lab result" — the verb phrase, already category-specific. */
   phrase: string
   /** Full sentence, actor and phrase joined. */
@@ -150,7 +154,7 @@ function phraseFor(entry: RecordAccessEntry): string {
 
 export function describeAccessEvent(entry: RecordAccessEntry): AccessEventDescription {
   const denied = entry.decision === "denied"
-  const actor =
+  const genericActor =
     entry.actorRole === "professional"
       ? "A professional"
       : entry.actorRole === "agency"
@@ -158,6 +162,16 @@ export function describeAccessEvent(entry: RecordAccessEntry): AccessEventDescri
         : entry.actorRole === "client"
           ? "You"
           : "Someone"
+  const actorRole =
+    entry.actorRole === "client" ? "you" : entry.actorRole ? entry.actorRole : "unknown"
+
+  // Use the name whenever the API resolved one. A log that can only say "a professional"
+  // does not answer the question it exists to answer — the client needs to know which
+  // one, including on a refused attempt. "You" is never overridden: the viewer's own name
+  // in place of "You" would read as somebody else entirely.
+  const name = entry.actorName?.trim()
+  const named = Boolean(name) && entry.actorRole !== "client"
+  const actor = named ? (name as string) : genericActor
 
   const phrase = denied
     ? `was refused access to ${subjectNoun(entry)}`
@@ -165,6 +179,8 @@ export function describeAccessEvent(entry: RecordAccessEntry): AccessEventDescri
 
   return {
     actor,
+    actorRole,
+    named,
     phrase,
     text: `${actor} ${phrase}`,
     subject: ACTION_SUBJECT[entry.action as AccessLogAction] ?? "other",

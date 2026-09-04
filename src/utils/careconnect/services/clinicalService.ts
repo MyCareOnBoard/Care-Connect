@@ -142,6 +142,23 @@ export async function getRecord(bookingId: string): Promise<VisitRecord> {
 }
 
 /**
+ * This booking's record if it is already signed, else null.
+ *
+ * Exists so "open the record" can route a signed record to the read-only viewer — the only
+ * place amendments can be added — instead of the editor, which can do nothing but show it
+ * locked. A booking with nothing written yet is the normal case, not an error, so a failed
+ * read resolves to null and the caller opens the editor.
+ */
+export async function getSignedRecord(bookingId: string): Promise<VisitRecord | null> {
+  try {
+    const record = await getRecord(bookingId)
+    return record.status === "signed" ? record : null
+  } catch {
+    return null
+  }
+}
+
+/**
  * Start the record for a visit. Rejects with 409 when one already exists (the
  * caller should load that one instead) or when the visit is not yet completed,
  * and 403 without the client's consent.

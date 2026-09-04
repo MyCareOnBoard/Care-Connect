@@ -195,6 +195,13 @@ export function ConsentPanel() {
                         >
                           {described.text}
                         </p>
+                        {/* A bare name doesn't say in what capacity they opened it, so
+                            the role stays visible alongside it. */}
+                        {described.named && (
+                          <p className="mt-0.5 text-xs capitalize text-[#657080]">
+                            {described.actorRole}
+                          </p>
+                        )}
                         {described.denied && (
                           <p className="mt-0.5 text-xs text-[#657080]">
                             They did not see it. Refused attempts are logged too.

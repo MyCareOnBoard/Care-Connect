@@ -5,7 +5,7 @@ import { RecordViewerDialog } from "@/components/records/RecordViewerDialog"
 import { FollowUpProposalDialog } from "@/components/records/FollowUpProposalDialog"
 import { Routes } from "@/routes/constants"
 import { useAuthUser } from "@/utils/auth"
-import { getRecord } from "@/utils/careconnect/services/clinicalService"
+import { getRecord, getSignedRecord } from "@/utils/careconnect/services/clinicalService"
 import type { TelehealthBooking, VisitRecord } from "@/utils/careconnect/types"
 
 /**
@@ -39,6 +39,22 @@ export function useRecordSurfaces({
     }
   }
 
+  /**
+   * The professional opening this visit's record.
+   *
+   * Signed records go to the viewer, not the editor: a signed record cannot be edited, and
+   * the viewer is where its amendment box lives. Sending it to the editor left the
+   * professional reading "add an amendment instead" on a screen with no way to add one.
+   */
+  const openRecordEditor = async (booking: TelehealthBooking) => {
+    const signed = await getSignedRecord(booking.id)
+    if (signed) {
+      setViewRecord(signed)
+      return
+    }
+    setEditorBooking(booking)
+  }
+
   const surfaces = (
     <>
       <RecordEditorDialog
@@ -52,6 +68,10 @@ export function useRecordSurfaces({
             onBookingPatched?.({ ...editorBooking, hasRecord: true })
           }
           setViewRecord((current) => (current?.id === record.id ? record : current))
+        }}
+        onAmend={(record) => {
+          setEditorBooking(null)
+          setViewRecord(record)
         }}
       />
 
@@ -76,8 +96,8 @@ export function useRecordSurfaces({
   )
 
   return {
-    /** Professional: write or continue the visit record. */
-    openRecordEditor: setEditorBooking,
+    /** Professional: write or continue the visit record (signed ones open read-only). */
+    openRecordEditor,
     /** Professional: propose another visit. */
     openFollowUpProposal: setFollowUpBooking,
     /** Professional: the client's whole history. */
