@@ -51,6 +51,18 @@ import {
 } from "@/utils/careconnect/types"
 import { bookingStart, formatDurationLabel, videoJoinWindow } from "@/utils/careconnect/bookingStatus"
 import { VideoCallFrame } from "@/components/professional/VideoCallFrame"
+import { MockCallFrame } from "@/components/professional/MockCallFrame"
+
+/**
+ * TESTING — replace the Daily call with a stubbed surface (`VITE_MOCK_VIDEO_CALL=true`).
+ *
+ * Daily requires a payment method on the account before any room connects, even on the
+ * free tier, so this is the only way to exercise the mid-visit record flow until that's
+ * sorted. Unlike the shared-public-room fallback, nothing here reaches an external service
+ * or exposes a joinable link — it just doesn't carry video.
+ */
+const MOCK_VIDEO_CALL =
+  (import.meta.env.VITE_MOCK_VIDEO_CALL as string | undefined)?.trim() === "true"
 
 function formatPrice(price: number, currency: string): string {
   try {
@@ -1019,9 +1031,17 @@ export function BookingDetailsDialog({
           </DialogBody>
         )}
 
-        {booking && isCallStep && (
-          <VideoCallFrame bookingId={booking.id} onLeave={handleHangup} />
-        )}
+        {booking && isCallStep &&
+          (MOCK_VIDEO_CALL ? (
+            <MockCallFrame
+              booking={booking}
+              canManage={canManage}
+              onWriteRecord={onWriteRecord}
+              onLeave={handleHangup}
+            />
+          ) : (
+            <VideoCallFrame bookingId={booking.id} onLeave={handleHangup} />
+          ))}
 
         {booking && (step === "completed" || step === "call-ended") && (
           <DialogBody className="px-6 pt-4 pb-6">
