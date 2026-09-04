@@ -25,7 +25,13 @@ export {
   requiresReauth,
   isExpiredActionCode,
   AUTH_SUCCESS_MESSAGES,
-  VALIDATION_MESSAGES
+  VALIDATION_MESSAGES,
+  // API error introspection, for surfacing per-field validation failures on the inputs
+  // that caused them rather than only in a toast.
+  getApiErrorStatus,
+  getApiErrorReason,
+  getApiFieldErrors,
+  type ApiFieldError
 } from './helpers/errorMessages'
 
 // Hooks

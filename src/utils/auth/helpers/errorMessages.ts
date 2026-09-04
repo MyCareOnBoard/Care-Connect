@@ -106,8 +106,68 @@ function asFirebaseError(error: unknown): FirebaseErrorLike {
   return typeof error === 'object' && error !== null ? (error as FirebaseErrorLike) : {}
 }
 
+/** One entry from a Joi validation failure, as the API returns them. */
+export interface ApiFieldError {
+  field: string
+  message: string
+  type?: string
+}
+
+/** The `{ success, error, message, details }` envelope every backend route replies with. */
+interface ApiErrorBody {
+  error?: string
+  message?: string
+  details?: ApiFieldError[]
+  reason?: string
+}
+
+function apiErrorBody(error: unknown): ApiErrorBody | null {
+  const data = (error as { response?: { data?: unknown } })?.response?.data
+  return data && typeof data === 'object' ? (data as ApiErrorBody) : null
+}
+
+/** HTTP status of a failed request, or null when it wasn't an HTTP error. */
+export function getApiErrorStatus(error: unknown): number | null {
+  return (error as { response?: { status?: number } })?.response?.status ?? null
+}
+
+/** The backend's machine-readable reason code, when it sent one (e.g. `already_signed`). */
+export function getApiErrorReason(error: unknown): string | null {
+  return apiErrorBody(error)?.reason ?? null
+}
+
 /**
- * Get a user-friendly error message for a Firebase auth error
+ * Per-field validation failures, for rendering against the inputs that caused them.
+ * Empty when the error wasn't a validation rejection.
+ */
+export function getApiFieldErrors(error: unknown): ApiFieldError[] {
+  const details = apiErrorBody(error)?.details
+  if (!Array.isArray(details)) return []
+  return details.filter(
+    (item): item is ApiFieldError =>
+      Boolean(item) && typeof item.field === 'string' && typeof item.message === 'string',
+  )
+}
+
+/** "Heart rate must be at least 20" — drops Joi's quoted dotted paths. */
+function humanizeFieldError({ field, message }: ApiFieldError): string {
+  const leaf = field.split('.').pop() || field
+  const label = leaf
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .toLowerCase()
+  const cleaned = message
+    .replace(new RegExp(`"${field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`, 'g'), label)
+    .replace(/"/g, '')
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
+}
+
+/**
+ * Get a user-friendly message for a failed request or Firebase auth error.
+ *
+ * Reads the API's response body before falling back to `error.message`. Without that step
+ * an axios rejection surfaces as "Request failed with status code 400" and the backend's
+ * actual explanation — including per-field Joi validation messages — is thrown away.
  */
 export function getAuthErrorMessage(error: unknown): string {
   if (!error) {
@@ -120,9 +180,25 @@ export function getAuthErrorMessage(error: unknown): string {
     return AUTH_ERROR_MESSAGES[code]
   }
 
+  // The API's own words beat a generic transport message.
+  const body = apiErrorBody(error)
+  if (body) {
+    const fieldErrors = getApiFieldErrors(error)
+    if (fieldErrors.length) {
+      return fieldErrors.map(humanizeFieldError).join('. ')
+    }
+    const fromBody = body.error || body.message
+    if (typeof fromBody === 'string' && fromBody.trim()) return fromBody.trim()
+  }
+
   if (message) {
     const msg = String(message)
-    if (!msg.includes('auth/') && !msg.includes('Firebase')) {
+    // "Request failed with status code 400" tells the user nothing; prefer the generic copy.
+    if (
+      !msg.includes('auth/') &&
+      !msg.includes('Firebase') &&
+      !/^Request failed with status code/i.test(msg)
+    ) {
       return msg
     }
   }

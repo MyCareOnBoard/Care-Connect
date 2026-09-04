@@ -38,6 +38,16 @@ export function MockCallFrame({
   const elapsed = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`
   const otherParty = canManage ? booking.clientName : booking.professionalName
 
+  // Mirrors the server's own preconditions on POST /records, so the button can explain
+  // itself instead of the professional discovering the rule through a 409.
+  const recordBlockedReason =
+    booking.status !== "completed"
+      ? "Complete the visit first — the record can only be written afterwards."
+      : booking.recordConsent?.granted !== true
+        ? `${booking.clientName || "The client"} hasn't consented to a visit record.`
+        : null
+  const canWriteRecord = recordBlockedReason === null
+
   return (
     <>
       <div className="relative flex flex-1 flex-col items-center justify-center gap-4 bg-[#1f2430] px-6 py-12 text-center">
@@ -57,18 +67,26 @@ export function MockCallFrame({
           <Info className="mt-0.5 size-4 shrink-0" />
           <span>
             Video is stubbed out for testing. Everything else about the visit behaves
-            normally — write the record, end the call, complete the booking.
+            normally — end the call, complete the booking, then write the record.
+            {recordBlockedReason ? ` ${recordBlockedReason}` : ""}
           </span>
         </p>
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-3 bg-black px-4 py-4">
-        {/* The reason this screen exists: the record flow, reachable mid-call. */}
+        {/* The reason this screen exists: the record flow.
+            Gated exactly as POST /records is — it answers 409 unless the visit is
+            completed and the client consented. An earlier version of this button ignored
+            both, so pressing it mid-call produced "Write the record once the visit is
+            completed", which the editor then mistook for "already created" and turned into
+            a misleading "Record not found". */}
         {canManage && onWriteRecord && (
           <button
             type="button"
+            disabled={!canWriteRecord}
+            title={recordBlockedReason ?? undefined}
             onClick={() => onWriteRecord(booking)}
-            className="flex items-center gap-2 rounded-full bg-[#00b4b8] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+            className="flex items-center gap-2 rounded-full bg-[#00b4b8] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:bg-white/15 disabled:text-white/50"
           >
             <FileText className="size-4" />
             {booking.hasRecord ? "Open visit record" : "Write visit record"}
