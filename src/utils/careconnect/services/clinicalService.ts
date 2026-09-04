@@ -9,6 +9,8 @@
 
 import axiosClient from "@/lib/axios"
 import type {
+  CareEpisode,
+  EpisodeShareGrant,
   ClientHealthProfile,
   ConsentEvent,
   ConsentPolicies,
@@ -25,6 +27,15 @@ import type {
 } from "@/utils/careconnect/types"
 
 const BASE = "/careconnectClinical"
+
+/**
+ * How much of a client's history the caller was entitled to. Mirrors RecordScope on the
+ * backend; drives explanatory copy only — the server has already applied it.
+ *
+ * "episode" means account-level sharing is off but the client granted one or more courses
+ * of care, so colleagues' records inside those threads are included.
+ */
+export type RecordReadScope = "self" | "all" | "episode" | "own"
 
 /* ── Health profile (intake) ─────────────────────────────────────────────── */
 
@@ -94,10 +105,91 @@ export async function listConsentEvents(): Promise<ConsentEvent[]> {
   return data.data
 }
 
-/** Who has opened the caller's records. Reads by the client themselves are excluded. */
-export async function listRecordAccessLog(): Promise<RecordAccessEntry[]> {
-  const { data } = await axiosClient.get(`${BASE}/access-log`)
+export interface AccessLogPage {
+  entries: RecordAccessEntry[]
+  /**
+   * Pass back as `cursor` for the next page; null when the log is exhausted. A page can
+   * be shorter than `limit` and still have more — the caller's own events are filtered
+   * out server-side — so this, not the length, decides whether to offer "Show more".
+   */
+  nextCursor: string | null
+}
+
+/**
+ * One page of who has opened the caller's records, newest first. Reads by the client
+ * themselves are excluded.
+ */
+export async function listRecordAccessLog(
+  params: { limit?: number; cursor?: string | null } = {},
+): Promise<AccessLogPage> {
+  const { data } = await axiosClient.get(`${BASE}/access-log`, {
+    params: {
+      ...(params.limit ? { limit: params.limit } : {}),
+      ...(params.cursor ? { cursor: params.cursor } : {}),
+    },
+  })
+  return { entries: data.data ?? [], nextCursor: data.nextCursor ?? null }
+}
+
+/* ── Care episodes ───────────────────────────────────────────────────────── */
+
+/**
+ * One course of care: which visits it contains, who attended, and which produced a record.
+ *
+ * Returns the *shape* of the history, not its content — a record's text still comes from
+ * `listClientRecords`, under the client's sharing consent. Readable by the client and by
+ * any professional who has attended a visit in this episode; anyone else gets a 403.
+ */
+export async function getCareEpisode(episodeId: string): Promise<CareEpisode> {
+  const { data } = await axiosClient.get(`${BASE}/episodes/${episodeId}`)
   return data.data
+}
+
+/**
+ * Courses of care this client has agreed their care team may read, including ones that
+ * have since expired or been withdrawn (marked inactive) — a client should be able to see
+ * that a thread they once shared has closed itself.
+ */
+export async function listEpisodeShares(): Promise<{
+  grants: EpisodeShareGrant[]
+  ttlDays: number
+}> {
+  const { data } = await axiosClient.get(`${BASE}/episode-shares`)
+  return { grants: data.data ?? [], ttlDays: data.ttlDays ?? 0 }
+}
+
+/** Share one course of care with the professionals in it. Re-granting renews the window. */
+export async function grantEpisodeShare(
+  episodeId: string,
+  policyVersion: string,
+): Promise<EpisodeShareGrant> {
+  const { data } = await axiosClient.post(`${BASE}/episodes/${episodeId}/share`, {
+    policyVersion,
+  })
+  return data.data
+}
+
+/**
+ * Withdraw sharing for a course of care, or remove a single professional from it.
+ *
+ * Forward-only: it stops further reads and never deletes a record or undoes access that
+ * already happened — the access log is what answers "who saw it before I turned this off".
+ */
+export async function revokeEpisodeShare(
+  episodeId: string,
+  professionalUid?: string,
+): Promise<void> {
+  await axiosClient.delete(`${BASE}/episodes/${episodeId}/share`, {
+    params: professionalUid ? { professionalUid } : {},
+  })
+}
+
+/** The episode a booking belongs to, mirroring `episodeOf` server-side. */
+export function episodeOfBooking(booking: {
+  id: string
+  episodeId?: string | null
+}): string {
+  return booking.episodeId || booking.id
 }
 
 /* ── Visit records ───────────────────────────────────────────────────────── */
@@ -128,11 +220,14 @@ export async function listMyRecords(): Promise<VisitRecord[]> {
  */
 export async function listClientRecords(
   clientId: string,
-): Promise<{ records: VisitRecord[]; sharingEnabled: boolean }> {
+): Promise<{ records: VisitRecord[]; sharingEnabled: boolean; scope: RecordReadScope }> {
   const { data } = await axiosClient.get(`${BASE}/records`, { params: { clientId } })
   return {
     records: Array.isArray(data?.data) ? data.data : [],
     sharingEnabled: data?.sharingEnabled === true,
+    // Older deployments send no scope; "own" is the safe reading, and it only affects the
+    // explanatory copy, never what the server actually returned.
+    scope: (data?.scope as RecordReadScope) ?? "own",
   }
 }
 
@@ -200,6 +295,13 @@ export async function amendRecord(bookingId: string, text: string): Promise<Visi
 export interface NewFollowUpInput {
   sourceBookingId: string
   serviceId: string
+  /**
+   * Who should deliver it. Omit to propose yourself; naming a different team member makes
+   * this a referral. The server checks they are on the service's roster and that the slot
+   * is free in *their* diary, and derives the follow-up's `kind` from it — a request body
+   * cannot declare itself a referral or hide that it is one.
+   */
+  teamMemberId?: string
   dateKey: string
   startMinutes: number
   mode: "online" | "in_person"
@@ -227,6 +329,11 @@ export interface FollowUpResponseInput {
   /** Display label only — nothing is charged. */
   paymentMethod?: string
   recordConsent?: { accepted: boolean; policyVersion: string }
+  /**
+   * Whether the professionals in this course of care may read its records. Independent of
+   * `recordConsent`: agreeing to be documented is not agreeing to be read.
+   */
+  episodeShare?: { accepted: boolean; policyVersion: string }
   declineReason?: string
   attachHealthProfile?: boolean
 }

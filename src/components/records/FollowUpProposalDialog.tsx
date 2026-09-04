@@ -59,6 +59,9 @@ export function FollowUpProposalDialog({
   const [mode, setMode] = useState<ServiceMode>("online")
   const [paid, setPaid] = useState(false)
   const [message, setMessage] = useState("")
+  // The team member who will deliver the proposed visit. Defaults to the proposer; a
+  // different value makes this a referral.
+  const [assigneeId, setAssigneeId] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
   const posterId = booking?.posterId ?? null
@@ -74,18 +77,21 @@ export function FollowUpProposalDialog({
     setStartMinutes(null)
     setPaid(false)
     setMessage("")
+    setAssigneeId(teamMemberId ?? "")
     listServices({ posterId })
       .then((all) => {
         if (!active) return
-        // Only services this professional is actually assigned to deliver.
-        const mine = all.filter(
-          (service) =>
-            service.status === "active" &&
-            (!teamMemberId || service.teamMemberIds.includes(teamMemberId)),
-        )
-        setServices(mine)
+        // Every active service, not only the ones this professional delivers: a referral
+        // hands the client to a colleague, which usually means a service the referrer is
+        // not on. The assignee list below is constrained by the chosen service's team, and
+        // the server re-checks both.
+        const available = all.filter((service) => service.status === "active")
+        setServices(available)
         const preferred =
-          mine.find((service) => service.id === booking?.serviceId) ?? mine[0] ?? null
+          available.find((service) => service.id === booking?.serviceId) ??
+          available.find((service) => !teamMemberId || service.teamMemberIds.includes(teamMemberId)) ??
+          available[0] ??
+          null
         setServiceId(preferred?.id ?? "")
         setMode(preferred?.modes[0] ?? "online")
       })
@@ -103,13 +109,32 @@ export function FollowUpProposalDialog({
 
   const service = services.find((item) => item.id === serviceId) ?? null
 
+  // Who will deliver it. Constrained to the chosen service's roster, because that is what
+  // the server enforces — proposing someone who does not offer the service is a 409.
+  const assignees = service?.teamMembers ?? []
+  const assignee = assignees.find((member) => member.id === assigneeId) ?? null
+  const isReferral = Boolean(assigneeId) && assigneeId !== teamMemberId
+  const iDeliverThisService = Boolean(teamMemberId) && assignees.some((m) => m.id === teamMemberId)
+
+  // Keep the assignee valid when the service changes: prefer me when I'm on its roster,
+  // otherwise leave it unset so a referral is an explicit choice rather than a default.
+  useEffect(() => {
+    if (!service) return
+    const stillValid = service.teamMembers.some((member) => member.id === assigneeId)
+    if (stillValid) return
+    const mine = teamMemberId && service.teamMemberIds.includes(teamMemberId) ? teamMemberId : ""
+    setAssigneeId(mine)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceId])
+
   const submit = async () => {
-    if (!booking || !service || startMinutes == null || !dateKey) return
+    if (!booking || !service || !assigneeId || startMinutes == null || !dateKey) return
     setSubmitting(true)
     try {
       const followUp = await proposeFollowUp({
         sourceBookingId: booking.id,
         serviceId: service.id,
+        teamMemberId: assigneeId,
         dateKey,
         startMinutes,
         mode,
@@ -157,7 +182,7 @@ export function FollowUpProposalDialog({
             </div>
           ) : services.length === 0 ? (
             <p className="rounded-xl border border-dashed border-[#e5ecf5] p-6 text-center text-sm text-[#657080]">
-              You are not assigned to any active services, so there is nothing to propose yet.
+              There are no active services to propose yet.
             </p>
           ) : (
             <>
@@ -185,6 +210,49 @@ export function FollowUpProposalDialog({
                 </Select>
               </div>
 
+              {/* Who delivers it. Choosing a colleague makes this a referral — a handover
+                  inside the client's course of care rather than a second visit with the
+                  same clinician. The client still has to accept either way. */}
+              {service && (
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-[#151922]">
+                    Delivered by
+                  </label>
+                  <Select
+                    value={assigneeId}
+                    onValueChange={(next) => {
+                      setAssigneeId(next)
+                      // Availability is per professional, so a chosen slot is meaningless
+                      // once the assignee changes.
+                      setStartMinutes(null)
+                    }}
+                  >
+                    <SelectTrigger className="h-11 w-full">
+                      <SelectValue placeholder="Choose who will deliver this visit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {assignees.map((member) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.id === teamMemberId ? `${member.name} (you)` : member.name}
+                          {member.role ? ` · ${member.role}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {isReferral && (
+                    <p className="mt-2 rounded-xl bg-[#f2fbfb] px-3 py-2 text-xs text-[#00707a]">
+                      This is a referral. {booking.clientName} will be asked to accept it, and{" "}
+                      {assignee?.name || "your colleague"} is told once they do.
+                    </p>
+                  )}
+                  {!iDeliverThisService && !isReferral && (
+                    <p className="mt-2 text-xs text-[#657080]">
+                      You do not deliver this service, so choose a colleague to refer to.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {service && service.modes.length > 1 && (
                 <div>
                   <p className="mb-2 text-sm font-medium text-[#151922]">Session type</p>
@@ -210,7 +278,7 @@ export function FollowUpProposalDialog({
               {service && (
                 <SlotPicker
                   serviceId={service.id}
-                  teamMemberId={teamMemberId}
+                  teamMemberId={assigneeId || teamMemberId}
                   startMinutes={startMinutes}
                   onStartMinutesChange={setStartMinutes}
                   onDateKeyChange={setDateKey}

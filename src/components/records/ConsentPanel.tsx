@@ -18,12 +18,17 @@ import { describeAccessEvent } from "@/utils/careconnect/accessLog"
 import {
   getConsentPolicies,
   getSharingConsent,
+  listEpisodeShares,
   listRecordAccessLog,
+  revokeEpisodeShare,
   setSharingConsent,
+  type AccessLogPage,
 } from "@/utils/careconnect/services/clinicalService"
 import {
+  formatDate,
   formatRelative,
   type ConsentPolicies,
+  type EpisodeShareGrant,
   type RecordAccessEntry,
   type SharingConsent,
 } from "@/utils/careconnect/types"
@@ -37,28 +42,47 @@ import {
  * so this must not imply deletion. The access log is the honest answer to "who
  * has already seen this", which a toggle cannot undo.
  */
+/** Enough to see recent activity at a glance without the section dominating the page. */
+const ACCESS_LOG_PAGE_SIZE = 15
+
+const EMPTY_ACCESS_PAGE: AccessLogPage = { entries: [], nextCursor: null }
+
+const EMPTY_SHARES: { grants: EpisodeShareGrant[]; ttlDays: number } = { grants: [], ttlDays: 0 }
+
 export function ConsentPanel() {
   const [loading, setLoading] = useState(true)
   const [consent, setConsent] = useState<SharingConsent | null>(null)
   const [policies, setPolicies] = useState<ConsentPolicies | null>(null)
   const [accessLog, setAccessLog] = useState<RecordAccessEntry[]>([])
+  // Null once the log is exhausted, which is the only reliable "no more" signal: a page
+  // can arrive short of its limit because the client's own events were filtered out.
+  const [accessCursor, setAccessCursor] = useState<string | null>(null)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [saving, setSaving] = useState(false)
   const [confirmRevoke, setConfirmRevoke] = useState(false)
+  // Per-course-of-care sharing, independent of the account-level switch above.
+  const [episodeShares, setEpisodeShares] = useState<EpisodeShareGrant[]>([])
+  const [shareTtlDays, setShareTtlDays] = useState(0)
+  const [revokingEpisodeId, setRevokingEpisodeId] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
     ;(async () => {
       setLoading(true)
       try {
-        const [sharing, policyText, log] = await Promise.all([
+        const [sharing, policyText, log, shares] = await Promise.all([
           getSharingConsent().catch(() => null),
           getConsentPolicies().catch(() => null),
-          listRecordAccessLog().catch(() => [] as RecordAccessEntry[]),
+          listRecordAccessLog({ limit: ACCESS_LOG_PAGE_SIZE }).catch(() => EMPTY_ACCESS_PAGE),
+          listEpisodeShares().catch(() => EMPTY_SHARES),
         ])
         if (!active) return
         setConsent(sharing)
         setPolicies(policyText)
-        setAccessLog(log)
+        setAccessLog(log.entries)
+        setAccessCursor(log.nextCursor)
+        setEpisodeShares(shares.grants)
+        setShareTtlDays(shares.ttlDays)
       } finally {
         if (active) setLoading(false)
       }
@@ -67,6 +91,47 @@ export function ConsentPanel() {
       active = false
     }
   }, [])
+
+  const loadMoreAccessLog = async () => {
+    if (!accessCursor || loadingMore) return
+    setLoadingMore(true)
+    try {
+      const page = await listRecordAccessLog({
+        limit: ACCESS_LOG_PAGE_SIZE,
+        cursor: accessCursor,
+      })
+      // Guard against a duplicate if the same event somehow arrives twice — an audit
+      // trail that appears to show two identical accesses would be misleading.
+      setAccessLog((current) => {
+        const seen = new Set(current.map((entry) => entry.id))
+        return [...current, ...page.entries.filter((entry) => !seen.has(entry.id))]
+      })
+      setAccessCursor(page.nextCursor)
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  /**
+   * Stop sharing one course of care. Refetched rather than patched locally: the server
+   * decides what "inactive" means, and a client looking at their own privacy settings
+   * should be shown the stored truth, not an optimistic guess at it.
+   */
+  const revokeShare = async (episodeId: string) => {
+    setRevokingEpisodeId(episodeId)
+    try {
+      await revokeEpisodeShare(episodeId)
+      const shares = await listEpisodeShares()
+      setEpisodeShares(shares.grants)
+      toast.success("Stopped sharing that course of care")
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setRevokingEpisodeId(null)
+    }
+  }
 
   const applyConsent = async (granted: boolean) => {
     if (!consent && granted && !policies) {
@@ -215,6 +280,80 @@ export function ConsentPanel() {
                   )
                 })}
               </ul>
+            )}
+
+            {/* Courses of care shared individually. This is the control surface for what
+                the consent wording promises — "I can withdraw it at any time" is only true
+                if the client can see what they have shared. Inactive grants stay listed so
+                a thread that has closed itself is visible rather than simply gone. */}
+            {episodeShares.length > 0 && (
+              <div className="mt-6 border-t border-[#eef1f3] pt-5">
+                <h3 className="text-sm font-semibold text-[#151922]">
+                  Courses of care you have shared
+                </h3>
+                <p className="mt-1 text-sm text-[#657080]">
+                  Each covers only its own visits, and ends on its own after{" "}
+                  {shareTtlDays || 180} days.
+                </p>
+                <ul className="mt-3 space-y-2">
+                  {episodeShares.map((grant) => (
+                    <li
+                      key={grant.episodeId}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#eef1f3] px-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm text-[#151922]">
+                          {grant.active ? "Shared with the care team" : "No longer shared"}
+                        </p>
+                        <p className="mt-0.5 text-xs text-[#657080]">
+                          {grant.active
+                            ? `Ends ${formatDate(grant.expiresAt)}`
+                            : grant.inactiveReason === "expired"
+                              ? "Ended automatically"
+                              : "You withdrew this"}
+                          {grant.revokedFor.length > 0
+                            ? ` · ${grant.revokedFor.length} professional${
+                                grant.revokedFor.length === 1 ? "" : "s"
+                              } removed`
+                            : ""}
+                        </p>
+                      </div>
+                      {grant.active && (
+                        <button
+                          type="button"
+                          onClick={() => void revokeShare(grant.episodeId)}
+                          disabled={revokingEpisodeId === grant.episodeId}
+                          className="shrink-0 text-sm font-semibold text-[#ff3e66] hover:opacity-80 disabled:opacity-50"
+                        >
+                          {revokingEpisodeId === grant.episodeId ? "Stopping…" : "Stop sharing"}
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs text-[#657080]">
+                  Stopping prevents any further reading. It does not delete records already
+                  written, or undo access that has already happened — the log below shows that.
+                </p>
+              </div>
+            )}
+
+            {/* Only offered when the server said there is more. The count is stated
+                because "Show more" alone gives no sense of how far back the log goes. */}
+            {accessCursor && (
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <p className="text-xs text-[#657080]">
+                  Showing the {accessLog.length} most recent
+                </p>
+                <button
+                  type="button"
+                  onClick={loadMoreAccessLog}
+                  disabled={loadingMore}
+                  className="rounded-full border border-[#d6d6d6] px-4 py-2 text-sm font-semibold text-[#151922] transition hover:border-[#00b4b8]/40 hover:bg-[#f2f6f8] disabled:opacity-60"
+                >
+                  {loadingMore ? "Loading…" : "Show older"}
+                </button>
+              </div>
             )}
           </div>
         </div>
