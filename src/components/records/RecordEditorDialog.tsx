@@ -31,7 +31,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ChipMultiSelect } from "@/components/health/ChipMultiSelect"
-import { getAuthErrorMessage } from "@/utils/auth"
+import {
+  getApiErrorStatus,
+  getApiFieldErrors,
+  getAuthErrorMessage,
+  type ApiFieldError,
+} from "@/utils/auth"
 import {
   createRecord,
   getRecord,
@@ -99,11 +104,14 @@ function VitalField({
   value,
   onChange,
   placeholder,
+  error,
 }: {
   label: string
   value: number | null | undefined
   onChange: (next: number | null) => void
   placeholder?: string
+  /** Message from the API's rejection for this field, if it had one. */
+  error?: string
 }) {
   return (
     <div>
@@ -114,8 +122,14 @@ function VitalField({
         value={value ?? ""}
         onChange={(event) => onChange(toNumberOrNull(event.target.value))}
         placeholder={placeholder}
-        className="h-10"
+        aria-invalid={error ? true : undefined}
+        className={`h-10 ${error ? "border-[#ff3e66] focus:border-[#ff3e66]" : ""}`}
       />
+      {error && (
+        <p role="alert" className="mt-1 text-xs text-[#ff3e66]">
+          {error}
+        </p>
+      )}
     </div>
   )
 }
@@ -136,6 +150,13 @@ export function RecordEditorDialog({
   const [record, setRecord] = useState<VisitRecord | null>(null)
   const [draft, setDraft] = useState<VisitRecordInput>(EMPTY_DRAFT)
   const [dirty, setDirty] = useState(false)
+  // Per-field rejections from the API, keyed by the dotted path it reported
+  // (e.g. "vitalsObserved.heartRate"), so each one renders next to its own input.
+  const [fieldErrors, setFieldErrors] = useState<ApiFieldError[]>([])
+
+  /** The API's message for one vital, e.g. vitalError("heartRate"). */
+  const vitalError = (name: string) =>
+    fieldErrors.find((item) => item.field === `vitalsObserved.${name}`)?.message?.replace(/"/g, "")
   const [saving, setSaving] = useState(false)
   const [signing, setSigning] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
@@ -190,6 +211,11 @@ export function RecordEditorDialog({
       vitalsObserved: { ...(current.vitalsObserved ?? {}), ...patch },
     }))
     setDirty(true)
+    // Drop the rejection for a field the moment it's edited — leaving it visible while the
+    // value changes would keep flagging an input the professional has already corrected.
+    setFieldErrors((current) =>
+      current.filter((item) => !Object.keys(patch).some((key) => item.field === `vitalsObserved.${key}`)),
+    )
   }
 
   /**
@@ -211,10 +237,16 @@ export function RecordEditorDialog({
       if (!options.silent) toast.success("Draft saved")
       return saved
     } catch (error) {
-      const status = (error as { response?: { status?: number } })?.response?.status
-      if (status === 409) {
-        // Another tab already created the record; adopt it rather than surfacing
-        // a raw conflict the professional can do nothing with.
+      // POST /records answers 409 for more than one reason: the record already exists, or
+      // the visit isn't completed / consent is missing. Only the first is adoptable —
+      // treating them all as "already created" sent us to getRecord for a record that was
+      // never written, turning a clear 409 into a misleading "Record not found".
+      const status = getApiErrorStatus(error)
+      const alreadyExists =
+        status === 409 && /already exists/i.test(getAuthErrorMessage(error))
+      if (alreadyExists) {
+        // Another tab created it first; adopt that copy rather than surfacing a conflict
+        // the professional can do nothing with.
         try {
           const existing = await getRecord(bookingId)
           setRecord(existing)
@@ -226,6 +258,8 @@ export function RecordEditorDialog({
           /* fall through to the generic message */
         }
       }
+      // Show per-field validation failures against the inputs, not just in a toast.
+      setFieldErrors(getApiFieldErrors(error))
       if (!options.silent) toast.error(getAuthErrorMessage(error))
       return null
     }
@@ -361,30 +395,35 @@ export function RecordEditorDialog({
                       value={draft.vitalsObserved?.systolic}
                       onChange={(systolic) => updateVitals({ systolic })}
                       placeholder="120"
+                      error={vitalError("systolic")}
                     />
                     <VitalField
                       label="Diastolic"
                       value={draft.vitalsObserved?.diastolic}
                       onChange={(diastolic) => updateVitals({ diastolic })}
                       placeholder="80"
+                      error={vitalError("diastolic")}
                     />
                     <VitalField
                       label="Heart rate"
                       value={draft.vitalsObserved?.heartRate}
                       onChange={(heartRate) => updateVitals({ heartRate })}
                       placeholder="bpm"
+                      error={vitalError("heartRate")}
                     />
                     <VitalField
                       label="Temperature (°C)"
                       value={draft.vitalsObserved?.temperatureC}
                       onChange={(temperatureC) => updateVitals({ temperatureC })}
                       placeholder="36.8"
+                      error={vitalError("temperatureC")}
                     />
                     <VitalField
                       label="SpO2 (%)"
                       value={draft.vitalsObserved?.oxygenSaturation}
                       onChange={(oxygenSaturation) => updateVitals({ oxygenSaturation })}
                       placeholder="98"
+                      error={vitalError("oxygenSaturation")}
                     />
                     <div>
                       <label className="mb-1.5 block text-xs font-medium text-[#657080]">
