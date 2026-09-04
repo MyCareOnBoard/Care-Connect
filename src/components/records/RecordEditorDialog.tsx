@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { Info, Lock } from "lucide-react"
+import { FilePenLine, FileText, Info, Lock, Maximize2, Minus, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -31,10 +31,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ChipMultiSelect } from "@/components/health/ChipMultiSelect"
+import { canAmendNow } from "@/components/records/RecordViewerDialog"
 import {
   getApiErrorStatus,
   getApiFieldErrors,
   getAuthErrorMessage,
+  useAuthUser,
   type ApiFieldError,
 } from "@/utils/auth"
 import {
@@ -139,13 +141,21 @@ export function RecordEditorDialog({
   open,
   onOpenChange,
   onSaved,
+  onAmend,
 }: {
   booking: TelehealthBooking | null
   open: boolean
   onOpenChange: (open: boolean) => void
   /** Lets the host patch `hasRecord` on its local booking list. */
   onSaved?: (record: VisitRecord) => void
+  /**
+   * Hand a signed record to the viewer, where amendments are written. Callers normally
+   * route signed records straight there (see `getSignedRecord`), so this covers the
+   * remaining case: a record signed elsewhere while this editor was open.
+   */
+  onAmend?: (record: VisitRecord) => void
 }) {
+  const { user } = useAuthUser()
   const [loading, setLoading] = useState(false)
   const [record, setRecord] = useState<VisitRecord | null>(null)
   const [draft, setDraft] = useState<VisitRecordInput>(EMPTY_DRAFT)
@@ -161,6 +171,8 @@ export function RecordEditorDialog({
   const [signing, setSigning] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
+  // Docked out of the way so a visit in progress stays visible and usable.
+  const [minimized, setMinimized] = useState(false)
 
   // Read inside the autosave interval so the timer never captures a stale draft.
   const draftRef = useRef(draft)
@@ -172,6 +184,8 @@ export function RecordEditorDialog({
 
   const bookingId = booking?.id ?? null
   const signed = record?.status === "signed"
+  // Same rule the viewer's amend box uses, so the two agree on when it's still possible.
+  const amendable = canAmendNow(record, user?.uid ?? null)
 
   // Load any existing record when the dialog opens.
   useEffect(() => {
@@ -180,6 +194,7 @@ export function RecordEditorDialog({
     setLoading(true)
     setDirty(false)
     setLastSavedAt(null)
+    setMinimized(false)
     getRecord(bookingId)
       .then((existing) => {
         if (!active) return
@@ -306,6 +321,9 @@ export function RecordEditorDialog({
 
   const requestClose = (next: boolean) => {
     if (!next && dirty && !signed) {
+      // Expand first: the confirmation asks about work the professional should be able to
+      // see, and the alert lives in the expanded branch.
+      setMinimized(false)
       setConfirmDiscard(true)
       return
     }
@@ -316,17 +334,90 @@ export function RecordEditorDialog({
 
   const summaryEmpty = !(draft.visitSummary ?? "").trim()
 
+  /** What the docked bar reports, so minimizing never hides whether work is safe. */
+  const saveStateLabel = saving
+    ? "Saving…"
+    : signed
+      ? "Signed"
+      : dirty
+        ? "Unsaved changes"
+        : lastSavedAt
+          ? `Draft saved ${formatRelative(lastSavedAt)}`
+          : "Draft"
+
+  const title = signed ? "Visit record" : record ? "Continue visit record" : "Write visit record"
+
+  /**
+   * Minimized, this is a small docked bar instead of a centred modal — the point of
+   * writing a record *during* a visit is that the visit carries on, and a full-screen
+   * modal over a live call hides the video and puts the mute and hang-up controls out of
+   * reach. The component stays mounted either way, so the draft and its autosave survive
+   * being minimized; only the form is unmounted, and `draft` lives up here.
+   */
+  if (minimized) {
+    return (
+      <Dialog open={open} onOpenChange={requestClose} modal={false}>
+        <DialogContent
+          overlay={false}
+          layout="custom"
+          // Escape would close the record rather than restore it, which is not what a
+          // minimized panel should do mid-visit.
+          onEscapeKeyDown={(event) => event.preventDefault()}
+          onInteractOutside={(event) => event.preventDefault()}
+          className="fixed bottom-4 right-4 z-50 w-[min(20rem,calc(100vw-2rem))] rounded-2xl p-4 shadow-[0_18px_48px_rgba(17,24,39,0.24)]"
+        >
+          <div className="flex items-start gap-3">
+            <FileText className="mt-0.5 size-4 shrink-0 text-[#00898c]" />
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="truncate text-sm font-semibold text-[#151922]">
+                {title}
+              </DialogTitle>
+              <p className="mt-0.5 truncate text-xs text-[#657080]">{booking.clientName}</p>
+              <p className="mt-1 text-xs text-[#657080]">{saveStateLabel}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setMinimized(false)}
+                aria-label="Expand the visit record"
+                className="flex size-8 items-center justify-center rounded-full text-[#565656] transition hover:bg-[#f2f6f8]"
+              >
+                <Maximize2 className="size-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => requestClose(false)}
+                aria-label="Close the visit record"
+                className="flex size-8 items-center justify-center rounded-full text-[#565656] transition hover:bg-[#f2f6f8]"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
   return (
     <>
       <Dialog open={open} onOpenChange={requestClose}>
         <DialogContent showCloseButton className="p-0 max-w-160">
           <DialogHeader className="px-6 pt-6 text-left">
-            <DialogTitle className="text-xl font-semibold text-[#151922]">
-              {signed ? "Visit record" : record ? "Continue visit record" : "Write visit record"}
-            </DialogTitle>
+            <DialogTitle className="text-xl font-semibold text-[#151922]">{title}</DialogTitle>
             <p className="mt-1 text-sm text-[#657080]">
               {booking.clientName} · {booking.serviceTitle} · {formatDate(booking.dateKey)}
             </p>
+            {/* Sits beside the close button, which is absolutely positioned at right-4. */}
+            <button
+              type="button"
+              onClick={() => setMinimized(true)}
+              aria-label="Minimize the visit record and keep the visit visible"
+              title="Minimize — the draft and the call both keep going"
+              className="absolute right-15 top-6 flex size-10 items-center justify-center rounded-full bg-[#f2f6f8] text-[#565656] transition hover:bg-[#e8edf2]"
+            >
+              <Minus className="size-4" />
+            </button>
           </DialogHeader>
 
           <DialogBody className="max-h-[70vh] space-y-6 overflow-y-auto px-6 pt-4 pb-6">
@@ -338,13 +429,31 @@ export function RecordEditorDialog({
               </div>
             ) : (
               <>
+                {/* A signed record is immutable, so this banner has to lead somewhere:
+                    without the action it told the professional to add an amendment on a
+                    screen that has no way to add one. When the 24h window has closed
+                    there is genuinely nothing to offer, so it says that instead. */}
                 {signed && (
                   <div className="flex items-start gap-2 rounded-xl bg-[#e9f7ef] px-4 py-3 text-sm text-[#10ad58]">
                     <Lock className="mt-0.5 size-4 shrink-0" />
-                    <span>
-                      Signed{record?.signedAt ? ` ${formatRelative(record.signedAt)}` : ""}. This
-                      record can no longer be edited - add an amendment instead.
-                    </span>
+                    <div className="space-y-2">
+                      <p>
+                        Signed{record?.signedAt ? ` ${formatRelative(record.signedAt)}` : ""}.
+                        {amendable
+                          ? " A signed record is never rewritten - corrections are added as amendments."
+                          : " The 24-hour window for amending it has closed, so it can no longer be changed."}
+                      </p>
+                      {amendable && record && onAmend && (
+                        <button
+                          type="button"
+                          onClick={() => onAmend(record)}
+                          className="flex items-center gap-1.5 text-sm font-semibold text-[#00898c] hover:opacity-80"
+                        >
+                          <FilePenLine className="size-4" />
+                          Add an amendment
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
 

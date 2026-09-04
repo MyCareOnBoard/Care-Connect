@@ -29,11 +29,23 @@ type DialogLayout = "center" | "custom"
 
 export const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  DialogContentProps & { showCloseButton?: boolean; layout?: DialogLayout }
+  DialogContentProps & {
+    showCloseButton?: boolean
+    layout?: DialogLayout
+    /**
+     * Set false to drop the dimmed backdrop. For a dialog that deliberately does not
+     * block the page behind it — a docked or minimized panel — where a backdrop would
+     * both darken and swallow clicks meant for what it is sitting on top of.
+     */
+    overlay?: boolean
+  }
 >(
-  ({ className, children, showCloseButton = false, layout = "center", ...props }, ref) => (
+  (
+    { className, children, showCloseButton = false, layout = "center", overlay = true, ...props },
+    ref,
+  ) => (
     <DialogPortal>
-      <DialogOverlay />
+      {overlay ? <DialogOverlay /> : null}
       <DialogPrimitive.Content
         ref={ref}
         className={cn(

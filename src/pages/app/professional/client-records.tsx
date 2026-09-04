@@ -216,6 +216,21 @@ export default function ClientRecordsPage() {
   const myRecordCount = records.filter((record) => record.professionalUid === user?.uid).length
   const sharedCount = records.length - myRecordCount
 
+  /**
+   * Open this visit's record: a signed one read-only in the viewer, which is where
+   * amendments are added; anything else in the editor. The records list is already loaded
+   * on this page, so the decision costs no extra read — and if the record isn't in it, the
+   * editor's own signed banner still offers the way across.
+   */
+  const openRecordFor = (booking: TelehealthBooking) => {
+    const existing = records.find((record) => record.bookingId === booking.id)
+    if (existing?.status === "signed") {
+      setOpenRecord(existing)
+      return
+    }
+    setEditorBooking(booking)
+  }
+
   const patchRecord = (updated: VisitRecord) => {
     setRecords((current) => {
       const exists = current.some((record) => record.id === updated.id)
@@ -389,7 +404,7 @@ export default function ClientRecordsPage() {
                       {canWrite && (
                         <button
                           type="button"
-                          onClick={() => setEditorBooking(booking)}
+                          onClick={() => openRecordFor(booking)}
                           className="text-sm font-semibold text-[#00898c] hover:underline"
                         >
                           {booking.hasRecord ? "Open record" : "Add record"}
@@ -429,6 +444,10 @@ export default function ClientRecordsPage() {
           if (!next) setEditorBooking(null)
         }}
         onSaved={patchRecord}
+        onAmend={(record) => {
+          setEditorBooking(null)
+          setOpenRecord(record)
+        }}
       />
 
       <MedicalDocumentViewer

@@ -632,6 +632,12 @@ export interface RecordAccessEntry {
   id: string
   actorUid: string | null
   actorRole: "client" | "professional" | "agency" | null
+  /**
+   * Who the actor is, resolved from their profile when the log is read. Null when they
+   * have no profile or the lookup failed, in which case the UI falls back to naming
+   * their role. Not stored on the audit row itself — `actorUid` is its identity.
+   */
+  actorName?: string | null
   action: string
   decision: "allowed" | "denied"
   denyReason?: string | null
