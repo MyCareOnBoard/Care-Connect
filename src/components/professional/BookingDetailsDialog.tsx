@@ -49,7 +49,12 @@ import {
   type HealthProfileSnapshot,
   type TelehealthBooking,
 } from "@/utils/careconnect/types"
-import { bookingStart, formatDurationLabel, videoJoinWindow } from "@/utils/careconnect/bookingStatus"
+import {
+  bookingStart,
+  formatDurationLabel,
+  recordWriteState,
+  videoJoinWindow,
+} from "@/utils/careconnect/bookingStatus"
 import { VideoCallFrame } from "@/components/professional/VideoCallFrame"
 import { MockCallFrame } from "@/components/professional/MockCallFrame"
 
@@ -185,6 +190,11 @@ export function BookingDetailsDialog({
   // Whether the call is joinable now. The server enforces the same window — this only
   // decides the button's state and its explanation.
   const joinWindow = booking && booking.mode === "online" ? videoJoinWindow(booking) : null
+  // Whether this visit's record can be written yet, mirroring POST /records. Drives the
+  // details panel's record section; the call frames gate their own button on the same rule.
+  const recordWrite = booking
+    ? recordWriteState(booking)
+    : { block: "no_relationship" as const, reason: null }
   // Null when the booking has neither coordinates nor an address — older in-person bookings
   // predate the Places autocomplete and may carry nothing to navigate to.
   const locationDirectionsUrl = booking?.location ? directionsUrl(booking.location) : null
@@ -729,26 +739,28 @@ export function BookingDetailsDialog({
 
             {canManage && (
               <div className="space-y-3 border-t border-[#eef1f3] pt-4">
-                {booking.status === "completed" ? (
-                  booking.recordConsent?.granted === true ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
-                      onClick={() => onWriteRecord?.(booking)}
-                    >
-                      <FileText className="size-4" />
-                      {booking.hasRecord ? "Open visit record" : "Write visit record"}
-                    </Button>
-                  ) : (
-                    <p className="flex items-start gap-2 rounded-xl bg-[#fdf3e3] px-4 py-3 text-sm text-[#8a6d1f]">
-                      <Info className="mt-0.5 size-4 shrink-0" />
-                      <span>
-                        {booking.clientName} has not consented to a visit record for this
-                        appointment, so one cannot be written. They can allow it from their booking.
-                      </span>
-                    </p>
-                  )
+                {/* Available from the moment the visit is under way, not only once it's
+                    completed — clinicians document as they go, and the server agrees (see
+                    canWriteRecordNow). Before that there is nothing to say yet, so the
+                    section stays hidden rather than showing a dead control. */}
+                {recordWrite.block === null ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
+                    onClick={() => onWriteRecord?.(booking)}
+                  >
+                    <FileText className="size-4" />
+                    {booking.hasRecord ? "Open visit record" : "Write visit record"}
+                  </Button>
+                ) : recordWrite.block === "no_consent" ? (
+                  <p className="flex items-start gap-2 rounded-xl bg-[#fdf3e3] px-4 py-3 text-sm text-[#8a6d1f]">
+                    <Info className="mt-0.5 size-4 shrink-0" />
+                    <span>
+                      {booking.clientName} has not consented to a visit record for this
+                      appointment, so one cannot be written. They can allow it from their booking.
+                    </span>
+                  </p>
                 ) : null}
 
                 {booking.status === "completed" && onProposeFollowUp && (
@@ -1040,7 +1052,12 @@ export function BookingDetailsDialog({
               onLeave={handleHangup}
             />
           ) : (
-            <VideoCallFrame bookingId={booking.id} onLeave={handleHangup} />
+            <VideoCallFrame
+              booking={booking}
+              canManage={canManage}
+              onWriteRecord={onWriteRecord}
+              onLeave={handleHangup}
+            />
           ))}
 
         {booking && (step === "completed" || step === "call-ended") && (
