@@ -20,7 +20,7 @@ import {
   listClientRecords,
   listMedicalDocuments,
 } from "@/utils/careconnect/services/clinicalService"
-import { ROW_STATUS_PILL, rowStatusFor } from "@/utils/careconnect/bookingStatus"
+import { ROW_STATUS_PILL, recordWriteState, rowStatusFor } from "@/utils/careconnect/bookingStatus"
 import {
   formatDate,
   minutesToLabel,
@@ -366,8 +366,9 @@ export default function ClientRecordsPage() {
               .map((booking) => {
                 const status = rowStatusFor(booking)
                 const pill = ROW_STATUS_PILL[status]
-                const canWrite =
-                  booking.status === "completed" && booking.recordConsent?.granted === true
+                // In-progress visits count: a record can be written while the visit is
+                // happening, not only after it (see recordWriteState).
+                const canWrite = recordWriteState(booking).block === null
                 return (
                   <div
                     key={booking.id}

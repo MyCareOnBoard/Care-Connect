@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react"
 import DailyIframe, { type DailyCall } from "@daily-co/daily-js"
 import { Button } from "@/components/ui/button"
+import { CallRecordButton } from "@/components/professional/CallRecordButton"
 import { getAuthErrorMessage } from "@/utils/auth"
 import {
   getVideoRoom,
   type VideoRoomAccess,
 } from "@/utils/careconnect/services/telehealthService"
+import type { TelehealthBooking } from "@/utils/careconnect/types"
 
 /**
  * TESTING ONLY — a fixed public Daily room, used solely as a fallback when the API cannot
@@ -32,13 +34,19 @@ const TEST_ROOM_URL: string | null =
  * `@daily-co/daily-react` UI later is a change to this one file.
  */
 export function VideoCallFrame({
-  bookingId,
+  booking,
+  canManage,
+  onWriteRecord,
   onLeave,
 }: {
-  bookingId: string
+  booking: TelehealthBooking
+  /** True for the professional/agency side, which is the side that documents the visit. */
+  canManage: boolean
+  onWriteRecord?: (booking: TelehealthBooking) => void
   /** Called when the participant leaves the call (Prebuilt's leave button, or an eject). */
   onLeave: () => void
 }) {
+  const bookingId = booking.id
   const containerRef = useRef<HTMLDivElement>(null)
   const callRef = useRef<DailyCall | null>(null)
   const onLeaveRef = useRef(onLeave)
@@ -126,20 +134,31 @@ export function VideoCallFrame({
   }
 
   return (
-    <div className="relative flex-1 overflow-hidden bg-[#1f2430]">
-      {joining && (
-        <p className="absolute inset-0 z-10 flex items-center justify-center text-sm text-white/70">
-          Connecting…
-        </p>
-      )}
+    <>
+      <div className="relative flex-1 overflow-hidden bg-[#1f2430]">
+        {joining && (
+          <p className="absolute inset-0 z-10 flex items-center justify-center text-sm text-white/70">
+            Connecting…
+          </p>
+        )}
       {/* Unmissable on purpose: this room is shared across bookings and joinable by anyone
           with the link, so nobody should mistake it for a private call. */}
-      {usingTestRoom && (
-        <p className="absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full bg-[#d8442a] px-3 py-1 text-xs font-semibold text-white shadow-lg">
-          Shared test room — not private
-        </p>
+        {usingTestRoom && (
+          <p className="absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full bg-[#d8442a] px-3 py-1 text-xs font-semibold text-white shadow-lg">
+            Shared test room — not private
+          </p>
+        )}
+        <div ref={containerRef} className="h-full w-full" />
+      </div>
+
+      {/* Documenting while the visit is happening. Sits in its own strip below the embed
+          rather than overlaying it, because Prebuilt owns the bottom of the iframe for its
+          own tray and an overlay would land on top of the mic and camera controls. */}
+      {canManage && onWriteRecord && (
+        <div className="flex items-center justify-center bg-black px-4 py-3">
+          <CallRecordButton booking={booking} onWriteRecord={onWriteRecord} />
+        </div>
       )}
-      <div ref={containerRef} className="h-full w-full" />
-    </div>
+    </>
   )
 }

@@ -59,6 +59,42 @@ export function videoJoinWindow(booking: TelehealthBooking): {
   return { state, opensAt, closesAt }
 }
 
+/** Why a visit record can't be written yet, or `null` when it can. */
+export type RecordWriteBlock = "no_relationship" | "not_started" | "no_consent" | null
+
+/**
+ * Whether the professional may write this visit's record now, and why not if they can't.
+ *
+ * Mirrors `canWriteRecordNow` in the backend's `client-record.schema.js` — records are
+ * written *during* a visit as well as after it, so an in-progress booking qualifies. The
+ * server is the enforcement point; this only decides what the button looks like.
+ *
+ * `no_consent` is worth distinguishing from the rest: it isn't a matter of waiting, so
+ * callers show it as an explanation rather than a disabled button.
+ */
+export function recordWriteState(booking: TelehealthBooking): {
+  block: RecordWriteBlock
+  reason: string | null
+} {
+  const client = booking.clientName || "The client"
+  if (booking.status !== "completed" && booking.status !== "confirmed") {
+    return {
+      block: "no_relationship",
+      reason:
+        booking.status === "cancelled"
+          ? "This visit was cancelled."
+          : "Confirm the booking before writing a record.",
+    }
+  }
+  if (booking.status !== "completed" && Date.now() < videoJoinWindow(booking).opensAt.getTime()) {
+    return { block: "not_started", reason: "This visit hasn't started yet." }
+  }
+  if (booking.recordConsent?.granted !== true) {
+    return { block: "no_consent", reason: `${client} hasn't consented to a visit record.` }
+  }
+  return { block: null, reason: null }
+}
+
 export const ROW_STATUS_PILL: Record<RowStatus, { label: string; className: string }> = {
   requested: { label: "Requested", className: "border border-[#d97a2b] bg-white text-[#d97a2b]" },
   completed: { label: "Completed", className: "border border-[#10ad58] bg-white text-[#10ad58]" },
