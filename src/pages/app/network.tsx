@@ -276,7 +276,7 @@ export default function NetworkPage() {
   return (
     <div className="p-5 sm:p-8">
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
-        <aside className="space-y-6">
+        <aside className="scrollbar-hide space-y-6 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto">
           <section className="rounded-lg border border-white/60 bg-white/80 p-4 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md">
             <h2 className="mb-3 text-sm font-semibold text-[#657080]">Manage network here</h2>
             <div className="space-y-1">

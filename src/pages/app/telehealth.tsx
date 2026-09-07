@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { Link, useNavigate } from "react-router"
 import { format } from "date-fns"
 import {
+  AlertTriangle,
   Banknote,
   CalendarCheck,
   CheckCircle2,
@@ -14,6 +15,7 @@ import {
   Heart,
   HeartPulse,
   Info,
+  Loader2,
   MapPin,
   MessageSquare,
   Navigation,
@@ -22,6 +24,8 @@ import {
   Search,
   Sparkles,
   TriangleAlert,
+  UserPlus,
+  Users,
   Video,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -34,10 +38,13 @@ import { Switch } from "@/components/ui/switch"
 import { Radio } from "@/components/ui/radio"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { PaymentMethodDialog } from "@/components/booking/PaymentMethodDialog"
 import { SlotPicker } from "@/components/booking/SlotPicker"
+import { TeamInviteDialog } from "@/components/profile/TeamInviteDialog"
+import { TeamMembersDialog } from "@/components/profile/TeamMembersDialog"
 import {
   HealthProfileForm,
   BOOKING_FLOW_SECTIONS,
@@ -62,13 +69,22 @@ import {
   updateService,
   type SearchedService,
 } from "@/utils/careconnect/services/telehealthService"
-import { listMyTeam } from "@/utils/careconnect/services/teamService"
+import {
+  bulkInviteTeamMembers,
+  inviteTeamMember,
+  listMyTeam,
+  removeTeamMember,
+  type BulkInviteMemberInput,
+  type BulkInviteResult,
+} from "@/utils/careconnect/services/teamService"
 import {
   formatRelative,
   minutesToLabel,
   toDateKey,
+  BOOKING_STATUS_LABELS,
   SERVICE_MODE_LABELS,
   type BookingLocation,
+  type BookingStatus,
   type ClientHealthProfile,
   type ConsentPolicies,
   type ServiceMode,
@@ -76,6 +92,7 @@ import {
   type TelehealthBooking,
   type TelehealthService,
 } from "@/utils/careconnect/types"
+import { useProfessionalMembership } from "@/utils/professional/useProfessionalMembership"
 
 const DURATION_OPTIONS = [
   { label: "15 min", minutes: 15 },
@@ -103,6 +120,13 @@ function formatPrice(price: number, currency: string): string {
 const STATUS_PILL: Record<TelehealthService["status"], { label: string; className: string }> = {
   active: { label: "Active", className: "bg-[#eafaf1] text-[#10ad58]" },
   archived: { label: "Archive", className: "bg-[#1f2430] text-white" },
+}
+
+const BOOKING_STATUS_PILL: Record<BookingStatus, string> = {
+  requested: "bg-[#fdf3e3] text-[#8a6d1f]",
+  confirmed: "bg-[#eafaf1] text-[#10ad58]",
+  completed: "bg-[#e3f8f8] text-[#00898c]",
+  cancelled: "bg-[#feeaee] text-[#ff3e66]",
 }
 
 /** Compose a display date from a booking's dateKey + startMinutes. */
@@ -497,14 +521,29 @@ const BOOKINGS_PAGE_SIZE = 10
 
 function BookingsSidebar({ bookings }: { bookings: TelehealthBooking[] }) {
   const [page, setPage] = useState(1)
-  const totalPages = Math.max(1, Math.ceil(bookings.length / BOOKINGS_PAGE_SIZE))
+  const [search, setSearch] = useState("")
+  const filteredBookings = search
+    ? bookings.filter(
+        (booking) =>
+          booking.clientName.toLowerCase().includes(search.toLowerCase()) ||
+          booking.serviceTitle.toLowerCase().includes(search.toLowerCase()) ||
+          booking.professionalName.toLowerCase().includes(search.toLowerCase()),
+      )
+    : bookings
+  const totalPages = Math.max(1, Math.ceil(filteredBookings.length / BOOKINGS_PAGE_SIZE))
 
-  // Clamp back onto a valid page if the list shrinks (e.g. a booking is cancelled off it).
+  // Clamp back onto a valid page if the list shrinks (e.g. a booking is cancelled off it,
+  // or a search term narrows the results).
   useEffect(() => {
     setPage((current) => Math.min(current, totalPages))
   }, [totalPages])
 
-  const visibleBookings = bookings.slice((page - 1) * BOOKINGS_PAGE_SIZE, page * BOOKINGS_PAGE_SIZE)
+  // Back to page 1 whenever the search term changes what's being paged through.
+  useEffect(() => {
+    setPage(1)
+  }, [search])
+
+  const visibleBookings = filteredBookings.slice((page - 1) * BOOKINGS_PAGE_SIZE, page * BOOKINGS_PAGE_SIZE)
 
   const avatarBg = (id: string) => {
     const palette = ["bg-[#e7b8c9]", "bg-[#6b9cca]", "bg-[#87c9a8]", "bg-[#f5a623]", "bg-[#a782d8]"]
@@ -513,67 +552,93 @@ function BookingsSidebar({ bookings }: { bookings: TelehealthBooking[] }) {
   }
   return (
     <div className="rounded-3xl border border-[#e5ecf5] bg-white p-5">
-      <h2 className="text-base font-semibold text-[#151922]">Your bookings</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-base font-semibold text-[#151922]">Your bookings</h2>
+        {bookings.length > 0 && (
+          <Link
+            to={Routes.app.agency.telehealthBookings}
+            className="text-xs font-semibold text-[#00898c] hover:underline"
+          >
+            View all
+          </Link>
+        )}
+      </div>
       {bookings.length === 0 ? (
         <p className="mt-4 text-sm text-[#657080]">No bookings yet.</p>
       ) : (
         <>
-          <div className="mt-4 space-y-5">
-            {visibleBookings.map((booking) => (
-              <div key={booking.id} className="border-b border-[#eef1f3] pb-5 last:border-0 last:pb-0">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <span className={`flex size-11 items-center justify-center rounded-full text-sm font-semibold text-white ${avatarBg(booking.id)}`}>
-                      {getInitials(booking.clientName)}
-                    </span>
-                    <div>
-                      <p className="text-sm font-semibold text-[#151922]">{booking.clientName}</p>
-                      <p className="text-sm text-[#656f80]">
-                        {booking.serviceTitle} · {SERVICE_MODE_LABELS[booking.mode]}
-                      </p>
-                    </div>
-                  </div>
-                  <Link
-                    to={Routes.app.agency.messages}
-                    aria-label={`Message ${booking.clientName}`}
-                    className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-[#eef1f3] text-[#656f80] transition hover:border-[#00b4b8] hover:text-[#00b4b8]"
-                  >
-                    <MessageSquare className="size-4" />
-                  </Link>
-                </div>
-                <p className="mt-3 text-sm text-[#656f80]">Hosted by: {booking.professionalName}</p>
-                <p className="mt-1 inline-flex items-center gap-2 text-sm text-[#656f80]">
-                  <CalendarCheck className="size-4" />
-                  {bookingWhen(booking)}
-                </p>
-              </div>
-            ))}
+          <div className="relative mt-4">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Client, service, or professional"
+              className="pl-9"
+            />
           </div>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-4 mt-5 border-t border-[#eef1f3]">
-              <button
-                type="button"
-                aria-label="Previous page"
-                disabled={page === 1}
-                onClick={() => setPage((current) => current - 1)}
-                className="flex size-8 items-center justify-center rounded-lg text-[#657080] transition hover:bg-[#f2f6f8] disabled:opacity-30"
-              >
-                <ChevronLeft className="size-4" />
-              </button>
-              <span className="text-xs font-medium text-[#657080]">
-                Page {page} of {totalPages}
-              </span>
-              <button
-                type="button"
-                aria-label="Next page"
-                disabled={page === totalPages}
-                onClick={() => setPage((current) => current + 1)}
-                className="flex size-8 items-center justify-center rounded-lg text-[#657080] transition hover:bg-[#f2f6f8] disabled:opacity-30"
-              >
-                <ChevronRight className="size-4" />
-              </button>
-            </div>
+          {filteredBookings.length === 0 ? (
+            <p className="mt-4 text-sm text-[#657080]">No bookings match &quot;{search}&quot;.</p>
+          ) : (
+            <>
+              <div className="mt-4 space-y-5">
+                {visibleBookings.map((booking) => (
+                  <div key={booking.id} className="border-b border-[#eef1f3] pb-5 last:border-0 last:pb-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <span className={`flex size-11 items-center justify-center rounded-full text-sm font-semibold text-white ${avatarBg(booking.id)}`}>
+                          {getInitials(booking.clientName)}
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold text-[#151922]">{booking.clientName}</p>
+                          <p className="text-sm text-[#656f80]">
+                            {booking.serviceTitle} · {SERVICE_MODE_LABELS[booking.mode]}
+                          </p>
+                        </div>
+                      </div>
+                      <Link
+                        to={Routes.app.agency.messages}
+                        aria-label={`Message ${booking.clientName}`}
+                        className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-[#eef1f3] text-[#656f80] transition hover:border-[#00b4b8] hover:text-[#00b4b8]"
+                      >
+                        <MessageSquare className="size-4" />
+                      </Link>
+                    </div>
+                    <p className="mt-3 text-sm text-[#656f80]">Hosted by: {booking.professionalName}</p>
+                    <p className="mt-1 inline-flex items-center gap-2 text-sm text-[#656f80]">
+                      <CalendarCheck className="size-4" />
+                      {bookingWhen(booking)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-4 mt-5 border-t border-[#eef1f3]">
+                  <button
+                    type="button"
+                    aria-label="Previous page"
+                    disabled={page === 1}
+                    onClick={() => setPage((current) => current - 1)}
+                    className="flex size-8 items-center justify-center rounded-lg text-[#657080] transition hover:bg-[#f2f6f8] disabled:opacity-30"
+                  >
+                    <ChevronLeft className="size-4" />
+                  </button>
+                  <span className="text-xs font-medium text-[#657080]">
+                    Page {page} of {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Next page"
+                    disabled={page === totalPages}
+                    onClick={() => setPage((current) => current + 1)}
+                    className="flex size-8 items-center justify-center rounded-lg text-[#657080] transition hover:bg-[#f2f6f8] disabled:opacity-30"
+                  >
+                    <ChevronRight className="size-4" />
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
@@ -913,6 +978,36 @@ export function BookServiceDialog({
               </p>
             )}
           </DialogHeader>
+          {step !== "location" && (
+            <div className="flex items-center gap-2 px-6 pt-4">
+              {(["details", "schedule", "confirm"] as const).map((stage, index) => {
+                const stageIndex = step === "request" || step === "health" ? 0 : step === "schedule" ? 1 : 2
+                const done = index < stageIndex
+                const active = index === stageIndex
+                return (
+                  <div key={stage} className="flex flex-1 items-center gap-2 last:flex-none">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition ${
+                          done
+                            ? "bg-[#00b4b8] text-white"
+                            : active
+                              ? "border-2 border-[#00b4b8] text-[#00898c]"
+                              : "border border-[#e5ecf5] text-[#8a8f98]"
+                        }`}
+                      >
+                        {done ? <CheckCircle2 className="size-4" /> : index + 1}
+                      </span>
+                      <span className={`text-xs font-medium ${active ? "text-[#151922]" : "text-[#8a8f98]"}`}>
+                        {stage === "details" ? "Details" : stage === "schedule" ? "Schedule" : "Confirm"}
+                      </span>
+                    </div>
+                    {index < 2 && <div className={`h-px flex-1 ${done ? "bg-[#00b4b8]" : "bg-[#e5ecf5]"}`} />}
+                  </div>
+                )
+              })}
+            </div>
+          )}
           <DialogBody className="px-6 pt-4 pb-6 space-y-5">
             {step === "location" && (
               <>
@@ -1291,13 +1386,92 @@ function serviceMatchesQuery(service: TelehealthService, query: string): boolean
 
 const AI_SEARCH_DEBOUNCE_MS = 600
 
+/**
+ * Past bookings for the "Service history" (client) / "Services rendered" (professional)
+ * tab. `counterpart` picks which name on the booking is the useful one to show — the
+ * professional who saw you, or the client you saw.
+ */
+function ServiceHistoryList({
+  bookings,
+  loading,
+  counterpart,
+  emptyMessage,
+}: {
+  bookings: TelehealthBooking[]
+  loading: boolean
+  counterpart: "professional" | "client"
+  emptyMessage: string
+}) {
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-28 rounded-2xl" />
+        <Skeleton className="h-28 rounded-2xl" />
+        <Skeleton className="h-28 rounded-2xl" />
+      </div>
+    )
+  }
+
+  if (bookings.length === 0) {
+    return (
+      <p className="rounded-2xl border border-dashed border-[#e5ecf5] bg-white p-6 text-center text-sm text-[#657080]">
+        {emptyMessage}
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {bookings.map((booking) => (
+        <div key={booking.id} className="rounded-2xl border border-[#e5ecf5] bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-[#151922]">{booking.serviceTitle}</h3>
+              <p className="mt-1 text-xs text-[#8a8f98]">
+                {counterpart === "professional"
+                  ? `with ${booking.professionalName}`
+                  : `for ${booking.clientName}`}
+              </p>
+            </div>
+            <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${BOOKING_STATUS_PILL[booking.status]}`}>
+              {BOOKING_STATUS_LABELS[booking.status]}
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-[#656f80]">
+            <span className="inline-flex items-center gap-1.5">
+              <Video className="size-4" />
+              {SERVICE_MODE_LABELS[booking.mode]}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <CalendarCheck className="size-4" />
+              {bookingWhen(booking)}
+            </span>
+            <span className="inline-flex items-center gap-1.5 font-semibold text-[#0f8a4d]">
+              <Banknote className="size-4" />
+              {formatPrice(booking.price, booking.currency)}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function UserServiceBrowser() {
+  // Professionals use this same /user/tele-health page (there's no separate
+  // /professional/* prefix) — the "history" tab shows their rendered services
+  // instead of a client's booking history once membership resolves.
+  const { isProfessional } = useProfessionalMembership()
+  const [tab, setTab] = useState<"browse" | "history">("browse")
   const [services, setServices] = useState<TelehealthService[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [bookingOpen, setBookingOpen] = useState(false)
   const [visibleServiceCount, setVisibleServiceCount] = useState(SERVICES_PAGE_SIZE)
+  const [history, setHistory] = useState<TelehealthBooking[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyLoaded, setHistoryLoaded] = useState(false)
   // AI results for the query currently in the box, or null when we're showing keyword
   // matches. Keeping the query alongside the results is what makes a late response for an
   // older query discardable.
@@ -1309,6 +1483,23 @@ function UserServiceBrowser() {
    * above them — offering appointments would imply help is on the way.
    */
   const [emergencyNotice, setEmergencyNotice] = useState<string | null>(null)
+  // "Save" is a local-only affordance (no backend concept for saved services yet) —
+  // matches the same pattern used for job likes elsewhere in the app.
+  const [savedServiceIds, setSavedServiceIds] = useState<Set<string>>(new Set())
+
+  const toggleSaved = (id: string) => {
+    setSavedServiceIds((current) => {
+      const next = new Set(current)
+      if (next.has(id)) {
+        next.delete(id)
+        toast.success("Removed from saved services")
+      } else {
+        next.add(id)
+        toast.success("Saved service")
+      }
+      return next
+    })
+  }
 
   // Reset "Load more" progress whenever the underlying list changes — a new search term,
   // or AI results replacing the keyword matches.
@@ -1335,6 +1526,29 @@ function UserServiceBrowser() {
       active = false
     }
   }, [])
+
+  // Fetched lazily on first visit to the history tab — most people never leave
+  // "Browse services", so there's no point loading it up front.
+  useEffect(() => {
+    if (tab !== "history" || historyLoaded) return
+    let active = true
+    setHistoryLoading(true)
+    listBookings({ scope: isProfessional ? "professional" : "client" })
+      .then((list) => {
+        if (!active) return
+        setHistory(list)
+        setHistoryLoaded(true)
+      })
+      .catch((error: unknown) => {
+        if (active) toast.error(getAuthErrorMessage(error))
+      })
+      .finally(() => {
+        if (active) setHistoryLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [tab, historyLoaded, isProfessional])
 
   // Second tier: keyword matches are already on screen, so this only ever upgrades the
   // list. A failure or an empty AI result leaves the keyword matches standing.
@@ -1385,11 +1599,55 @@ function UserServiceBrowser() {
 
   return (
     <div className="p-5 sm:p-8">
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <div className="space-y-4">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold text-[#151922]">Telehealth</h1>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setTab("browse")}
+            className={`rounded-full border px-3.5 py-2 text-xs font-semibold transition ${
+              tab === "browse"
+                ? "border-[#00b4b8] bg-[#00b4b8] text-white shadow-[0_4px_12px_rgba(0,180,184,0.22)]"
+                : "border-[#d8d8d8] bg-white text-[#141922] hover:border-[#00b4b8] hover:text-[#00b4b8]"
+            }`}
+          >
+            Browse services
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("history")}
+            className={`rounded-full border px-3.5 py-2 text-xs font-semibold transition ${
+              tab === "history"
+                ? "border-[#00b4b8] bg-[#00b4b8] text-white shadow-[0_4px_12px_rgba(0,180,184,0.22)]"
+                : "border-[#d8d8d8] bg-white text-[#141922] hover:border-[#00b4b8] hover:text-[#00b4b8]"
+            }`}
+          >
+            {isProfessional ? "Services rendered" : "Service history"}
+          </button>
+        </div>
+      </div>
+
+      {tab === "history" ? (
+        <ServiceHistoryList
+          bookings={history}
+          loading={historyLoading}
+          counterpart={isProfessional ? "client" : "professional"}
+          emptyMessage={
+            isProfessional
+              ? "No services rendered yet. Bookings you fulfil will show up here."
+              : "No service history yet. Bookings you complete will show up here."
+          }
+        />
+      ) : (
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <div className="space-y-4 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto xl:pr-1">
           <div>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
+              {aiSearching ? (
+                <Loader2 className="absolute left-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-[#00b4b8]" />
+              ) : (
+                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
+              )}
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -1434,7 +1692,7 @@ function UserServiceBrowser() {
               <p className="mt-2 leading-relaxed">{emergencyNotice}</p>
             </div>
           ) : visibleServices.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-[#e5ecf5] p-6 text-center text-sm text-[#657080]">
+            <p className="rounded-2xl border border-dashed border-[#e5ecf5] bg-white p-6 text-center text-sm text-[#657080]">
               No services found.
             </p>
           ) : (
@@ -1443,11 +1701,16 @@ function UserServiceBrowser() {
                 key={service.id}
                 type="button"
                 onClick={() => setSelectedId(service.id)}
-                className={`w-full rounded-2xl border p-4 text-left transition ${
-                  selectedId === service.id ? "border-[#00b4b8] bg-[#f0fbfb]" : "border-[#e5ecf5] hover:border-[#00b4b8]/40"
+                className={`relative w-full rounded-2xl border p-4 pl-5 text-left shadow-sm transition ${
+                  selectedId === service.id
+                    ? "border-[#00b4b8] bg-[#f0fbfb] before:absolute before:inset-y-3 before:left-0 before:w-1 before:rounded-full before:bg-[#00b4b8]"
+                    : "border-[#e5ecf5] bg-white hover:border-[#00b4b8]/40 hover:shadow-md"
                 }`}
               >
-                <h3 className="text-sm font-semibold text-[#151922]">{service.title}</h3>
+                <h3 className="flex items-center gap-1.5 text-sm font-semibold text-[#151922]">
+                  {service.title}
+                  {selectedId === service.id && <CheckCircle2 className="size-3.5 shrink-0 text-[#00b4b8]" />}
+                </h3>
                 {service.matchReason && (
                   <p className="mt-1 text-xs text-[#00898c]">{service.matchReason}</p>
                 )}
@@ -1495,7 +1758,7 @@ function UserServiceBrowser() {
         </div>
 
         {selectedService && (
-          <div>
+          <div className="rounded-3xl border border-[#e5ecf5] bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2">
                 <span className="flex size-9 items-center justify-center rounded-full bg-[#1f2430] text-xs font-semibold text-white">
@@ -1533,8 +1796,17 @@ function UserServiceBrowser() {
               <Button className="bg-[#00b4b8] text-white hover:opacity-90" onClick={() => setBookingOpen(true)}>
                 Book service
               </Button>
-              <button type="button" aria-label="Save" className="flex size-11 items-center justify-center rounded-xl border border-[#e5ecf5] text-[#565656] hover:bg-[#f2f6f8]">
-                <Heart className="size-4" />
+              <button
+                type="button"
+                onClick={() => toggleSaved(selectedService.id)}
+                aria-label={savedServiceIds.has(selectedService.id) ? "Unsave service" : "Save service"}
+                className={`flex size-11 items-center justify-center rounded-xl border transition ${
+                  savedServiceIds.has(selectedService.id)
+                    ? "border-[#ff3e66]/30 bg-[#fff1f4] text-[#ff3e66]"
+                    : "border-[#e5ecf5] text-[#565656] hover:bg-[#f2f6f8]"
+                }`}
+              >
+                <Heart className={`size-4 transition-colors ${savedServiceIds.has(selectedService.id) ? "fill-[#ff3e66]" : ""}`} />
               </button>
               {/* Share icon */}
               {/* <button type="button" aria-label="Share" className="flex size-11 items-center justify-center rounded-xl border border-[#e5ecf5] text-[#565656] hover:bg-[#f2f6f8]">
@@ -1576,12 +1848,16 @@ function UserServiceBrowser() {
           </div>
         )}
       </div>
+      )}
 
       <BookServiceDialog
         service={selectedService}
         open={bookingOpen}
         onOpenChange={setBookingOpen}
-        onBooked={() => undefined}
+        onBooked={() => {
+          // A fresh booking invalidates any cached history — refetch next visit to that tab.
+          setHistoryLoaded(false)
+        }}
       />
     </div>
   )
@@ -1593,14 +1869,18 @@ function AgencyTelehealthPage() {
   const [bookings, setBookings] = useState<TelehealthBooking[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const [modeFilter, setModeFilter] = useState<"all" | ServiceMode>("all")
   const [createOpen, setCreateOpen] = useState(false)
   const [editingService, setEditingService] = useState<TelehealthService | null>(null)
   const [visibleServiceCount, setVisibleServiceCount] = useState(SERVICES_PAGE_SIZE)
+  const [teamInviteOpen, setTeamInviteOpen] = useState(false)
+  const [viewTeamOpen, setViewTeamOpen] = useState(false)
+  const [newTeamInvite, setNewTeamInvite] = useState({ phone: "", email: "", fullName: "" })
 
-  // Reset "Load more" progress whenever the search term changes the underlying list.
+  // Reset "Load more" progress whenever the search term or filter changes the underlying list.
   useEffect(() => {
     setVisibleServiceCount(SERVICES_PAGE_SIZE)
-  }, [search])
+  }, [search, modeFilter])
 
   useEffect(() => {
     let active = true
@@ -1627,11 +1907,82 @@ function AgencyTelehealthPage() {
     }
   }, [])
 
+  const withdrawTeamMember = async (id: string) => {
+    const previous = team
+    setTeam((current) => current.filter((member) => member.id !== id))
+    try {
+      await removeTeamMember(id)
+    } catch (error) {
+      setTeam(previous)
+      toast.error(getAuthErrorMessage(error))
+    }
+  }
+
+  const handleInviteTeamMember = async (input: { fullName: string; email: string; phone: string }) => {
+    try {
+      const email = input.email.trim()
+      const inviteUrlBase = new URL(Routes.auth.professionalInvite, window.location.origin).toString()
+      const member = await inviteTeamMember({
+        name: input.fullName.trim(),
+        email: email || undefined,
+        phone: input.phone.trim() || undefined,
+        inviteUrlBase,
+      })
+      setTeam((current) => [member, ...current])
+
+      // Always copy the link as a fallback; the backend also emails it when an address is given.
+      const inviteUrl = new URL(Routes.auth.professionalInvite, window.location.origin)
+      inviteUrl.searchParams.set("invite", member.inviteToken)
+      inviteUrl.searchParams.set("name", member.name)
+      if (member.email) inviteUrl.searchParams.set("email", member.email)
+      if (member.phone) inviteUrl.searchParams.set("phone", member.phone)
+      await navigator.clipboard?.writeText(inviteUrl.toString()).catch(() => undefined)
+
+      if (member.emailed) {
+        toast.success(`Invitation emailed to ${email} — link also copied.`)
+      } else if (email) {
+        toast.success("Invite link copied. (Email delivery is unavailable — send the link directly.)")
+      } else {
+        toast.success("Invite link copied — send it to the new team member to set up their dashboard.")
+      }
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    }
+  }
+
+  /**
+   * Spreadsheet import. Rows were already validated client-side; the backend
+   * still reports per-row outcomes, which the dialog renders as a summary.
+   */
+  const handleBulkInviteTeamMembers = async (
+    members: BulkInviteMemberInput[],
+  ): Promise<BulkInviteResult | undefined> => {
+    try {
+      const inviteUrlBase = new URL(Routes.auth.professionalInvite, window.location.origin).toString()
+      const result = await bulkInviteTeamMembers({ members, inviteUrlBase })
+      if (result.members.length > 0) {
+        setTeam((current) => [...result.members, ...current])
+      }
+      if (result.invited > 0) {
+        toast.success(
+          `${result.invited} invitation${result.invited === 1 ? "" : "s"} sent` +
+            (result.skipped > 0 ? ` — ${result.skipped} row${result.skipped === 1 ? "" : "s"} skipped.` : "."),
+        )
+      } else {
+        toast.error("No invitations were sent — every row was rejected.")
+      }
+      return result
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+      return undefined
+    }
+  }
+
   if (loading) return <TelehealthSkeleton />
 
-  const visibleServices = search
-    ? services.filter((service) => service.title.toLowerCase().includes(search.toLowerCase()))
-    : services
+  const visibleServices = services
+    .filter((service) => !search || service.title.toLowerCase().includes(search.toLowerCase()))
+    .filter((service) => modeFilter === "all" || service.modes.includes(modeFilter))
   const shownServices = visibleServices.slice(0, visibleServiceCount)
 
   return (
@@ -1648,6 +1999,48 @@ function AgencyTelehealthPage() {
               className="pl-9"
             />
           </div>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="font-semibold whitespace-nowrap text-[#151922]">Filter by:</span>
+            <Select value={modeFilter} onValueChange={(value) => setModeFilter(value as "all" | ServiceMode)}>
+              <SelectTrigger className="w-36">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All modes</SelectItem>
+                <SelectItem value="online">{SERVICE_MODE_LABELS.online}</SelectItem>
+                <SelectItem value="in_person">{SERVICE_MODE_LABELS.in_person}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
+              >
+                <Users className="size-4" />
+                Team Members ({team.length})
+                <ChevronDown className="size-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-xl border-[#eef1f3] bg-white">
+              <DropdownMenuItem
+                className="gap-2 rounded-lg data-highlighted:bg-[#e3f8f8] data-highlighted:text-[#00898c]"
+                onSelect={() => setViewTeamOpen(true)}
+              >
+                <Users className="size-4" />
+                View Team Members
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2 rounded-lg data-highlighted:bg-[#e3f8f8] data-highlighted:text-[#00898c]"
+                onSelect={() => setTeamInviteOpen(true)}
+              >
+                <UserPlus className="size-4" />
+                Add Team Members
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button className="rounded-full bg-[#00b4b8] text-white hover:opacity-90" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
             Create service
@@ -1684,7 +2077,9 @@ function AgencyTelehealthPage() {
           )}
         </div>
 
-        <BookingsSidebar bookings={bookings} />
+        <div className="xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto">
+          <BookingsSidebar bookings={bookings} />
+        </div>
       </div>
 
       <ServiceCreationDialog
@@ -1702,11 +2097,71 @@ function AgencyTelehealthPage() {
         service={editingService}
         onUpdated={(updated) => setServices((current) => current.map((item) => (item.id === updated.id ? updated : item)))}
       />
+
+      <TeamInviteDialog
+        open={teamInviteOpen}
+        onOpenChange={setTeamInviteOpen}
+        newTeamInvite={newTeamInvite}
+        onNewTeamInviteChange={setNewTeamInvite}
+        onInviteTeamMember={handleInviteTeamMember}
+        onBulkInviteTeamMembers={handleBulkInviteTeamMembers}
+      />
+
+      <TeamMembersDialog
+        open={viewTeamOpen}
+        onOpenChange={setViewTeamOpen}
+        members={team}
+        onWithdrawInvite={withdrawTeamMember}
+      />
     </div>
+  )
+}
+
+/** A safety notice — shown every time the Telehealth page is opened, not just once. */
+function EmergencyDisclaimer() {
+  const [open, setOpen] = useState(true)
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="p-0 max-w-110">
+        <DialogHeader className="px-6 pt-6 text-left">
+          <div className="flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#fdf3e3] text-[#8a6d1f]">
+              <AlertTriangle className="size-5" />
+            </span>
+            <DialogTitle className="text-xl font-semibold text-[#151922]">Notice!</DialogTitle>
+          </div>
+        </DialogHeader>
+        <DialogBody className="px-6 pt-4 pb-6 space-y-4">
+          <p className="text-sm text-[#657080]">
+            Telehealth doesn&apos;t offer emergency services yet. If you need immediate assistance,
+            please contact your region&apos;s emergency line right away rather than waiting on a
+            booking or message here.
+          </p>
+          <Button type="button" className="w-full bg-[#00b4b8] text-white hover:opacity-90" onClick={() => setOpen(false)}>
+            I understand
+          </Button>
+        </DialogBody>
+      </DialogContent>
+    </Dialog>
   )
 }
 
 export default function TelehealthPage() {
   const { flow } = useCareFlow()
-  return flow === "agency" ? <AgencyTelehealthPage /> : <UserServiceBrowser />
+  // Professionals share this same /user/tele-health page — they're the ones
+  // rendering care, not waiting on it, so the notice is skipped for them too,
+  // same as it already is for the agency flow.
+  const { isProfessional, loading: roleLoading } = useProfessionalMembership()
+
+  if (flow === "agency") return <AgencyTelehealthPage />
+
+  return (
+    <>
+      {/* Wait for the role check so a professional never sees the client-only
+          notice flash before membership resolves. */}
+      {!roleLoading && !isProfessional && <EmergencyDisclaimer />}
+      <UserServiceBrowser />
+    </>
+  )
 }

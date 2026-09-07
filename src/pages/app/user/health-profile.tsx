@@ -7,8 +7,10 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { HealthProfileForm } from "@/components/health/HealthProfileForm"
 import { ConsentPanel } from "@/components/records/ConsentPanel"
 import { MedicalDocumentsSection } from "@/components/health/MedicalDocumentsSection"
+import { SharedClientRecords } from "@/components/health/SharedClientRecords"
 import { Routes } from "@/routes/constants"
 import { getAuthErrorMessage } from "@/utils/auth"
+import { useProfessionalMembership } from "@/utils/professional/useProfessionalMembership"
 import {
   getMyHealthProfile,
   upsertMyHealthProfile,
@@ -39,6 +41,11 @@ function HealthProfileSkeleton() {
 }
 
 export default function HealthProfilePage() {
+  // Professionals use this same /user/health-profile page (no separate
+  // /professional/* prefix) — they get an extra tab for records clients have
+  // shared with them, alongside their own personal health details.
+  const { isProfessional } = useProfessionalMembership()
+  const [tab, setTab] = useState<"mine" | "shared">("mine")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [profile, setProfile] = useState<ClientHealthProfile>({})
@@ -89,14 +96,50 @@ export default function HealthProfilePage() {
   const errors = healthProfileErrors(profile)
 
   return (
-    <div className="space-y-6 p-5 sm:p-8">
+    <div className={`space-y-8 p-5 sm:p-8 ${tab === "mine" ? "pb-28 sm:pb-28" : ""}`}>
       <header>
-        <h1 className="text-2xl font-bold text-[#151922]">My health</h1>
+        <h1 className="text-2xl font-bold text-[#151922]">My Health Records</h1>
         <p className="mt-1 text-sm text-[#657080]">
           Everything here is optional. Share only what you want your professionals to know.
         </p>
       </header>
 
+      {isProfessional && (
+        <div className="flex w-fit gap-1 rounded-xl border border-[#eef1f3] p-1">
+          <button
+            type="button"
+            onClick={() => setTab("mine")}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+              tab === "mine" ? "bg-[#e3f8f8] text-[#00898c]" : "text-[#657080] hover:text-[#151922]"
+            }`}
+          >
+            My health details
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("shared")}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+              tab === "shared" ? "bg-[#e3f8f8] text-[#00898c]" : "text-[#657080] hover:text-[#151922]"
+            }`}
+          >
+            Shared with me
+          </button>
+        </div>
+      )}
+
+      {isProfessional && tab === "shared" ? (
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold text-[#151922]">Records clients have shared with you</h2>
+            <p className="mt-1 text-sm text-[#657080]">
+              Clients who attached their health profile to a booking with you. Open one for their
+              full details.
+            </p>
+          </div>
+          <SharedClientRecords />
+        </section>
+      ) : (
+        <>
       <section className="rounded-2xl border border-[#e5ecf5] bg-white p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -127,17 +170,27 @@ export default function HealthProfilePage() {
         )}
       </section>
 
-      <ConsentPanel />
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-[#151922]">Sharing & records</h2>
+          <p className="mt-1 text-sm text-[#657080]">Who can see your past visits, and what you've uploaded.</p>
+        </div>
+        <div className="space-y-4">
+          <ConsentPanel />
+          <MedicalDocumentsSection />
+        </div>
+      </section>
 
-      <MedicalDocumentsSection />
-
-      <section className="rounded-2xl border border-[#e5ecf5] bg-white p-5">
-        <div className="mb-5 flex items-start gap-2 rounded-xl bg-[#f5f8fb] px-4 py-3 text-sm text-[#657080]">
-          <Info className="mt-0.5 size-4 shrink-0" />
-          <span>
-            This is attached to a booking only when you choose to attach it, and only the
-            professional you book can see it.
-          </span>
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-[#151922]">Health details</h2>
+          <div className="mt-2 flex items-start gap-2 rounded-xl bg-[#f5f8fb] px-4 py-3 text-sm text-[#657080]">
+            <Info className="mt-0.5 size-4 shrink-0" />
+            <span>
+              This is attached to a booking only when you choose to attach it, and only the
+              professional you book can see it. Click a section to expand or collapse it.
+            </span>
+          </div>
         </div>
 
         <HealthProfileForm
@@ -147,8 +200,11 @@ export default function HealthProfilePage() {
             setDirty(true)
           }}
         />
+      </section>
 
-        <div className="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-[#eef1f3] pt-5">
+      {/* Sticky so the save action stays reachable while scrolling a long, section-by-section form. */}
+      <div className="fixed inset-x-0 bottom-0 z-10 border-t border-[#e5ecf5] bg-white/95 px-5 py-4 backdrop-blur-sm sm:px-8">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-end gap-3">
           {errors.length > 0 ? (
             <span className="mr-auto text-sm text-[#ff3e66]">
               {errors.length === 1
@@ -166,7 +222,9 @@ export default function HealthProfilePage() {
             {saving ? "Saving..." : "Save profile"}
           </Button>
         </div>
-      </section>
+      </div>
+        </>
+      )}
     </div>
   )
 }

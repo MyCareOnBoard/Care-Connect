@@ -1,17 +1,22 @@
 import { useEffect, useState, type ReactNode } from "react"
 import { Link, NavLink, useLocation } from "react-router"
-import { Menu, X } from "lucide-react"
+import { ChevronDown, Menu, X } from "lucide-react"
 import { collection, onSnapshot, query, where } from "firebase/firestore"
 import { CareConnectLogo } from "@/components/auth/CareConnectLogo"
 import { Routes } from "@/routes/constants"
 import { cn } from "@/lib/utils"
 import { db } from "@/lib/firebase"
 import { useAuthUser } from "@/utils/auth"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useCareFlow } from "./useCareFlow"
 import { AccountControls } from "./AccountControls"
 import { RouteProgressBar } from "./RouteProgressBar"
 
-const userNavItems = [
+type NavItem = { label: string; href: string; children?: { label: string; href: string }[] }
+
+// Only user/professional accounts have a health profile — "My health" nests under
+// "Tele health" as a dropdown there, rather than taking its own top-level slot.
+const userNavItems: NavItem[] = [
   { label: "Home", href: Routes.app.user.dashboard },
   { label: "My network", href: Routes.app.user.network },
   { label: "Messages", href: Routes.app.user.messages },
@@ -19,11 +24,17 @@ const userNavItems = [
   { label: "Applications", href: Routes.app.user.applications },
   { label: "Market place", href: Routes.app.user.marketplace },
   { label: "Schedule", href: Routes.app.user.schedule },
-  { label: "Tele health", href: Routes.app.user.telehealth },
-  { label: "My health", href: Routes.app.user.healthProfile },
+  {
+    label: "Tele health",
+    href: Routes.app.user.telehealth,
+    children: [
+      { label: "Tele health", href: Routes.app.user.telehealth },
+      { label: "My Health Records", href: Routes.app.user.healthProfile },
+    ],
+  },
 ]
 
-const agencyNavItems = [
+const agencyNavItems: NavItem[] = [
   { label: "Home", href: Routes.app.agency.dashboard },
   { label: "My network", href: Routes.app.agency.network },
   { label: "Messages", href: Routes.app.agency.messages },
@@ -92,7 +103,47 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <nav className="hidden max-w-full gap-2 px-2 mx-auto overflow-x-auto lg:flex">
           {navItems.map((item) => {
-            const isActive = location.pathname === item.href
+            const isActive = item.children
+              ? item.children.some((child) => location.pathname === child.href)
+              : location.pathname === item.href
+
+            if (item.children) {
+              return (
+                <DropdownMenu key={item.href}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className={cn(
+                        "flex h-10 shrink-0 cursor-pointer items-center justify-center gap-1 whitespace-nowrap rounded-full border px-3 text-xs font-semibold transition",
+                        isActive
+                          ? "border-[#00b4b8] bg-[#00b4b8] text-white shadow-[0_4px_12px_rgba(0,180,184,0.22)]"
+                          : "border-[#d8d8d8] bg-white text-[#141922] hover:border-[#00b4b8] hover:text-[#00b4b8]"
+                      )}
+                    >
+                      {item.label}
+                      <ChevronDown className="size-3.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="rounded-xl border-[#eef1f3] bg-white">
+                    {item.children.map((child) => {
+                      const childActive = location.pathname === child.href
+                      return (
+                        <DropdownMenuItem
+                          key={child.href}
+                          asChild
+                          className={cn(
+                            "rounded-lg data-highlighted:bg-[#e3f8f8] data-highlighted:text-[#00898c]",
+                            childActive && "bg-[#e3f8f8] font-semibold text-[#00898c]"
+                          )}
+                        >
+                          <Link to={child.href}>{child.label}</Link>
+                        </DropdownMenuItem>
+                      )
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )
+            }
 
             return (
               <NavLink
@@ -149,24 +200,39 @@ export function AppShell({ children }: { children: ReactNode }) {
               const isActive = location.pathname === item.href
 
               return (
-                <NavLink
-                  key={item.href}
-                  to={item.href}
-                  className={cn(
-                    "flex h-12 items-center rounded-xl px-4 text-base font-medium transition",
-                    isActive ? "bg-[#00b4b8] text-white" : "text-[#141922] hover:bg-[#f2f6f8]"
-                  )}
-                >
-                  {item.label}
-                  {item.label === "Messages" && unreadMessages > 0 && (
-                    <span className={cn(
-                      "ml-2 flex min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold",
-                      isActive ? "bg-white text-[#00b4b8]" : "bg-[#00b4b8] text-white"
-                    )}>
-                      {unreadMessages}
-                    </span>
-                  )}
-                </NavLink>
+                <div key={item.href}>
+                  <NavLink
+                    to={item.href}
+                    className={cn(
+                      "flex h-12 items-center rounded-xl px-4 text-base font-medium transition",
+                      isActive ? "bg-[#00b4b8] text-white" : "text-[#141922] hover:bg-[#f2f6f8]"
+                    )}
+                  >
+                    {item.label}
+                    {item.label === "Messages" && unreadMessages > 0 && (
+                      <span className={cn(
+                        "ml-2 flex min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold",
+                        isActive ? "bg-white text-[#00b4b8]" : "bg-[#00b4b8] text-white"
+                      )}>
+                        {unreadMessages}
+                      </span>
+                    )}
+                  </NavLink>
+                  {item.children
+                    ?.filter((child) => child.href !== item.href)
+                    .map((child) => (
+                      <NavLink
+                        key={child.href}
+                        to={child.href}
+                        className={cn(
+                          "ml-4 flex h-11 items-center rounded-xl border-l-2 border-[#eef1f3] pl-4 text-sm font-medium transition",
+                          location.pathname === child.href ? "border-[#00b4b8] text-[#00b4b8]" : "text-[#657080] hover:bg-[#f2f6f8]"
+                        )}
+                      >
+                        {child.label}
+                      </NavLink>
+                    ))}
+                </div>
               )
             })}
           </aside>
