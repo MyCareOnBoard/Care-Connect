@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { getAuthErrorMessage } from "@/utils/auth"
 import { amendRecord } from "@/utils/careconnect/services/clinicalService"
+import { VisitDocuments } from "@/components/records/VisitDocuments"
 import { formatBloodPressure } from "@/utils/careconnect/healthProfile"
 import {
   formatDate,
@@ -149,6 +150,15 @@ export function RecordViewerDialog({
                 so rendering it here is safe: it is simply absent otherwise. */}
             <Row label="Follow-up notes (private)" value={record.followUpNotes || ""} />
           </dl>
+
+          {/* Read-only here: attaching happens in the editor, and the client is never
+              offered a delete on a clinician's attachment. */}
+          <VisitDocuments
+            bookingId={record.bookingId}
+            clientId={record.clientId}
+            canAttach={false}
+            viewerUid={viewerUid}
+          />
 
           {record.amendments && record.amendments.length > 0 && (
             <section>

@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { ChipMultiSelect } from "@/components/health/ChipMultiSelect"
 import { canAmendNow } from "@/components/records/RecordViewerDialog"
+import { VisitDocuments } from "@/components/records/VisitDocuments"
 import {
   getApiErrorStatus,
   getAuthErrorMessage,
@@ -417,6 +418,16 @@ export function RecordEditorDialog({
                     className="min-h-24"
                   />
                 </div>
+
+                {/* A service can be a lab test, so the record needs somewhere for the
+                    evidence to live. Attachments are visible to the client and to the
+                    other professionals treating them — see VisitDocuments. */}
+                <VisitDocuments
+                  bookingId={booking.id}
+                  clientId={booking.clientId}
+                  canAttach={!signed}
+                  viewerUid={user?.uid ?? null}
+                />
 
                 <div>
                   <p className="mb-2 text-sm font-medium text-[#151922]">Care provided</p>
