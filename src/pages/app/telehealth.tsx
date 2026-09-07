@@ -21,6 +21,7 @@ import {
   Plus,
   Search,
   Sparkles,
+  TriangleAlert,
   Video,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -1302,6 +1303,12 @@ function UserServiceBrowser() {
   // older query discardable.
   const [aiResults, setAiResults] = useState<{ query: string; services: SearchedService[] } | null>(null)
   const [aiSearching, setAiSearching] = useState(false)
+  /**
+   * Set when the search was screened as an emergency request. Care Connect arranges
+   * scheduled care and has no dispatch, so the notice replaces results rather than sitting
+   * above them — offering appointments would imply help is on the way.
+   */
+  const [emergencyNotice, setEmergencyNotice] = useState<string | null>(null)
 
   // Reset "Load more" progress whenever the underlying list changes — a new search term,
   // or AI results replacing the keyword matches.
@@ -1336,6 +1343,7 @@ function UserServiceBrowser() {
     if (query.length < 3) {
       setAiResults(null)
       setAiSearching(false)
+      setEmergencyNotice(null)
       return
     }
 
@@ -1345,9 +1353,15 @@ function UserServiceBrowser() {
       try {
         const result = await searchServices(query)
         if (!active) return
+        // An emergency query gets the safety notice instead of results — showing
+        // bookable appointments would imply help is being arranged.
+        setEmergencyNotice(result.emergency ? result.notice : null)
         setAiResults(result.aiRanked ? { query, services: result.services } : null)
       } catch {
-        if (active) setAiResults(null)
+        if (active) {
+          setAiResults(null)
+          setEmergencyNotice(null)
+        }
       } finally {
         if (active) setAiSearching(false)
       }
@@ -1405,7 +1419,21 @@ function UserServiceBrowser() {
             )}
           </div>
 
-          {visibleServices.length === 0 ? (
+          {/* Replaces the results rather than sitting above them. Care Connect arranges
+              scheduled care and has no dispatch, so showing bookable appointments
+              alongside this would suggest one of them is the answer. */}
+          {emergencyNotice ? (
+            <div
+              role="alert"
+              className="rounded-2xl border border-[#ff3e66] bg-[#fff1f4] p-5 text-sm text-[#8a1c30]"
+            >
+              <p className="flex items-start gap-2 font-semibold">
+                <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+                If this is an emergency, do not wait for us
+              </p>
+              <p className="mt-2 leading-relaxed">{emergencyNotice}</p>
+            </div>
+          ) : visibleServices.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-[#e5ecf5] p-6 text-center text-sm text-[#657080]">
               No services found.
             </p>

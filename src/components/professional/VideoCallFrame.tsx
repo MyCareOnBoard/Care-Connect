@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import DailyIframe, { type DailyCall } from "@daily-co/daily-js"
 import { Button } from "@/components/ui/button"
-import { CallRecordButton } from "@/components/professional/CallRecordButton"
+import { CallFollowUpButton, CallRecordButton } from "@/components/professional/CallRecordButton"
 import { getAuthErrorMessage } from "@/utils/auth"
 import {
   getVideoRoom,
@@ -37,12 +37,15 @@ export function VideoCallFrame({
   booking,
   canManage,
   onWriteRecord,
+  onProposeFollowUp,
   onLeave,
 }: {
   booking: TelehealthBooking
   /** True for the professional/agency side, which is the side that documents the visit. */
   canManage: boolean
   onWriteRecord?: (booking: TelehealthBooking) => void
+  /** Arrange the next visit without leaving the call. */
+  onProposeFollowUp?: (booking: TelehealthBooking) => void
   /** Called when the participant leaves the call (Prebuilt's leave button, or an eject). */
   onLeave: () => void
 }) {
@@ -154,9 +157,12 @@ export function VideoCallFrame({
       {/* Documenting while the visit is happening. Sits in its own strip below the embed
           rather than overlaying it, because Prebuilt owns the bottom of the iframe for its
           own tray and an overlay would land on top of the mic and camera controls. */}
-      {canManage && onWriteRecord && (
-        <div className="flex items-center justify-center bg-black px-4 py-3">
-          <CallRecordButton booking={booking} onWriteRecord={onWriteRecord} />
+      {canManage && (onWriteRecord || onProposeFollowUp) && (
+        <div className="flex flex-wrap items-center justify-center gap-3 bg-black px-4 py-3">
+          {onWriteRecord && <CallRecordButton booking={booking} onWriteRecord={onWriteRecord} />}
+          {onProposeFollowUp && (
+            <CallFollowUpButton booking={booking} onProposeFollowUp={onProposeFollowUp} />
+          )}
         </div>
       )}
     </>

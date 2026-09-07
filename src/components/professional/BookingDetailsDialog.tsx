@@ -195,6 +195,21 @@ export function BookingDetailsDialog({
   const recordWrite = booking
     ? recordWriteState(booking)
     : { block: "no_relationship" as const, reason: null }
+  /**
+   * A `requested` booking has not been accepted by anyone yet, so there is nothing to
+   * join and nothing to document. Gating the call button on this is what stops a client
+   * dialling into a visit the professional never agreed to.
+   */
+  const isAccepted = booking?.status === "confirmed" || booking?.status === "completed"
+  /** The visit has finished — the record is written from here only after this point. */
+  const isVisitOver = booking?.status === "completed"
+  /**
+   * The visit is under way or finished. Follow-ups are offered from here in both states:
+   * during, because a professional may agree the next visit on the call; after, because
+   * they may only get to it once the call has ended.
+   */
+  const canProposeFollowUp =
+    recordWrite.block !== "no_relationship" && recordWrite.block !== "not_started"
   // Null when the booking has neither coordinates nor an address — older in-person bookings
   // predate the Places autocomplete and may carry nothing to navigate to.
   const locationDirectionsUrl = booking?.location ? directionsUrl(booking.location) : null
@@ -680,20 +695,27 @@ export function BookingDetailsDialog({
               <div className="border-t border-[#eef1f3] pt-4">
                 <Button
                   type="button"
-                  disabled={joinWindow.state !== "open"}
+                  disabled={joinWindow.state !== "open" || !isAccepted}
                   className="w-full bg-[#00b4b8] text-white hover:opacity-90 disabled:bg-[#e2e2e2] disabled:text-[#8a8f98]"
                   onClick={() => setStep("call")}
                 >
                   Join video call
                 </Button>
                 {/* Say why it's unavailable rather than leaving a dead button. */}
-                {joinWindow.state === "too_early" && (
+                {!isAccepted && (
+                  <p className="mt-2 text-center text-xs text-[#8a8f98]">
+                    {canManage
+                      ? "Confirm the booking before joining."
+                      : "Waiting for your professional to confirm this booking."}
+                  </p>
+                )}
+                {isAccepted && joinWindow.state === "too_early" && (
                   <p className="mt-2 text-center text-xs text-[#8a8f98]">
                     Available from {format(joinWindow.opensAt, "h:mm a")} on{" "}
                     {format(joinWindow.opensAt, "MMM d")}
                   </p>
                 )}
-                {joinWindow.state === "ended" && (
+                {isAccepted && joinWindow.state === "ended" && (
                   <p className="mt-2 text-center text-xs text-[#8a8f98]">This session has ended.</p>
                 )}
               </div>
@@ -739,11 +761,13 @@ export function BookingDetailsDialog({
 
             {canManage && (
               <div className="space-y-3 border-t border-[#eef1f3] pt-4">
-                {/* Available from the moment the visit is under way, not only once it's
-                    completed — clinicians document as they go, and the server agrees (see
-                    canWriteRecordNow). Before that there is nothing to say yet, so the
-                    section stays hidden rather than showing a dead control. */}
-                {recordWrite.block === null ? (
+                {/* Only once the visit is over. Documenting *during* a visit happens on the
+                    call screen, which is where the professional actually is at the time;
+                    offering it here mid-visit meant a half-written record could be started
+                    from a screen behind the call. The server still accepts a mid-visit
+                    record (see canWriteRecordNow) — this is a UI ordering decision, not an
+                    authorization one. */}
+                {isVisitOver && recordWrite.block === null ? (
                   <Button
                     type="button"
                     variant="outline"
@@ -753,7 +777,7 @@ export function BookingDetailsDialog({
                     <FileText className="size-4" />
                     {booking.hasRecord ? "Open visit record" : "Write visit record"}
                   </Button>
-                ) : recordWrite.block === "no_consent" ? (
+                ) : isVisitOver && recordWrite.block === "no_consent" ? (
                   <p className="flex items-start gap-2 rounded-xl bg-[#fdf3e3] px-4 py-3 text-sm text-[#8a6d1f]">
                     <Info className="mt-0.5 size-4 shrink-0" />
                     <span>
@@ -763,7 +787,11 @@ export function BookingDetailsDialog({
                   </p>
                 ) : null}
 
-                {booking.status === "completed" && onProposeFollowUp && (
+                {/* From the moment the visit is under way, not only once it's completed —
+                    a professional finishing a call should still be able to arrange the
+                    next visit from here. Withheld before the visit starts: proposing a
+                    follow-up to an appointment that hasn't happened is premature. */}
+                {canProposeFollowUp && onProposeFollowUp && (
                   <Button
                     type="button"
                     variant="outline"
@@ -1049,6 +1077,7 @@ export function BookingDetailsDialog({
               booking={booking}
               canManage={canManage}
               onWriteRecord={onWriteRecord}
+              onProposeFollowUp={onProposeFollowUp}
               onLeave={handleHangup}
             />
           ) : (
@@ -1056,6 +1085,7 @@ export function BookingDetailsDialog({
               booking={booking}
               canManage={canManage}
               onWriteRecord={onWriteRecord}
+              onProposeFollowUp={onProposeFollowUp}
               onLeave={handleHangup}
             />
           ))}
@@ -1097,6 +1127,17 @@ export function BookingDetailsDialog({
               <Button className="mt-6 w-full bg-[#00b4b8] text-white hover:opacity-90" onClick={goHome}>
                 Confirm completion
               </Button>
+              {/* This screen used to be a dead end: completing a visit replaced the booking
+                  with it, and the only way out was leaving the dialog — so the professional
+                  could not get back to write the record or arrange a follow-up for the visit
+                  they had just finished. */}
+              <button
+                type="button"
+                onClick={() => setStep("details")}
+                className="mt-3 w-full text-sm font-semibold text-[#00898c] hover:opacity-80"
+              >
+                {canManage ? "Back to booking details" : "View booking details"}
+              </button>
             </div>
           </DialogBody>
         )}

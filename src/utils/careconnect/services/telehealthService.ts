@@ -98,6 +98,13 @@ export interface ServiceSearchResult {
    * available, or Gemini failed and the server degraded. The UI labels accordingly.
    */
   aiRanked: boolean
+  /**
+   * True when the query was screened as an emergency request. `services` is empty and
+   * `notice` carries the wording to show instead — Care Connect arranges scheduled care and
+   * cannot respond to emergencies, so a list of appointment slots would be the wrong answer.
+   */
+  emergency: boolean
+  notice: string | null
 }
 
 /**
@@ -110,6 +117,8 @@ export async function searchServices(q: string): Promise<ServiceSearchResult> {
   return {
     services: Array.isArray(data?.data) ? data.data : [],
     aiRanked: data?.aiRanked === true,
+    emergency: data?.emergency === true,
+    notice: typeof data?.notice === "string" ? data.notice : null,
   }
 }
 

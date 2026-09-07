@@ -62,6 +62,9 @@ export function FollowUpProposalDialog({
   // The team member who will deliver the proposed visit. Defaults to the proposer; a
   // different value makes this a referral.
   const [assigneeId, setAssigneeId] = useState("")
+  // Filters the service list in the dropdown. Needed once the list is platform-wide
+  // rather than one company's few services.
+  const [serviceSearch, setServiceSearch] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
   const posterId = booking?.posterId ?? null
@@ -70,7 +73,7 @@ export function FollowUpProposalDialog({
   const teamMemberId = booking?.teamMemberId ?? null
 
   useEffect(() => {
-    if (!open || !posterId) return
+    if (!open) return
     let active = true
     setLoading(true)
     setDateKey("")
@@ -78,7 +81,11 @@ export function FollowUpProposalDialog({
     setPaid(false)
     setMessage("")
     setAssigneeId(teamMemberId ?? "")
-    listServices({ posterId })
+    setServiceSearch("")
+    // Platform-wide, not scoped to `posterId`: a referral may hand the client to another
+    // organisation entirely, and the backend already accepts any active service — it only
+    // requires that the chosen assignee is on that service's roster.
+    listServices({ status: "active", limit: 100 })
       .then((all) => {
         if (!active) return
         // Every active service, not only the ones this professional delivers: a referral
@@ -105,9 +112,18 @@ export function FollowUpProposalDialog({
       active = false
     }
     // Primitives only: `booking` is recreated by its host on every render.
-  }, [open, posterId, teamMemberId, booking?.serviceId])
+  }, [open, teamMemberId, booking?.serviceId])
 
   const service = services.find((item) => item.id === serviceId) ?? null
+  const visibleServices = serviceSearch.trim()
+    ? services.filter((item) =>
+        `${item.title} ${item.agencyName ?? ""}`
+          .toLowerCase()
+          .includes(serviceSearch.trim().toLowerCase()),
+      )
+    : services
+  /** True when the chosen service belongs to another organisation. */
+  const isOtherAgency = Boolean(service && posterId && service.posterId !== posterId)
 
   // Who will deliver it. Constrained to the chosen service's roster, because that is what
   // the server enforces — proposing someone who does not offer the service is a 409.
@@ -188,6 +204,14 @@ export function FollowUpProposalDialog({
             <>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-[#151922]">Service</label>
+                {/* The list spans every organisation now, so it needs filtering. */}
+                <input
+                  type="search"
+                  value={serviceSearch}
+                  onChange={(event) => setServiceSearch(event.target.value)}
+                  placeholder="Search services or organisations"
+                  className="mb-2 h-10 w-full rounded-xl border border-[#eef1f3] px-3 text-sm outline-none focus:border-[#00b4b8]"
+                />
                 <Select
                   value={serviceId}
                   onValueChange={(next) => {
@@ -201,9 +225,10 @@ export function FollowUpProposalDialog({
                     <SelectValue placeholder="Choose a service" />
                   </SelectTrigger>
                   <SelectContent>
-                    {services.map((item) => (
+                    {visibleServices.map((item) => (
                       <SelectItem key={item.id} value={item.id}>
                         {item.title}
+                        {item.agencyName ? ` · ${item.agencyName}` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -243,6 +268,9 @@ export function FollowUpProposalDialog({
                     <p className="mt-2 rounded-xl bg-[#f2fbfb] px-3 py-2 text-xs text-[#00707a]">
                       This is a referral. {booking.clientName} will be asked to accept it, and{" "}
                       {assignee?.name || "your colleague"} is told once they do.
+                      {isOtherAgency
+                        ? ` This service belongs to ${service?.agencyName || "another organisation"}, so the visit leaves your organisation.`
+                        : ""}
                     </p>
                   )}
                   {!iDeliverThisService && !isReferral && (

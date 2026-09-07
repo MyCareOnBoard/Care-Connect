@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Info, PhoneOff, Users } from "lucide-react"
-import { CallRecordButton } from "@/components/professional/CallRecordButton"
+import { CallFollowUpButton, CallRecordButton } from "@/components/professional/CallRecordButton"
 import { getInitials } from "@/lib/utils"
 import { recordWriteState } from "@/utils/careconnect/bookingStatus"
 import type { TelehealthBooking } from "@/utils/careconnect/types"
@@ -21,12 +21,15 @@ export function MockCallFrame({
   booking,
   canManage,
   onWriteRecord,
+  onProposeFollowUp,
   onLeave,
 }: {
   booking: TelehealthBooking
   /** True for the professional/agency side, which is the side that writes the record. */
   canManage: boolean
   onWriteRecord?: (booking: TelehealthBooking) => void
+  /** Arrange the next visit without leaving the call. */
+  onProposeFollowUp?: (booking: TelehealthBooking) => void
   onLeave: () => void
 }) {
   // Elapsed time is real — it's the one thing here that isn't pretend, and it makes the
@@ -75,6 +78,10 @@ export function MockCallFrame({
             Gated exactly as POST /records is, via the shared recordWriteState. */}
         {canManage && onWriteRecord && (
           <CallRecordButton booking={booking} onWriteRecord={onWriteRecord} />
+        )}
+
+        {canManage && onProposeFollowUp && (
+          <CallFollowUpButton booking={booking} onProposeFollowUp={onProposeFollowUp} />
         )}
 
         <span className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2.5 text-sm text-white/60">
