@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { FilePenLine, FileText, Info, Lock, Maximize2, Minus, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -23,21 +22,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { ChipMultiSelect } from "@/components/health/ChipMultiSelect"
 import { canAmendNow } from "@/components/records/RecordViewerDialog"
+import { VisitDocuments } from "@/components/records/VisitDocuments"
 import {
   getApiErrorStatus,
-  getApiFieldErrors,
   getAuthErrorMessage,
   useAuthUser,
-  type ApiFieldError,
 } from "@/utils/auth"
 import {
   createRecord,
@@ -50,8 +41,6 @@ import {
   CARE_TASKS,
   formatDate,
   formatRelative,
-  type GlucoseUnit,
-  type RecordVitals,
   type TelehealthBooking,
   type VisitRecord,
 } from "@/utils/careconnect/types"
@@ -70,13 +59,11 @@ import {
  */
 
 const AUTOSAVE_INTERVAL_MS = 20_000
-const GLUCOSE_UNITS: GlucoseUnit[] = ["mmol/L", "mg/dL"]
 
 const EMPTY_DRAFT: VisitRecordInput = {
   visitSummary: "",
   observations: "",
   concerns: "",
-  vitalsObserved: null,
   careProvided: [],
   followUpNeeded: false,
   followUpNotes: "",
@@ -87,53 +74,10 @@ function toDraft(record: VisitRecord): VisitRecordInput {
     visitSummary: record.visitSummary ?? "",
     observations: record.observations ?? "",
     concerns: record.concerns ?? "",
-    vitalsObserved: record.vitalsObserved ?? null,
     careProvided: record.careProvided ?? [],
     followUpNeeded: record.followUpNeeded ?? false,
     followUpNotes: record.followUpNotes ?? "",
   }
-}
-
-function toNumberOrNull(raw: string): number | null {
-  const trimmed = raw.trim()
-  if (!trimmed) return null
-  const parsed = Number(trimmed)
-  return Number.isFinite(parsed) ? parsed : null
-}
-
-function VitalField({
-  label,
-  value,
-  onChange,
-  placeholder,
-  error,
-}: {
-  label: string
-  value: number | null | undefined
-  onChange: (next: number | null) => void
-  placeholder?: string
-  /** Message from the API's rejection for this field, if it had one. */
-  error?: string
-}) {
-  return (
-    <div>
-      <label className="mb-1.5 block text-xs font-medium text-[#657080]">{label}</label>
-      <Input
-        type="number"
-        inputMode="decimal"
-        value={value ?? ""}
-        onChange={(event) => onChange(toNumberOrNull(event.target.value))}
-        placeholder={placeholder}
-        aria-invalid={error ? true : undefined}
-        className={`h-10 ${error ? "border-[#ff3e66] focus:border-[#ff3e66]" : ""}`}
-      />
-      {error && (
-        <p role="alert" className="mt-1 text-xs text-[#ff3e66]">
-          {error}
-        </p>
-      )}
-    </div>
-  )
 }
 
 export function RecordEditorDialog({
@@ -160,13 +104,10 @@ export function RecordEditorDialog({
   const [record, setRecord] = useState<VisitRecord | null>(null)
   const [draft, setDraft] = useState<VisitRecordInput>(EMPTY_DRAFT)
   const [dirty, setDirty] = useState(false)
-  // Per-field rejections from the API, keyed by the dotted path it reported
-  // (e.g. "vitalsObserved.heartRate"), so each one renders next to its own input.
-  const [fieldErrors, setFieldErrors] = useState<ApiFieldError[]>([])
-
-  /** The API's message for one vital, e.g. vitalError("heartRate"). */
-  const vitalError = (name: string) =>
-    fieldErrors.find((item) => item.field === `vitalsObserved.${name}`)?.message?.replace(/"/g, "")
+  // No per-field error state any more: vitals were the only inputs with bounds tight
+  // enough to reject routinely. The remaining fields are long text with generous caps, and
+  // `getAuthErrorMessage` already composes the API's `details[]` into a readable toast, so
+  // holding the list here would be dead state.
   const [saving, setSaving] = useState(false)
   const [signing, setSigning] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
@@ -220,19 +161,6 @@ export function RecordEditorDialog({
     setDirty(true)
   }
 
-  const updateVitals = (patch: Partial<RecordVitals>) => {
-    setDraft((current) => ({
-      ...current,
-      vitalsObserved: { ...(current.vitalsObserved ?? {}), ...patch },
-    }))
-    setDirty(true)
-    // Drop the rejection for a field the moment it's edited — leaving it visible while the
-    // value changes would keep flagging an input the professional has already corrected.
-    setFieldErrors((current) =>
-      current.filter((item) => !Object.keys(patch).some((key) => item.field === `vitalsObserved.${key}`)),
-    )
-  }
-
   /**
    * Persist the draft. The first save must be a POST to obtain the record, which
    * also means an untouched editor never leaves an empty record behind.
@@ -273,8 +201,6 @@ export function RecordEditorDialog({
           /* fall through to the generic message */
         }
       }
-      // Show per-field validation failures against the inputs, not just in a toast.
-      setFieldErrors(getApiFieldErrors(error))
       if (!options.silent) toast.error(getAuthErrorMessage(error))
       return null
     }
@@ -493,82 +419,15 @@ export function RecordEditorDialog({
                   />
                 </div>
 
-                <div>
-                  <p className="text-sm font-medium text-[#151922]">Vitals you measured</p>
-                  <p className="mb-2 text-sm text-[#657080]">
-                    Your own readings, separate from anything the client reported themselves.
-                  </p>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    <VitalField
-                      label="Systolic"
-                      value={draft.vitalsObserved?.systolic}
-                      onChange={(systolic) => updateVitals({ systolic })}
-                      placeholder="120"
-                      error={vitalError("systolic")}
-                    />
-                    <VitalField
-                      label="Diastolic"
-                      value={draft.vitalsObserved?.diastolic}
-                      onChange={(diastolic) => updateVitals({ diastolic })}
-                      placeholder="80"
-                      error={vitalError("diastolic")}
-                    />
-                    <VitalField
-                      label="Heart rate"
-                      value={draft.vitalsObserved?.heartRate}
-                      onChange={(heartRate) => updateVitals({ heartRate })}
-                      placeholder="bpm"
-                      error={vitalError("heartRate")}
-                    />
-                    <VitalField
-                      label="Temperature (°C)"
-                      value={draft.vitalsObserved?.temperatureC}
-                      onChange={(temperatureC) => updateVitals({ temperatureC })}
-                      placeholder="36.8"
-                      error={vitalError("temperatureC")}
-                    />
-                    <VitalField
-                      label="SpO2 (%)"
-                      value={draft.vitalsObserved?.oxygenSaturation}
-                      onChange={(oxygenSaturation) => updateVitals({ oxygenSaturation })}
-                      placeholder="98"
-                      error={vitalError("oxygenSaturation")}
-                    />
-                    <div>
-                      <label className="mb-1.5 block text-xs font-medium text-[#657080]">
-                        Blood glucose
-                      </label>
-                      <div className="flex gap-2">
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          value={draft.vitalsObserved?.bloodGlucose ?? ""}
-                          onChange={(event) =>
-                            updateVitals({ bloodGlucose: toNumberOrNull(event.target.value) })
-                          }
-                          className="h-10"
-                        />
-                        <Select
-                          value={draft.vitalsObserved?.bloodGlucoseUnit ?? ""}
-                          onValueChange={(next) =>
-                            updateVitals({ bloodGlucoseUnit: next as GlucoseUnit })
-                          }
-                        >
-                          <SelectTrigger className="h-10 w-28 shrink-0">
-                            <SelectValue placeholder="Unit" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {GLUCOSE_UNITS.map((unit) => (
-                              <SelectItem key={unit} value={unit}>
-                                {unit}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                {/* A service can be a lab test, so the record needs somewhere for the
+                    evidence to live. Attachments are visible to the client and to the
+                    other professionals treating them — see VisitDocuments. */}
+                <VisitDocuments
+                  bookingId={booking.id}
+                  clientId={booking.clientId}
+                  canAttach={!signed}
+                  viewerUid={user?.uid ?? null}
+                />
 
                 <div>
                   <p className="mb-2 text-sm font-medium text-[#151922]">Care provided</p>

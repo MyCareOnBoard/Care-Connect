@@ -924,6 +924,17 @@ export interface MedicalDocument {
   uploadedByRole: string
   uploadedAt?: Timestampish
   updatedAt?: Timestampish
+  /**
+   * Who uploaded it. Absent on documents written before professional attachments existed —
+   * treat a missing value as "client". Decides who may delete or retitle it: whoever put
+   * it there, and nobody else.
+   */
+  source?: "client" | "professional"
+  /** The visit it was attached to. Professional attachments only. */
+  bookingId?: string | null
+  episodeId?: string | null
+  /** Set on a professional's attachment, for showing who added it. */
+  uploadedByName?: string | null
 }
 
 export const MEDICAL_DOCUMENT_CATEGORY_LABELS: Record<MedicalDocumentCategory, string> = {

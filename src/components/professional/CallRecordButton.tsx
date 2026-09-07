@@ -1,6 +1,31 @@
-import { FileText } from "lucide-react"
+import { CalendarPlus, FileText } from "lucide-react"
 import { recordWriteState } from "@/utils/careconnect/bookingStatus"
 import type { TelehealthBooking } from "@/utils/careconnect/types"
+
+/**
+ * Arrange the next visit without leaving the call.
+ *
+ * Shares this file with the record button because the two live side by side in both call
+ * frames and are gated on the same thing — a visit that is actually under way.
+ */
+export function CallFollowUpButton({
+  booking,
+  onProposeFollowUp,
+}: {
+  booking: TelehealthBooking
+  onProposeFollowUp: (booking: TelehealthBooking) => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onProposeFollowUp(booking)}
+      className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
+    >
+      <CalendarPlus className="size-4" />
+      Propose follow-up
+    </button>
+  )
+}
 
 /**
  * In-visit "write the record" control, shared by the real and the mock call frame so the

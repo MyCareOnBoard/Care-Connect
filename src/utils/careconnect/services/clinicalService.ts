@@ -401,6 +401,31 @@ export async function uploadMedicalDocument(
 }
 
 /**
+ * A professional attaches a document to a visit — a lab result, a wound photograph, a
+ * discharge summary.
+ *
+ * There is no `visibility` argument on purpose: the server forces `care_team`, which here
+ * means the client AND every professional treating them. A document about someone that
+ * they cannot read is not something this layer stores, so it is not the uploader's choice.
+ *
+ * The client is notified that a new document exists.
+ */
+export async function attachVisitDocument(
+  bookingId: string,
+  file: File,
+  input: { title?: string; category?: MedicalDocumentCategory; notes?: string } = {},
+): Promise<MedicalDocument> {
+  const formData = new FormData()
+  formData.append("file", file)
+  formData.append("bookingId", bookingId)
+  if (input.title) formData.append("title", input.title)
+  if (input.category) formData.append("category", input.category)
+  if (input.notes) formData.append("notes", input.notes)
+  const { data } = await axiosClient.post(`${BASE}/medical-documents/visit`, formData)
+  return data.data
+}
+
+/**
  * The caller's own documents, or a client's care-team-visible ones when
  * `clientId` is given. Rejects with 403 for a professional with no treating
  * relationship; private documents are simply absent rather than refused.

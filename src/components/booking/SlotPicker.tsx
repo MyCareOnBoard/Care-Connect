@@ -34,7 +34,6 @@ export function SlotPicker({
   label?: string
   helpText?: string
 }) {
-  const [dateIndex, setDateIndex] = useState(0)
   const [slots, setSlots] = useState<BookingSlot[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -44,8 +43,22 @@ export function SlotPicker({
     () => Array.from({ length: dayCount }, (_, index) => addDays(new Date(), index)),
     [dayCount],
   )
-  const selectedDate = dates[dateIndex]
-  const dateKey = toDateKey(selectedDate)
+  const todayKey = useMemo(() => toDateKey(new Date()), [])
+
+  /**
+   * The chosen date, held as a key rather than an index into the strip.
+   *
+   * The strip used to be the only way to pick a date, which capped the picker at the next
+   * `dayCount` days — a professional could not propose a follow-up a month out. The strip
+   * remains as the quick path for the common case; the date field below it reaches any
+   * future date. `min` stops a past date being chosen, and the server refuses past start
+   * times regardless (see `generateSlots`).
+   */
+  const [dateKey, setDateKey] = useState(todayKey)
+  const selectedDate = useMemo(() => {
+    const [year, month, day] = dateKey.split("-").map(Number)
+    return new Date(year, month - 1, day)
+  }, [dateKey])
 
   // Keep the caller's dateKey in step with the visible selection, including on
   // first mount so it never has to guess the default.
@@ -90,13 +103,13 @@ export function SlotPicker({
           </div>
         </div>
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-          {dates.map((date, index) => (
+          {dates.map((date) => (
             <button
               key={date.toISOString()}
               type="button"
-              onClick={() => setDateIndex(index)}
+              onClick={() => setDateKey(toDateKey(date))}
               className={`flex shrink-0 flex-col items-center rounded-xl border px-3 py-2 text-sm transition ${
-                index === dateIndex
+                toDateKey(date) === dateKey
                   ? "border-[#00b4b8] bg-[#e3f8f8] text-[#00b4b8]"
                   : "border-[#eef1f3] text-[#656f80]"
               }`}
@@ -106,6 +119,21 @@ export function SlotPicker({
             </button>
           ))}
         </div>
+
+        {/* Any date, not just the next few. Kept alongside the strip rather than replacing
+            it: most follow-ups are within a week, and a date field is slower for those. */}
+        <label className="mt-3 flex flex-wrap items-center gap-2 text-sm text-[#656f80]">
+          <span>Or pick a date</span>
+          <input
+            type="date"
+            value={dateKey}
+            min={todayKey}
+            onChange={(event) => {
+              if (event.target.value) setDateKey(event.target.value)
+            }}
+            className="h-10 rounded-xl border border-[#eef1f3] px-3 text-sm text-[#151922] outline-none focus:border-[#00b4b8]"
+          />
+        </label>
       </div>
 
       <div>
