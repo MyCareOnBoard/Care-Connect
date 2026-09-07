@@ -13,6 +13,17 @@ import axiosClient from "@/lib/axios"
 
 const BASE = "/notifications"
 
+/**
+ * Care Connect and Care-On-Board share the notifications collection — deliberately, so
+ * Care Connect gets the email/push delivery trigger and the preference toggles for free —
+ * but they must not share a list. The same person is often both: a DSP with a Care Connect
+ * profile was seeing shift and compliance notifications in this bell.
+ *
+ * Sent on every call here, including mark-all-read: pressing that in this bell must not
+ * clear their Care-On-Board notifications.
+ */
+const SURFACE = "care_connect"
+
 export type NotificationStatus = "unread" | "read" | "archived" | "deleted"
 
 export interface AppNotification {
@@ -43,6 +54,7 @@ export async function listNotifications(
 ): Promise<NotificationPage> {
   const { data } = await axiosClient.get(BASE, {
     params: {
+      surface: SURFACE,
       ...(params.status ? { status: params.status } : {}),
       limit: params.limit ?? 20,
       ...(params.offset ? { offset: params.offset } : {}),
@@ -56,7 +68,9 @@ export async function listNotifications(
 }
 
 export async function getUnreadCount(): Promise<number> {
-  const { data } = await axiosClient.get(`${BASE}/unread-count`)
+  const { data } = await axiosClient.get(`${BASE}/unread-count`, {
+    params: { surface: SURFACE },
+  })
   return data.unreadCount ?? 0
 }
 
@@ -65,7 +79,7 @@ export async function markNotificationRead(id: string): Promise<void> {
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-  await axiosClient.post(`${BASE}/mark-all-read`)
+  await axiosClient.post(`${BASE}/mark-all-read`, null, { params: { surface: SURFACE } })
 }
 
 export async function deleteNotification(id: string): Promise<void> {
