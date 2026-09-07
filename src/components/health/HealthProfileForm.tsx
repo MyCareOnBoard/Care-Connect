@@ -1,4 +1,15 @@
-import { useState } from "react"
+import { useState, type ComponentType } from "react"
+import {
+  Accessibility,
+  HeartPulse,
+  Home,
+  NotebookPen,
+  PhoneCall,
+  Pill,
+  User,
+  Users,
+  Waves,
+} from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -10,6 +21,7 @@ import {
 } from "@/components/ui/select"
 import { ChipMultiSelect } from "@/components/health/ChipMultiSelect"
 import { AllergyRows, MedicationRows } from "@/components/health/RepeatableRows"
+import { cn } from "@/lib/utils"
 import {
   cmToFeetInches,
   feetInchesToCm,
@@ -91,22 +103,53 @@ function Field({
   )
 }
 
+/** Recursively true if any leaf value in a section's slice of the profile is filled in. */
+function hasAnyValue(input: unknown): boolean {
+  if (input == null) return false
+  if (Array.isArray(input)) return input.some(hasAnyValue)
+  if (typeof input === "string") return input.trim().length > 0
+  if (typeof input === "object") return Object.values(input).some(hasAnyValue)
+  return true
+}
+
+/** The single card behind the active tab — icon, title, description, and a completion badge. */
 function SectionShell({
   title,
   description,
+  icon: Icon,
+  hasData,
   children,
 }: {
   title: string
   description?: string
+  icon?: ComponentType<{ className?: string }>
+  hasData?: boolean
   children: React.ReactNode
 }) {
   return (
-    <section className="space-y-4">
-      <div>
-        <h3 className="text-base font-semibold text-[#151922]">{title}</h3>
-        {description && <p className="mt-1 text-sm text-[#657080]">{description}</p>}
+    <section className="rounded-2xl border border-[#e5ecf5] bg-white p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {Icon && (
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#e3f8f8] text-[#00898c]">
+              <Icon className="size-5" />
+            </span>
+          )}
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold text-[#151922]">{title}</h3>
+            {description && <p className="mt-1 text-sm text-[#657080]">{description}</p>}
+          </div>
+        </div>
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold",
+            hasData ? "bg-[#e3f8f8] text-[#00898c]" : "bg-[#f2f5f8] text-[#8a8f98]"
+          )}
+        >
+          {hasData ? "Added" : "Optional"}
+        </span>
       </div>
-      {children}
+      <div className="mt-4 space-y-4 border-t border-[#eef1f3] pt-4">{children}</div>
     </section>
   )
 }
@@ -354,11 +397,75 @@ export function HealthProfileForm({
 
   const bpError = validateBloodPressure(value.baselines?.systolic, value.baselines?.diastolic)
 
+  // One tab per visible section — built in the same order they used to stack in,
+  // so switching to tabs doesn't reshuffle anything the client already knows.
+  type TabKey = HealthSection | "homeAccess"
+  const tabs: { key: TabKey; label: string; icon: ComponentType<{ className?: string }>; hasData: boolean }[] = []
+  if (show("basics")) tabs.push({ key: "basics", label: "About you", icon: User, hasData: hasAnyValue(value.about) })
+  if (show("conditions")) {
+    tabs.push({ key: "conditions", label: "Conditions", icon: Pill, hasData: hasAnyValue(value.history) })
+  }
+  if (show("baselines")) {
+    tabs.push({ key: "baselines", label: "Readings", icon: Waves, hasData: hasAnyValue(value.baselines) })
+  }
+  if (show("access")) {
+    tabs.push({
+      key: "access",
+      label: "Access",
+      icon: Accessibility,
+      hasData:
+        hasAnyValue(value.access?.mobility) ||
+        hasAnyValue(value.access?.mobilityAids) ||
+        hasAnyValue(value.access?.communicationNeeds),
+    })
+  }
+  if (includeHomeAccess || show("access")) {
+    tabs.push({ key: "homeAccess", label: "Home access", icon: Home, hasData: hasAnyValue(value.access?.homeAccessNotes) })
+  }
+  if (show("lifestyle")) tabs.push({ key: "lifestyle", label: "Lifestyle", icon: HeartPulse, hasData: hasAnyValue(value.lifestyle) })
+  if (show("emergency")) {
+    tabs.push({ key: "emergency", label: "Emergency", icon: PhoneCall, hasData: hasAnyValue(value.emergencyContact) })
+  }
+  if (show("careCircle")) {
+    tabs.push({ key: "careCircle", label: "Care circle", icon: Users, hasData: hasAnyValue(value.careCircle) })
+  }
+  if (show("notes")) tabs.push({ key: "notes", label: "Notes", icon: NotebookPen, hasData: hasAnyValue(value.notes) })
+
+  const [activeTab, setActiveTab] = useState<TabKey>(tabs[0]?.key ?? "basics")
+  // Falls back to the first tab if the configured sections ever change out from under it.
+  const activeKey = tabs.some((tab) => tab.key === activeTab) ? activeTab : (tabs[0]?.key ?? activeTab)
+
   return (
-    <div className="space-y-8">
-      {show("basics") && (
+    <div className="space-y-4">
+      {tabs.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={cn(
+                "flex items-center gap-2 rounded-full border px-3.5 py-2 text-xs font-semibold transition",
+                activeKey === tab.key
+                  ? "border-[#00b4b8] bg-[#00b4b8] text-white shadow-[0_4px_12px_rgba(0,180,184,0.22)]"
+                  : "border-[#d8d8d8] bg-white text-[#141922] hover:border-[#00b4b8] hover:text-[#00b4b8]"
+              )}
+            >
+              <tab.icon className="size-3.5" />
+              {tab.label}
+              {tab.hasData && (
+                <span className={cn("size-1.5 rounded-full", activeKey === tab.key ? "bg-white" : "bg-[#00b4b8]")} />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {activeKey === "basics" && (
         <SectionShell
           title="About you"
+          icon={User}
+          hasData={hasAnyValue(value.about)}
           description="Age and build affect dosing and how safely a professional can support you alone."
         >
           <div className="grid gap-4 sm:grid-cols-2">
@@ -424,9 +531,11 @@ export function HealthProfileForm({
         </SectionShell>
       )}
 
-      {show("conditions") && (
+      {activeKey === "conditions" && (
         <SectionShell
           title="Conditions, allergies and medications"
+          icon={Pill}
+          hasData={hasAnyValue(value.history)}
           description="The most useful thing you can share. Your professional reads this before your visit."
         >
           <Field label="Ongoing conditions">
@@ -453,9 +562,11 @@ export function HealthProfileForm({
         </SectionShell>
       )}
 
-      {show("baselines") && (
+      {activeKey === "baselines" && (
         <SectionShell
           title="Your usual readings"
+          icon={Waves}
+          hasData={hasAnyValue(value.baselines)}
           description="Self-reported and optional. A baseline helps your professional notice a change."
         >
           <div className="grid gap-4 sm:grid-cols-2">
@@ -538,9 +649,11 @@ export function HealthProfileForm({
         </SectionShell>
       )}
 
-      {show("access") && (
+      {activeKey === "access" && (
         <SectionShell
           title="Getting around, and getting in"
+          icon={Accessibility}
+          hasData={hasAnyValue(value.access?.mobility) || hasAnyValue(value.access?.mobilityAids) || hasAnyValue(value.access?.communicationNeeds)}
           description="This decides whether one professional can support you safely on their own."
         >
           <Field label="Mobility">
@@ -582,10 +695,12 @@ export function HealthProfileForm({
         </SectionShell>
       )}
 
-      {(includeHomeAccess || show("access")) && (
-        <Field
-          label="Getting into your home"
-          hint="Stairs, no lift, where the key safe is, parking, dogs - anything that would slow a visit down."
+      {activeKey === "homeAccess" && (
+        <SectionShell
+          title="Getting into your home"
+          icon={Home}
+          hasData={hasAnyValue(value.access?.homeAccessNotes)}
+          description="Stairs, no lift, where the key safe is, parking, dogs - anything that would slow a visit down."
         >
           <Textarea
             value={value.access?.homeAccessNotes ?? ""}
@@ -593,11 +708,11 @@ export function HealthProfileForm({
             placeholder="e.g. Second floor, no lift. Key safe left of the door, code given on booking."
             className="min-h-24"
           />
-        </Field>
+        </SectionShell>
       )}
 
-      {show("lifestyle") && (
-        <SectionShell title="Lifestyle">
+      {activeKey === "lifestyle" && (
+        <SectionShell title="Lifestyle" icon={HeartPulse} hasData={hasAnyValue(value.lifestyle)}>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Smoking">
               <Select
@@ -637,9 +752,11 @@ export function HealthProfileForm({
         </SectionShell>
       )}
 
-      {show("emergency") && (
+      {activeKey === "emergency" && (
         <SectionShell
           title="Emergency contact"
+          icon={PhoneCall}
+          hasData={hasAnyValue(value.emergencyContact)}
           description="Who your professional should call if something goes wrong during a visit."
         >
           <div className="grid gap-4 sm:grid-cols-3">
@@ -672,9 +789,11 @@ export function HealthProfileForm({
         </SectionShell>
       )}
 
-      {show("careCircle") && (
+      {activeKey === "careCircle" && (
         <SectionShell
           title="Your care circle"
+          icon={Users}
+          hasData={hasAnyValue(value.careCircle)}
           description="Who your professional escalates to if they are concerned."
         >
           <div className="grid gap-4 sm:grid-cols-3">
@@ -707,8 +826,8 @@ export function HealthProfileForm({
         </SectionShell>
       )}
 
-      {show("notes") && (
-        <SectionShell title="Anything else">
+      {activeKey === "notes" && (
+        <SectionShell title="Anything else" icon={NotebookPen} hasData={hasAnyValue(value.notes)}>
           <Textarea
             value={value.notes ?? ""}
             onChange={(event) => onChange({ ...value, notes: event.target.value })}

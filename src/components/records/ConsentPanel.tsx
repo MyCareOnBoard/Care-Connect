@@ -43,7 +43,7 @@ import {
  * has already seen this", which a toggle cannot undo.
  */
 /** Enough to see recent activity at a glance without the section dominating the page. */
-const ACCESS_LOG_PAGE_SIZE = 15
+const ACCESS_LOG_PAGE_SIZE = 5
 
 const EMPTY_ACCESS_PAGE: AccessLogPage = { entries: [], nextCursor: null }
 

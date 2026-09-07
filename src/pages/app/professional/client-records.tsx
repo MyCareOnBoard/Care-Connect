@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Link, Navigate, useParams } from "react-router"
+import { Link, Navigate, useParams, useSearchParams } from "react-router"
 import { ChevronLeft, FileText, UserX } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { RecordCard } from "@/components/records/RecordCard"
@@ -98,6 +98,7 @@ export default function ClientRecordsPage() {
   const { clientId } = useParams<{ clientId: string }>()
   const { user } = useAuthUser()
   const { isProfessional, loading: roleLoading } = useProfessionalMembership()
+  const [searchParams] = useSearchParams()
 
   const [loading, setLoading] = useState(true)
   const [forbidden, setForbidden] = useState(false)
@@ -108,7 +109,12 @@ export default function ClientRecordsPage() {
   // records inside the courses of care the client granted.
   const [readScope, setReadScope] = useState<RecordReadScope>("own")
   const [bookings, setBookings] = useState<TelehealthBooking[]>([])
-  const [tab, setTab] = useState<Tab>("records")
+  // Deep-linkable so "Shared with me" on the health-profile page can land straight on
+  // the Health profile tab instead of the default Records tab.
+  const initialTab = TABS.some((item) => item.id === searchParams.get("tab"))
+    ? (searchParams.get("tab") as Tab)
+    : "records"
+  const [tab, setTab] = useState<Tab>(initialTab)
   // Which course of care is expanded. Only one at a time: each expansion is a PHI read.
   const [openEpisodeId, setOpenEpisodeId] = useState<string | null>(null)
 

@@ -28,6 +28,7 @@ export const Routes = {
             applications: "/agency/applications",
             marketplace: "/agency/market-place",
             telehealth: "/agency/tele-health",
+            telehealthBookings: "/agency/tele-health/bookings",
             serviceAnalytics: (id: string) => `/agency/tele-health/${id}/analytics`,
             profile: "/agency/profile",
             viewProfile: (id: string) => `/agency/profile/${id}`,
