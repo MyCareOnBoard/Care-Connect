@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useReducer, useState } from "react"
 import { Link, useNavigate } from "react-router"
 import { format } from "date-fns"
 import { LocationMap } from "@/components/maps/LocationMap"
@@ -15,6 +15,7 @@ import {
   Info,
   MessageSquare,
   Navigation,
+  PhoneOff,
   Users,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -118,8 +119,9 @@ const ISSUE_REASONS = [
  * Booking details — backs "View"/"Details" actions, plus the onsite/video service flow:
  * - "Join video call" (either role, online-mode bookings) → the Vonage call in
  *   `VideoCallFrame`, joinable only inside the booking's window (see `videoJoinWindow`;
- *   the server enforces the same bounds) → leaving the call either completes the booking
- *   (professional) or shows a lightweight "call ended" closure (client).
+ *   the server enforces the same bounds) → leaving the call lands on a "call ended" screen
+ *   offering a rejoin while the window is open, and for the professional an explicit
+ *   "Complete visit". Hanging up does not itself finish the visit — see `handleHangup`.
  * - "Get location" (professional only, in-person bookings) → the client's real address on a
  *   `LocationMap`, plus a "Get directions" hand-off to the device's maps app → Start service
  *   → a countdown to completion → Complete service, alongside the existing quick
@@ -184,6 +186,10 @@ export function BookingDetailsDialog({
     setIntakeDenied(false)
     setLocalConsent(null)
   }, [booking?.id])
+  // Re-derives the join window when it lapses; nothing reads the counter, so the first
+  // element is elided. See the timer that drives it below.
+  const [, forceWindowRecheck] = useReducer((tick: number) => tick + 1, 0)
+
   const isTerminal = booking?.status === "completed" || booking?.status === "cancelled"
   const totalSeconds = booking ? booking.durationMinutes * 60 : 0
   const isClientInPersonTracking = !canManage && booking?.mode === "in_person" && !isTerminal
@@ -203,6 +209,16 @@ export function BookingDetailsDialog({
   const isAccepted = booking?.status === "confirmed" || booking?.status === "completed"
   /** The visit has finished — the record is written from here only after this point. */
   const isVisitOver = booking?.status === "completed"
+  /**
+   * Whether the post-call screen may offer a way back in. The same three conditions the
+   * details panel's "Join video call" is gated on, and the same ones the server checks —
+   * so the button and the endpoint cannot disagree about whether rejoining is possible.
+   */
+  const canRejoinCall = !isTerminal && isAccepted && joinWindow?.state === "open"
+  const rejoinClosesAt = canRejoinCall && joinWindow ? joinWindow.closesAt : null
+  // The instant as a number, because `closesAt` is a fresh Date on every render and would
+  // re-arm the timer below on each one.
+  const rejoinClosesAtMs = rejoinClosesAt?.getTime() ?? null
   /**
    * The visit is under way or finished. Follow-ups are offered from here in both states:
    * during, because a professional may agree the next visit on the call; after, because
@@ -309,6 +325,23 @@ export function BookingDetailsDialog({
     return () => window.clearInterval(timer)
   }, [step, isClientInPersonTracking, trackingPhase, booking?.startedAt])
 
+  /**
+   * Retire the "Rejoin call" offer the moment the window actually closes.
+   *
+   * `joinWindow` is derived on render, so without this the button would sit there stale
+   * while someone reads the post-call screen — and the window closes ten minutes after the
+   * slot ends, which is comfortably inside how long that screen stays open. One timer at
+   * the closing instant rather than a poll: there is exactly one moment worth reacting to.
+   */
+  useEffect(() => {
+    if (step !== "call-ended" || rejoinClosesAtMs === null) return
+    const timer = window.setTimeout(
+      forceWindowRecheck,
+      Math.max(0, rejoinClosesAtMs - Date.now()) + 1000,
+    )
+    return () => window.clearTimeout(timer)
+  }, [step, rejoinClosesAtMs])
+
   /** Fetch the frozen intake snapshot on demand. */
   const loadIntake = async () => {
     if (!booking) return
@@ -374,13 +407,21 @@ export function BookingDetailsDialog({
     }
   }
 
-  const handleHangup = () => {
-    if (canManage) {
-      void changeStatus("completed")
-    } else {
-      setStep("call-ended")
-    }
-  }
+  /**
+   * Leaving the call is not the same act as finishing the visit.
+   *
+   * This used to complete the booking outright for the professional, which made the red
+   * button a one-way door: the server refuses `/video-room` for a completed booking, and
+   * the details panel hides "Join video call" once the booking is terminal. So a dropped
+   * connection, a browser reload, or a mis-click ended the visit with no way back in, even
+   * with most of the window still to run.
+   *
+   * Both roles now land on the post-call screen, which offers rejoining while the window
+   * is open and — for the professional — an explicit "Complete visit". Completion stays one
+   * click away, so the nudge that motivated the old behaviour survives; it is just no
+   * longer irreversible and no longer implied by hanging up.
+   */
+  const handleHangup = () => setStep("call-ended")
 
   /**
    * Professional reports reaching the client. This is the only thing that moves the
@@ -1090,7 +1131,59 @@ export function BookingDetailsDialog({
             />
           ))}
 
-        {booking && (step === "completed" || step === "call-ended") && (
+        {/* Hanging up used to land here, on a screen announcing the service was completed —
+            which for the client was simply untrue, and for the professional was true only
+            because hanging up had silently completed it. This is the honest version: the
+            call is over, the visit is not, and the way back into it is on screen. */}
+        {booking && step === "call-ended" && (
+          <DialogBody className="px-6 pt-4 pb-6">
+            <div className="flex flex-col items-center py-4 text-center">
+              <span className="flex size-14 items-center justify-center rounded-full bg-[#e3f8f8] text-[#00898c]">
+                <PhoneOff className="size-6" />
+              </span>
+              <h3 className="mt-4 text-xl font-semibold text-[#151922]">Call ended</h3>
+              <p className="mt-2 max-w-xs text-sm text-[#656f80]">
+                {rejoinClosesAt
+                  ? `You can rejoin until ${format(rejoinClosesAt, "h:mm a")}.`
+                  : "The appointment window has closed."}
+              </p>
+
+              {canRejoinCall && (
+                <Button
+                  type="button"
+                  className="mt-6 w-full bg-[#00b4b8] text-white hover:opacity-90"
+                  onClick={() => setStep("call")}
+                >
+                  Rejoin call
+                </Button>
+              )}
+
+              {/* The professional's explicit end-of-visit act, and what unlocks writing the
+                  record from the details panel. */}
+              {canManage && !isTerminal && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={pending}
+                  className={`${canRejoinCall ? "mt-3" : "mt-6"} w-full border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]`}
+                  onClick={() => changeStatus("completed")}
+                >
+                  Complete visit
+                </Button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setStep("details")}
+                className="mt-3 w-full text-sm font-semibold text-[#00898c] hover:opacity-80"
+              >
+                Back to booking details
+              </button>
+            </div>
+          </DialogBody>
+        )}
+
+        {booking && step === "completed" && (
           <DialogBody className="px-6 pt-4 pb-6">
             <div className="flex items-center gap-3 border-b border-[#eef1f3] pb-4">
               {professionalProfile?.photo ? (
