@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 // Types only. The SDK itself is imported dynamically below — see the note on the effect.
-import type { Publisher, Session, Subscriber } from "@vonage/client-sdk-video"
+import type { Publisher, Session } from "@vonage/client-sdk-video"
 import { Mic, MicOff, PhoneOff, Video, VideoOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CallFollowUpButton, CallRecordButton } from "@/components/professional/CallRecordButton"
@@ -11,6 +11,28 @@ import type { TelehealthBooking } from "@/utils/careconnect/types"
 
 /** What the participant is told about the connection, in the order it normally moves. */
 type CallState = "connecting" | "connected" | "reconnecting"
+
+/**
+ * Why a remote tile has no picture. Two different situations that look identical on screen
+ * and must not be described identically: "Camera off" is wrong and mildly alarming when
+ * what actually happened is that the connection got too weak to carry video.
+ */
+type VideoOffReason = "camera" | "quality"
+
+/**
+ * What we track about someone else's stream.
+ *
+ * Held in state rather than read off the SDK's `Stream` object on render, because a
+ * mutating object is not something React re-renders for: the camera going off changes the
+ * stream in place, and only an event handler writing to state can make the screen follow.
+ */
+type RemoteStream = {
+  streamId: string
+  /** The name the other side published, if it published one. */
+  name: string
+  /** Null while video is flowing. */
+  videoOff: VideoOffReason | null
+}
 
 /**
  * Turn an SDK error into something a clinician can act on.
@@ -74,13 +96,12 @@ export function VideoCallFrame({
   const localRef = useRef<HTMLDivElement>(null)
   const sessionRef = useRef<Session | null>(null)
   const publisherRef = useRef<Publisher | null>(null)
-  const subscribersRef = useRef(new Map<string, Subscriber>())
   const onLeaveRef = useRef(onLeave)
   onLeaveRef.current = onLeave
 
   const [error, setError] = useState<string | null>(null)
   const [state, setState] = useState<CallState>("connecting")
-  const [remoteCount, setRemoteCount] = useState(0)
+  const [remoteStreams, setRemoteStreams] = useState<RemoteStream[]>([])
   const [micOn, setMicOn] = useState(true)
   const [cameraOn, setCameraOn] = useState(true)
 
@@ -89,10 +110,6 @@ export function VideoCallFrame({
     // this effect twice in development. Without it the second run leaves a live session
     // publishing from a component nobody is looking at.
     let cancelled = false
-    // Captured rather than read through the ref in the cleanup: the map is created once so
-    // the two are the same object either way, but this run's handlers and this run's
-    // cleanup should provably be talking about the same one.
-    const subscribers = subscribersRef.current
 
     const connect = async () => {
       try {
@@ -130,15 +147,36 @@ export function VideoCallFrame({
               if (subscribeError && !cancelled) setError(callErrorMessage(subscribeError))
             },
           )
-          subscribers.set(event.stream.streamId, subscriber)
-          setRemoteCount(subscribers.size)
+
+          const { streamId, name, hasVideo } = event.stream
+          const setVideoOff = (videoOff: VideoOffReason | null) => {
+            if (cancelled) return
+            setRemoteStreams((prev) =>
+              prev.map((s) => (s.streamId === streamId ? { ...s, videoOff } : s)),
+            )
+          }
+
+          // Subscriber events rather than the session's `streamPropertyChanged`: these fire
+          // both when the publisher turns the camera off and when the SDK drops video to
+          // cope with a weak connection. The property watch only sees the first, and the
+          // second looks exactly the same on screen.
+          subscriber.on("videoDisabled", (videoEvent) => {
+            setVideoOff(videoEvent.reason === "publishVideo" ? "camera" : "quality")
+          })
+          subscriber.on("videoEnabled", () => setVideoOff(null))
+
+          setRemoteStreams((prev) =>
+            prev.some((s) => s.streamId === streamId)
+              ? prev
+              : [...prev, { streamId, name, videoOff: hasVideo ? null : "camera" }],
+          )
         })
 
         session.on("streamDestroyed", (event) => {
           // The SDK removes the element itself on this event, so only the bookkeeping is
           // ours — unsubscribing here would double-remove.
-          subscribers.delete(event.stream.streamId)
-          setRemoteCount(subscribers.size)
+          const { streamId } = event.stream
+          setRemoteStreams((prev) => prev.filter((s) => s.streamId !== streamId))
         })
 
         // The SDK reconnects on its own, so these two only change what the user is told.
@@ -219,11 +257,12 @@ export function VideoCallFrame({
       cancelled = true
       publisherRef.current?.destroy()
       publisherRef.current = null
-      // Disconnecting drops our streams and every subscription with them, so the map only
-      // needs clearing — and it must be cleared, or a rejoin starts with stale entries.
+      // Disconnecting drops our streams and every subscription with them, so nothing has
+      // to be unsubscribed by hand. The tracked streams are reset so a rejoin does not
+      // start out believing the other side is already here.
       sessionRef.current?.disconnect()
       sessionRef.current = null
-      subscribers.clear()
+      setRemoteStreams([])
     }
   }, [bookingId, publisherName])
 
@@ -258,6 +297,13 @@ export function VideoCallFrame({
 
   const otherParty =
     (canManage ? booking.clientName : booking.professionalName) || "Care Connect user"
+  const selfName = publisherName || "You"
+
+  // Only meaningful for the 1:1 visit this screen is built for: with one remote stream the
+  // whole area belongs to that person, so the placeholder can cover it. A third party would
+  // make "whose camera is off" ambiguous, and the SDK's own per-tile handling is left to it.
+  const soleRemote = remoteStreams.length === 1 ? remoteStreams[0] : null
+  const remoteVideoOff = soleRemote?.videoOff ?? null
 
   return (
     <>
@@ -266,21 +312,44 @@ export function VideoCallFrame({
             single slot so a third party joining lays out instead of stacking. */}
         <div
           ref={remoteRef}
-          className={`grid h-full w-full ${remoteCount > 1 ? "grid-cols-2" : "grid-cols-1"}`}
+          className={`grid h-full w-full ${remoteStreams.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}
         />
 
-        {/* Nothing to show until the other side publishes, and "nobody is here yet" is a
-            different thing from "still connecting" — being told which one is the difference
-            between waiting and giving up. */}
-        {remoteCount === 0 && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center">
+        {/* Three states share this spot, and they are genuinely different situations: not
+            connected yet, connected but alone, and connected to someone whose camera is
+            off. The last one used to be an unexplained black rectangle — the same avatar
+            the waiting state uses says who is there and that the call is fine. */}
+        {(remoteStreams.length === 0 || remoteVideoOff) && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#1f2430] text-center">
             <span className="flex size-20 items-center justify-center rounded-full bg-[#00b4b8] text-xl font-semibold text-white">
-              {getInitials(otherParty)}
+              {getInitials(soleRemote?.name || otherParty)}
             </span>
-            <p className="text-sm text-white/70">
-              {state === "connecting" ? "Connecting…" : `Waiting for ${otherParty} to join…`}
-            </p>
+            {remoteVideoOff ? (
+              <div>
+                <p className="text-base font-semibold text-white">
+                  {soleRemote?.name || otherParty}
+                </p>
+                <p className="mt-1 text-sm text-white/60">
+                  {remoteVideoOff === "camera"
+                    ? "Camera off"
+                    : "Video paused — the connection is weak"}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-white/70">
+                {state === "connecting" ? "Connecting…" : `Waiting for ${otherParty} to join…`}
+              </p>
+            )}
           </div>
+        )}
+
+        {/* Who you are looking at, while you can see them. Top-left keeps it clear of the
+            reconnect pill at top-centre and the self-view at bottom-right; it is suppressed
+            when the placeholder is up, since that already names them in full. */}
+        {soleRemote && !remoteVideoOff && (
+          <p className="absolute left-3 top-3 z-20 max-w-[60%] truncate rounded-full bg-black/50 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+            {soleRemote.name || otherParty}
+          </p>
         )}
 
         {state === "reconnecting" && (
@@ -290,14 +359,20 @@ export function VideoCallFrame({
         )}
 
         {/* Own preview, corner-pinned and small: it is a check that you are on camera, not
-            something to watch. Hidden while the camera is off so the tile is not a black
-            box — but only visually, since destroying it would drop the published stream. */}
-        <div
-          ref={localRef}
-          className={`absolute bottom-3 right-3 z-10 h-24 w-32 overflow-hidden rounded-xl bg-black/60 ring-1 ring-white/15 sm:h-28 sm:w-44 ${
-            cameraOn ? "" : "invisible"
-          }`}
-        />
+            something to watch. With the camera off the video element is hidden rather than
+            removed — destroying it would drop the published stream — and the tile names you
+            instead, so it reads as "you, camera off" rather than as a dead black square. */}
+        <div className="absolute bottom-3 right-3 z-10 h-24 w-32 overflow-hidden rounded-xl bg-[#2a3040] ring-1 ring-white/15 sm:h-28 sm:w-44">
+          <div ref={localRef} className={`h-full w-full ${cameraOn ? "" : "invisible"}`} />
+          {!cameraOn && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 px-2">
+              <span className="flex size-9 items-center justify-center rounded-full bg-[#00b4b8] text-xs font-semibold text-white">
+                {getInitials(selfName)}
+              </span>
+              <span className="max-w-full truncate text-[11px] text-white/70">You</span>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-3 bg-black px-4 py-3">
