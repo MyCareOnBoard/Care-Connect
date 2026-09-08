@@ -381,11 +381,12 @@ export interface TelehealthBooking {
   startedAt?: Timestampish
   completedAt?: Timestampish
   /**
-   * Daily room for an online booking, created lazily on the first join. Absent means
-   * "not created yet". Join tokens are per-participant and never stored here — fetch
-   * them with `getVideoRoom`.
+   * Vonage Video session for an online booking, created server-side on the first join and
+   * reused. Present here only so "a call has been started" is readable from the booking;
+   * it is not enough to join, because joining needs a per-participant token from
+   * `getVideoRoom` and the server checks the join window before minting one.
    */
-  videoRoom?: { name: string; url: string; expiresAt?: Timestampish } | null
+  videoSessionId?: string | null
   price: number
   currency: string
   paymentMethod: string
