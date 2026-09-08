@@ -6,11 +6,12 @@ import { recordWriteState } from "@/utils/careconnect/bookingStatus"
 import type { TelehealthBooking } from "@/utils/careconnect/types"
 
 /**
- * Stand-in for the Daily call, used when `VITE_MOCK_VIDEO_CALL` is set.
+ * Stand-in for the real call, used when `VITE_MOCK_VIDEO_CALL` is set.
  *
- * Exists because Daily requires a payment method on the account before any room will
- * connect — including on the free tier — which blocks exercising everything that happens
- * *around* a call, chiefly the professional writing a visit record mid-visit.
+ * Originally written because Daily refused to connect any room without a payment method on
+ * the account. It outlived that: a Vonage session is billable per booking, and everything
+ * worth testing here happens *around* the call — chiefly the professional writing a visit
+ * record mid-visit — so there is no reason to spend a session to reach it.
  *
  * Deliberately not a fake video feed: no participant tiles pretending to carry a stream, no
  * mic/camera buttons that only flip local state. An earlier version of this screen did that

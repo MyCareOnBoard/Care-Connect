@@ -215,27 +215,26 @@ export async function recordVisitEvent(id: string, event: VisitEvent): Promise<T
   return data.data
 }
 
-/** One participant's access to a booking's Daily room. The token is short-lived. */
+/** One participant's access to a booking's video call. The token is short-lived. */
 export interface VideoRoomAccess {
-  roomUrl: string
-  /** Null for a public test room (DAILY_TEST_ROOM_URL), which needs no token to join. */
-  token: string | null
-  /** ISO instant when the room and token expire (end of the join window). */
+  /** The Vonage application id the client SDK initialises the session against. */
+  applicationId: string
+  /** Opaque Vonage session id, created once per booking and reused by both parties. */
+  sessionId: string
+  /** Per-participant JWT. Carries the role, so the professional's differs from the client's. */
+  token: string
+  /** ISO instant when the token expires (end of the join window). */
   expiresAt: string
-  /**
-   * True when the server served a shared public test room rather than a per-booking
-   * secured one. Testing only — it should never be true against production.
-   */
-  testRoom?: boolean
 }
 
 /**
- * Join access for an online booking's video call. The server creates the Daily room on
- * the first call and mints a fresh per-participant token on every call, so this must be
- * called each time someone joins rather than cached.
+ * Join access for an online booking's video call. The server creates the Vonage session
+ * once per booking and mints a fresh per-participant token on every call, so this must be
+ * called each time someone joins rather than cached — a stored token would outlive its
+ * expiry and a stored session id would bypass the server's window check.
  *
- * Rejects with 409 outside the booking's join window, 400 for in-person bookings, and
- * 503 when `DAILY_API_KEY` isn't configured.
+ * Rejects with 409 outside the booking's join window, 400 for in-person bookings, 502 when
+ * the session cannot be created, and 503 when the Vonage credentials aren't configured.
  */
 export async function getVideoRoom(id: string): Promise<VideoRoomAccess> {
   const { data } = await axiosClient.post(`/careconnectBookings/${id}/video-room`)

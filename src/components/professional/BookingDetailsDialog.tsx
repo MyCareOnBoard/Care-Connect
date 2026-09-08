@@ -59,12 +59,12 @@ import { VideoCallFrame } from "@/components/professional/VideoCallFrame"
 import { MockCallFrame } from "@/components/professional/MockCallFrame"
 
 /**
- * TESTING — replace the Daily call with a stubbed surface (`VITE_MOCK_VIDEO_CALL=true`).
+ * TESTING — replace the real call with a stubbed surface (`VITE_MOCK_VIDEO_CALL=true`).
  *
- * Daily requires a payment method on the account before any room connects, even on the
- * free tier, so this is the only way to exercise the mid-visit record flow until that's
- * sorted. Unlike the shared-public-room fallback, nothing here reaches an external service
- * or exposes a joinable link — it just doesn't carry video.
+ * Kept after the move to Vonage for a different reason than it was written for: a real
+ * session is billable, so exercising the mid-visit record flow repeatedly is worth doing
+ * without one. Nothing here reaches an external service or exposes a joinable link — it
+ * just doesn't carry video. Leave it unset for real calls.
  */
 const MOCK_VIDEO_CALL =
   (import.meta.env.VITE_MOCK_VIDEO_CALL as string | undefined)?.trim() === "true"
@@ -116,7 +116,7 @@ const ISSUE_REASONS = [
 
 /**
  * Booking details — backs "View"/"Details" actions, plus the onsite/video service flow:
- * - "Join video call" (either role, online-mode bookings) → Daily Prebuilt via
+ * - "Join video call" (either role, online-mode bookings) → the Vonage call in
  *   `VideoCallFrame`, joinable only inside the booking's window (see `videoJoinWindow`;
  *   the server enforces the same bounds) → leaving the call either completes the booking
  *   (professional) or shows a lightweight "call ended" closure (client).
