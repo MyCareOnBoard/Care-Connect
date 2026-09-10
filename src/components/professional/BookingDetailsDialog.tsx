@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState } from "react"
+import { useEffect, useState } from "react"
 import { Link, useNavigate } from "react-router"
 import { format } from "date-fns"
 import { LocationMap } from "@/components/maps/LocationMap"
@@ -15,7 +15,6 @@ import {
   Info,
   MessageSquare,
   Navigation,
-  PhoneOff,
   Users,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -56,19 +55,7 @@ import {
   recordWriteState,
   videoJoinWindow,
 } from "@/utils/careconnect/bookingStatus"
-import { VideoCallFrame } from "@/components/professional/VideoCallFrame"
-import { MockCallFrame } from "@/components/professional/MockCallFrame"
-
-/**
- * TESTING — replace the real call with a stubbed surface (`VITE_MOCK_VIDEO_CALL=true`).
- *
- * Kept after the move to Vonage for a different reason than it was written for: a real
- * session is billable, so exercising the mid-visit record flow repeatedly is worth doing
- * without one. Nothing here reaches an external service or exposes a joinable link — it
- * just doesn't carry video. Leave it unset for real calls.
- */
-const MOCK_VIDEO_CALL =
-  (import.meta.env.VITE_MOCK_VIDEO_CALL as string | undefined)?.trim() === "true"
+import { useCallSession } from "@/components/call/CallSession"
 
 function formatPrice(price: number, currency: string): string {
   try {
@@ -98,7 +85,7 @@ function remainingFromStartedAt(booking: TelehealthBooking | null): number | nul
   return Math.max(0, booking.durationMinutes * 60 - elapsed)
 }
 
-type Step = "details" | "location" | "service" | "call" | "completed" | "call-ended" | "tracking-map" | "raise-issue"
+type Step = "details" | "location" | "service" | "completed" | "tracking-map" | "raise-issue"
 
 type TrackingPhase = "approaching" | "arrived" | "in-progress"
 
@@ -117,11 +104,11 @@ const ISSUE_REASONS = [
 
 /**
  * Booking details — backs "View"/"Details" actions, plus the onsite/video service flow:
- * - "Join video call" (either role, online-mode bookings) → the Vonage call in
- *   `VideoCallFrame`, joinable only inside the booking's window (see `videoJoinWindow`;
- *   the server enforces the same bounds) → leaving the call lands on a "call ended" screen
- *   offering a rejoin while the window is open, and for the professional an explicit
- *   "Complete visit". Hanging up does not itself finish the visit — see `handleHangup`.
+ * - "Join video call" (either role, online-mode bookings) → hands the booking to the
+ *   app-level `CallSessionProvider` and closes this dialog. The call is deliberately not a
+ *   step here any more: as a step it died with the dialog, which made minimizing it and
+ *   browsing elsewhere mid-visit impossible. Joinable only inside the booking's window
+ *   (see `videoJoinWindow`); the server enforces the same bounds.
  * - "Get location" (professional only, in-person bookings) → the client's real address on a
  *   `LocationMap`, plus a "Get directions" hand-off to the device's maps app → Start service
  *   → a countdown to completion → Complete service, alongside the existing quick
@@ -161,6 +148,16 @@ export function BookingDetailsDialog({
   onViewRecords?: (booking: TelehealthBooking) => void
 }) {
   const navigate = useNavigate()
+  // Null when this dialog is rendered outside AppLayout, which degrades to a disabled join
+  // button rather than a crash.
+  const callSession = useCallSession()
+  /**
+   * This booking's call is already running, most likely minimized somewhere on screen.
+   * Relabels the button, because "Join video call" invites the reader to think they are
+   * about to start a second one — pressing it simply brings the existing call back up.
+   */
+  const isThisCallLive =
+    callSession?.call?.phase === "live" && callSession.call.booking.id === booking?.id
   const { flow } = useCareFlow()
   const messagesPath = flow === "agency" ? Routes.app.agency.messages : Routes.app.user.messages
   const [pending, setPending] = useState(false)
@@ -186,10 +183,6 @@ export function BookingDetailsDialog({
     setIntakeDenied(false)
     setLocalConsent(null)
   }, [booking?.id])
-  // Re-derives the join window when it lapses; nothing reads the counter, so the first
-  // element is elided. See the timer that drives it below.
-  const [, forceWindowRecheck] = useReducer((tick: number) => tick + 1, 0)
-
   const isTerminal = booking?.status === "completed" || booking?.status === "cancelled"
   const totalSeconds = booking ? booking.durationMinutes * 60 : 0
   const isClientInPersonTracking = !canManage && booking?.mode === "in_person" && !isTerminal
@@ -209,16 +202,6 @@ export function BookingDetailsDialog({
   const isAccepted = booking?.status === "confirmed" || booking?.status === "completed"
   /** The visit has finished — the record is written from here only after this point. */
   const isVisitOver = booking?.status === "completed"
-  /**
-   * Whether the post-call screen may offer a way back in. The same three conditions the
-   * details panel's "Join video call" is gated on, and the same ones the server checks —
-   * so the button and the endpoint cannot disagree about whether rejoining is possible.
-   */
-  const canRejoinCall = !isTerminal && isAccepted && joinWindow?.state === "open"
-  const rejoinClosesAt = canRejoinCall && joinWindow ? joinWindow.closesAt : null
-  // The instant as a number, because `closesAt` is a fresh Date on every render and would
-  // re-arm the timer below on each one.
-  const rejoinClosesAtMs = rejoinClosesAt?.getTime() ?? null
   /**
    * The visit is under way or finished. Follow-ups are offered from here in both states:
    * during, because a professional may agree the next visit on the call; after, because
@@ -254,7 +237,7 @@ export function BookingDetailsDialog({
   // The completion confirmation always credits the professional, and the client's live-tracking
   // panel shows both parties — fetch real photos/titles for those views.
   useEffect(() => {
-    const wantsProfessional = step === "completed" || step === "call-ended" || (step === "details" && isClientInPersonTracking)
+    const wantsProfessional = step === "completed" || (step === "details" && isClientInPersonTracking)
     if (!wantsProfessional || !booking?.professionalUid) return
     let active = true
     getProfile(booking.professionalUid)
@@ -325,23 +308,6 @@ export function BookingDetailsDialog({
     return () => window.clearInterval(timer)
   }, [step, isClientInPersonTracking, trackingPhase, booking?.startedAt])
 
-  /**
-   * Retire the "Rejoin call" offer the moment the window actually closes.
-   *
-   * `joinWindow` is derived on render, so without this the button would sit there stale
-   * while someone reads the post-call screen — and the window closes ten minutes after the
-   * slot ends, which is comfortably inside how long that screen stays open. One timer at
-   * the closing instant rather than a poll: there is exactly one moment worth reacting to.
-   */
-  useEffect(() => {
-    if (step !== "call-ended" || rejoinClosesAtMs === null) return
-    const timer = window.setTimeout(
-      forceWindowRecheck,
-      Math.max(0, rejoinClosesAtMs - Date.now()) + 1000,
-    )
-    return () => window.clearTimeout(timer)
-  }, [step, rejoinClosesAtMs])
-
   /** Fetch the frozen intake snapshot on demand. */
   const loadIntake = async () => {
     if (!booking) return
@@ -408,22 +374,6 @@ export function BookingDetailsDialog({
   }
 
   /**
-   * Leaving the call is not the same act as finishing the visit.
-   *
-   * This used to complete the booking outright for the professional, which made the red
-   * button a one-way door: the server refuses `/video-room` for a completed booking, and
-   * the details panel hides "Join video call" once the booking is terminal. So a dropped
-   * connection, a browser reload, or a mis-click ended the visit with no way back in, even
-   * with most of the window still to run.
-   *
-   * Both roles now land on the post-call screen, which offers rejoining while the window
-   * is open and — for the professional — an explicit "Complete visit". Completion stays one
-   * click away, so the nudge that motivated the old behaviour survives; it is just no
-   * longer irreversible and no longer implied by hanging up.
-   */
-  const handleHangup = () => setStep("call-ended")
-
-  /**
    * Professional reports reaching the client. This is the only thing that moves the
    * client's tracking panel off "waiting" — without it the client has no signal at all,
    * which is why the panel used to fake one with a timer.
@@ -487,30 +437,17 @@ export function BookingDetailsDialog({
     navigate(Routes.app.user.dashboard)
   }
 
-  const isCallStep = step === "call"
-
   return (
     <Dialog open={booking != null} onOpenChange={onOpenChange}>
       <DialogContent
-        showCloseButton={!isCallStep}
-        layout={isCallStep ? "custom" : "center"}
-        className={
-          isCallStep
-            ? "fixed inset-4 z-50 flex flex-col overflow-hidden rounded-3xl bg-[#101318] p-0 shadow-2xl sm:inset-10"
-            : step === "tracking-map"
-              ? "p-0 max-w-3xl"
-              : "p-0 max-w-120"
-        }
+        showCloseButton
+        className={step === "tracking-map" ? "p-0 max-w-3xl" : "p-0 max-w-120"}
       >
-        {isCallStep ? (
-          <DialogTitle className="sr-only">{booking?.serviceTitle} video call</DialogTitle>
-        ) : (
-          <DialogHeader className="px-6 pt-6 text-left">
-            <DialogTitle className="text-xl font-semibold text-[#151922]">
-              {step === "tracking-map" ? "Professional location" : booking?.serviceTitle}
-            </DialogTitle>
-          </DialogHeader>
-        )}
+        <DialogHeader className="px-6 pt-6 text-left">
+          <DialogTitle className="text-xl font-semibold text-[#151922]">
+            {step === "tracking-map" ? "Professional location" : booking?.serviceTitle}
+          </DialogTitle>
+        </DialogHeader>
 
         {booking && step === "details" && isClientInPersonTracking && (
           <DialogBody className="px-6 pt-4 pb-6 space-y-4 text-sm">
@@ -736,11 +673,17 @@ export function BookingDetailsDialog({
               <div className="border-t border-[#eef1f3] pt-4">
                 <Button
                   type="button"
-                  disabled={joinWindow.state !== "open" || !isAccepted}
+                  disabled={joinWindow.state !== "open" || !isAccepted || !callSession}
                   className="w-full bg-[#00b4b8] text-white hover:opacity-90 disabled:bg-[#e2e2e2] disabled:text-[#8a8f98]"
-                  onClick={() => setStep("call")}
+                  onClick={() => {
+                    // Closed straight away: the call takes over the screen from the layer
+                    // above, and leaving this dialog open behind it would put a dialog on
+                    // top of the very call it just launched.
+                    callSession?.startCall(booking, canManage, onStatusChanged)
+                    onOpenChange(false)
+                  }}
                 >
-                  Join video call
+                  {isThisCallLive ? "Return to call" : "Join video call"}
                 </Button>
                 {/* Say why it's unavailable rather than leaving a dead button. */}
                 {!isAccepted && (
@@ -1109,77 +1052,6 @@ export function BookingDetailsDialog({
             >
               Complete service
             </Button>
-          </DialogBody>
-        )}
-
-        {booking && isCallStep &&
-          (MOCK_VIDEO_CALL ? (
-            <MockCallFrame
-              booking={booking}
-              canManage={canManage}
-              onWriteRecord={onWriteRecord}
-              onProposeFollowUp={onProposeFollowUp}
-              onLeave={handleHangup}
-            />
-          ) : (
-            <VideoCallFrame
-              booking={booking}
-              canManage={canManage}
-              onWriteRecord={onWriteRecord}
-              onProposeFollowUp={onProposeFollowUp}
-              onLeave={handleHangup}
-            />
-          ))}
-
-        {/* Hanging up used to land here, on a screen announcing the service was completed —
-            which for the client was simply untrue, and for the professional was true only
-            because hanging up had silently completed it. This is the honest version: the
-            call is over, the visit is not, and the way back into it is on screen. */}
-        {booking && step === "call-ended" && (
-          <DialogBody className="px-6 pt-4 pb-6">
-            <div className="flex flex-col items-center py-4 text-center">
-              <span className="flex size-14 items-center justify-center rounded-full bg-[#e3f8f8] text-[#00898c]">
-                <PhoneOff className="size-6" />
-              </span>
-              <h3 className="mt-4 text-xl font-semibold text-[#151922]">Call ended</h3>
-              <p className="mt-2 max-w-xs text-sm text-[#656f80]">
-                {rejoinClosesAt
-                  ? `You can rejoin until ${format(rejoinClosesAt, "h:mm a")}.`
-                  : "The appointment window has closed."}
-              </p>
-
-              {canRejoinCall && (
-                <Button
-                  type="button"
-                  className="mt-6 w-full bg-[#00b4b8] text-white hover:opacity-90"
-                  onClick={() => setStep("call")}
-                >
-                  Rejoin call
-                </Button>
-              )}
-
-              {/* The professional's explicit end-of-visit act, and what unlocks writing the
-                  record from the details panel. */}
-              {canManage && !isTerminal && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={pending}
-                  className={`${canRejoinCall ? "mt-3" : "mt-6"} w-full border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]`}
-                  onClick={() => changeStatus("completed")}
-                >
-                  Complete visit
-                </Button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setStep("details")}
-                className="mt-3 w-full text-sm font-semibold text-[#00898c] hover:opacity-80"
-              >
-                Back to booking details
-              </button>
-            </div>
           </DialogBody>
         )}
 

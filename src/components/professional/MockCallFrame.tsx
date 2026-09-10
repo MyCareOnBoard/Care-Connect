@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Info, PhoneOff, Users } from "lucide-react"
+import { Info, Maximize2, Minus, PhoneOff, Users } from "lucide-react"
 import { CallFollowUpButton, CallRecordButton } from "@/components/professional/CallRecordButton"
 import { getInitials } from "@/lib/utils"
 import { recordWriteState } from "@/utils/careconnect/bookingStatus"
@@ -21,6 +21,8 @@ import type { TelehealthBooking } from "@/utils/careconnect/types"
 export function MockCallFrame({
   booking,
   canManage,
+  compact = false,
+  onToggleCompact,
   onWriteRecord,
   onProposeFollowUp,
   onLeave,
@@ -28,6 +30,9 @@ export function MockCallFrame({
   booking: TelehealthBooking
   /** True for the professional/agency side, which is the side that writes the record. */
   canManage: boolean
+  /** Thumbnail form, mirroring the real frame so minimizing can be exercised for free. */
+  compact?: boolean
+  onToggleCompact?: () => void
   onWriteRecord?: (booking: TelehealthBooking) => void
   /** Arrange the next visit without leaving the call. */
   onProposeFollowUp?: (booking: TelehealthBooking) => void
@@ -48,6 +53,43 @@ export function MockCallFrame({
   // itself instead of the professional discovering the rule through a 409. In a live call
   // the only one that can still bite is missing consent.
   const { reason: recordBlockedReason } = recordWriteState(booking)
+
+  if (compact) {
+    return (
+      <>
+        <div className="relative flex flex-1 flex-col items-center justify-center gap-1.5 bg-[#1f2430] px-3 text-center">
+          <span className="flex size-10 items-center justify-center rounded-full bg-[#00b4b8] text-sm font-semibold text-white">
+            {getInitials(otherParty || "?")}
+          </span>
+          <p className="max-w-full truncate text-xs font-semibold text-white">
+            {otherParty || "Care Connect user"}
+          </p>
+          <p className="text-[11px] tabular-nums text-white/60">{elapsed} · mock</p>
+        </div>
+
+        <div className="flex items-center justify-center gap-1.5 bg-black px-2 py-2">
+          {onToggleCompact && (
+            <button
+              type="button"
+              onClick={onToggleCompact}
+              aria-label="Expand the call"
+              className="flex size-8 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+            >
+              <Maximize2 className="size-3.5" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onLeave}
+            aria-label="End call"
+            className="flex size-8 items-center justify-center rounded-full bg-[#ff3e66] text-white"
+          >
+            <PhoneOff className="size-3.5" />
+          </button>
+        </div>
+      </>
+    )
+  }
 
   return (
     <>
@@ -89,6 +131,17 @@ export function MockCallFrame({
           <Users className="size-4" />
           2 participants
         </span>
+
+        {onToggleCompact && (
+          <button
+            type="button"
+            onClick={onToggleCompact}
+            aria-label="Minimize the call and keep it running"
+            className="flex size-11 items-center justify-center rounded-full bg-white/10 text-white transition-transform hover:scale-105 hover:bg-white/20 active:scale-95"
+          >
+            <Minus className="size-4" />
+          </button>
+        )}
 
         <button
           type="button"
