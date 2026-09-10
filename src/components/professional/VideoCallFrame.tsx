@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 // Types only. The SDK itself is imported dynamically below — see the note on the effect.
 import type { Publisher, Session } from "@vonage/client-sdk-video"
-import { Mic, MicOff, PhoneOff, Video, VideoOff } from "lucide-react"
+import { Maximize2, Mic, MicOff, Minus, PhoneOff, Video, VideoOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CallFollowUpButton, CallRecordButton } from "@/components/professional/CallRecordButton"
 import { getInitials } from "@/lib/utils"
@@ -77,6 +77,8 @@ function callErrorMessage(error: { name?: string; message?: string } | undefined
 export function VideoCallFrame({
   booking,
   canManage,
+  compact = false,
+  onToggleCompact,
   onWriteRecord,
   onProposeFollowUp,
   onLeave,
@@ -84,6 +86,17 @@ export function VideoCallFrame({
   booking: TelehealthBooking
   /** True for the professional/agency side, which is the side that documents the visit. */
   canManage: boolean
+  /**
+   * Render as a thumbnail rather than a full screen.
+   *
+   * A prop rather than a separate component, and toggled without remounting anything,
+   * because remounting is exactly what minimizing must not do: the session, the publisher
+   * and both subscriptions live in this component's refs, so a second instance would tear
+   * down the call it is meant to preserve.
+   */
+  compact?: boolean
+  /** Omitted where there is nowhere to minimize to, which hides the control. */
+  onToggleCompact?: () => void
   onWriteRecord?: (booking: TelehealthBooking) => void
   /** Arrange the next visit without leaving the call. */
   onProposeFollowUp?: (booking: TelehealthBooking) => void
@@ -286,11 +299,25 @@ export function VideoCallFrame({
 
   if (error) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-[#1f2430] px-6 py-16 text-center">
-        <p className="text-sm text-white/80">{error}</p>
-        <Button type="button" variant="outline" onClick={onLeave}>
-          Back to booking
-        </Button>
+      <div
+        className={`flex flex-1 flex-col items-center justify-center gap-3 bg-[#1f2430] text-center ${
+          compact ? "px-3 py-4" : "gap-4 px-6 py-16"
+        }`}
+      >
+        <p className={compact ? "text-xs text-white/80" : "text-sm text-white/80"}>{error}</p>
+        {compact ? (
+          <button
+            type="button"
+            onClick={onLeave}
+            className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20"
+          >
+            Close
+          </button>
+        ) : (
+          <Button type="button" variant="outline" onClick={onLeave}>
+            Back to booking
+          </Button>
+        )}
       </div>
     )
   }
@@ -304,6 +331,11 @@ export function VideoCallFrame({
   // make "whose camera is off" ambiguous, and the SDK's own per-tile handling is left to it.
   const soleRemote = remoteStreams.length === 1 ? remoteStreams[0] : null
   const remoteVideoOff = soleRemote?.videoOff ?? null
+
+  // A 44px control is a comfortable touch target and far too big for a 256px tile; both
+  // sizes are named once here so the buttons below stay readable.
+  const controlSize = compact ? "size-8" : "size-11"
+  const iconSize = compact ? "size-3.5" : "size-4"
 
   return (
     <>
@@ -320,24 +352,40 @@ export function VideoCallFrame({
             off. The last one used to be an unexplained black rectangle — the same avatar
             the waiting state uses says who is there and that the call is fine. */}
         {(remoteStreams.length === 0 || remoteVideoOff) && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#1f2430] text-center">
-            <span className="flex size-20 items-center justify-center rounded-full bg-[#00b4b8] text-xl font-semibold text-white">
+          <div
+            className={`absolute inset-0 flex flex-col items-center justify-center bg-[#1f2430] px-3 text-center ${
+              compact ? "gap-2" : "gap-4"
+            }`}
+          >
+            <span
+              className={`flex items-center justify-center rounded-full bg-[#00b4b8] font-semibold text-white ${
+                compact ? "size-10 text-sm" : "size-20 text-xl"
+              }`}
+            >
               {getInitials(soleRemote?.name || otherParty)}
             </span>
             {remoteVideoOff ? (
-              <div>
-                <p className="text-base font-semibold text-white">
+              <div className="max-w-full">
+                <p
+                  className={`truncate font-semibold text-white ${compact ? "text-xs" : "text-base"}`}
+                >
                   {soleRemote?.name || otherParty}
                 </p>
-                <p className="mt-1 text-sm text-white/60">
+                <p className={`mt-1 text-white/60 ${compact ? "text-[11px]" : "text-sm"}`}>
                   {remoteVideoOff === "camera"
                     ? "Camera off"
-                    : "Video paused — the connection is weak"}
+                    : compact
+                      ? "Weak connection"
+                      : "Video paused — the connection is weak"}
                 </p>
               </div>
             ) : (
-              <p className="text-sm text-white/70">
-                {state === "connecting" ? "Connecting…" : `Waiting for ${otherParty} to join…`}
+              <p className={`text-white/70 ${compact ? "text-[11px]" : "text-sm"}`}>
+                {state === "connecting"
+                  ? "Connecting…"
+                  : compact
+                    ? "Waiting…"
+                    : `Waiting for ${otherParty} to join…`}
               </p>
             )}
           </div>
@@ -362,9 +410,16 @@ export function VideoCallFrame({
             something to watch. With the camera off the video element is hidden rather than
             removed — destroying it would drop the published stream — and the tile names you
             instead, so it reads as "you, camera off" rather than as a dead black square. */}
-        <div className="absolute bottom-3 right-3 z-10 h-24 w-32 overflow-hidden rounded-xl bg-[#2a3040] ring-1 ring-white/15 sm:h-28 sm:w-44">
+        <div
+          className={`absolute bottom-3 right-3 z-10 overflow-hidden rounded-xl bg-[#2a3040] ring-1 ring-white/15 ${
+            // Hidden rather than unmounted in the thumbnail: there is no room for it, but
+            // the publisher's video element lives in here and removing it would stop
+            // publishing — the other party would watch you disappear as you minimized.
+            compact ? "invisible h-px w-px" : "h-24 w-32 sm:h-28 sm:w-44"
+          }`}
+        >
           <div ref={localRef} className={`h-full w-full ${cameraOn ? "" : "invisible"}`} />
-          {!cameraOn && (
+          {!cameraOn && !compact && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 px-2">
               <span className="flex size-9 items-center justify-center rounded-full bg-[#00b4b8] text-xs font-semibold text-white">
                 {getInitials(selfName)}
@@ -375,17 +430,21 @@ export function VideoCallFrame({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-3 bg-black px-4 py-3">
+      <div
+        className={`flex flex-wrap items-center justify-center bg-black ${
+          compact ? "gap-1.5 px-2 py-2" : "gap-3 px-4 py-3"
+        }`}
+      >
         <button
           type="button"
           onClick={toggleMic}
           aria-label={micOn ? "Mute microphone" : "Unmute microphone"}
           aria-pressed={!micOn}
-          className={`flex size-11 items-center justify-center rounded-full text-white transition-transform hover:scale-105 active:scale-95 ${
+          className={`${controlSize} flex items-center justify-center rounded-full text-white transition-transform hover:scale-105 active:scale-95 ${
             micOn ? "bg-white/10 hover:bg-white/20" : "bg-[#d8442a]"
           }`}
         >
-          {micOn ? <Mic className="size-4" /> : <MicOff className="size-4" />}
+          {micOn ? <Mic className={iconSize} /> : <MicOff className={iconSize} />}
         </button>
 
         <button
@@ -393,29 +452,45 @@ export function VideoCallFrame({
           onClick={toggleCamera}
           aria-label={cameraOn ? "Turn off camera" : "Turn on camera"}
           aria-pressed={!cameraOn}
-          className={`flex size-11 items-center justify-center rounded-full text-white transition-transform hover:scale-105 active:scale-95 ${
+          className={`${controlSize} flex items-center justify-center rounded-full text-white transition-transform hover:scale-105 active:scale-95 ${
             cameraOn ? "bg-white/10 hover:bg-white/20" : "bg-[#d8442a]"
           }`}
         >
-          {cameraOn ? <Video className="size-4" /> : <VideoOff className="size-4" />}
+          {cameraOn ? <Video className={iconSize} /> : <VideoOff className={iconSize} />}
         </button>
 
         {/* Documenting while the visit is happening — the reason this frame carries controls
-            of its own rather than handing the whole strip to the call. */}
-        {canManage && onWriteRecord && (
+            of its own rather than handing the whole strip to the call. Dropped from the
+            thumbnail: both open a dialog that would cover the tile you just shrank, and
+            expanding first is one click either way. */}
+        {!compact && canManage && onWriteRecord && (
           <CallRecordButton booking={booking} onWriteRecord={onWriteRecord} />
         )}
-        {canManage && onProposeFollowUp && (
+        {!compact && canManage && onProposeFollowUp && (
           <CallFollowUpButton booking={booking} onProposeFollowUp={onProposeFollowUp} />
+        )}
+
+        {onToggleCompact && (
+          <button
+            type="button"
+            onClick={onToggleCompact}
+            aria-label={compact ? "Expand the call" : "Minimize the call and keep it running"}
+            title={
+              compact ? "Expand the call" : "Minimize — the call keeps running as you move around"
+            }
+            className={`${controlSize} flex items-center justify-center rounded-full bg-white/10 text-white transition-transform hover:scale-105 hover:bg-white/20 active:scale-95`}
+          >
+            {compact ? <Maximize2 className={iconSize} /> : <Minus className={iconSize} />}
+          </button>
         )}
 
         <button
           type="button"
           onClick={onLeave}
           aria-label="End call"
-          className="flex size-11 items-center justify-center rounded-full bg-[#ff3e66] text-white transition-transform hover:scale-105 active:scale-95"
+          className={`${controlSize} flex items-center justify-center rounded-full bg-[#ff3e66] text-white transition-transform hover:scale-105 active:scale-95`}
         >
-          <PhoneOff className="size-4" />
+          <PhoneOff className={iconSize} />
         </button>
       </div>
     </>
