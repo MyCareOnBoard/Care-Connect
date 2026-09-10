@@ -3,7 +3,11 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import type { Publisher, Session } from "@vonage/client-sdk-video"
 import { Maximize2, Mic, MicOff, Minus, PhoneOff, Video, VideoOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { CallFollowUpButton, CallRecordButton } from "@/components/professional/CallRecordButton"
+import {
+  CallClientRecordsButton,
+  CallFollowUpButton,
+  CallRecordButton,
+} from "@/components/professional/CallRecordButton"
 import { getInitials } from "@/lib/utils"
 import { getAuthErrorMessage } from "@/utils/auth"
 import { getVideoRoom } from "@/utils/careconnect/services/telehealthService"
@@ -81,6 +85,7 @@ export function VideoCallFrame({
   onToggleCompact,
   onWriteRecord,
   onProposeFollowUp,
+  onViewRecords,
   onLeave,
 }: {
   booking: TelehealthBooking
@@ -100,6 +105,12 @@ export function VideoCallFrame({
   onWriteRecord?: (booking: TelehealthBooking) => void
   /** Arrange the next visit without leaving the call. */
   onProposeFollowUp?: (booking: TelehealthBooking) => void
+  /**
+   * Open the client's record history. Expected to minimize the call before navigating —
+   * the frame does not navigate itself, so whoever owns the call decides what surviving a
+   * route change means.
+   */
+  onViewRecords?: (booking: TelehealthBooking) => void
   /** Called when the participant leaves, or is disconnected with no way back. */
   onLeave: () => void
 }) {
@@ -468,6 +479,9 @@ export function VideoCallFrame({
         )}
         {!compact && canManage && onProposeFollowUp && (
           <CallFollowUpButton booking={booking} onProposeFollowUp={onProposeFollowUp} />
+        )}
+        {!compact && canManage && onViewRecords && (
+          <CallClientRecordsButton booking={booking} onViewRecords={onViewRecords} />
         )}
 
         {onToggleCompact && (

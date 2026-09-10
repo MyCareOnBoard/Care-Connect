@@ -1,6 +1,39 @@
-import { CalendarPlus, FileText } from "lucide-react"
+import { CalendarPlus, FileText, FolderOpen } from "lucide-react"
 import { recordWriteState } from "@/utils/careconnect/bookingStatus"
 import type { TelehealthBooking } from "@/utils/careconnect/types"
+
+/**
+ * Open the client's whole record history, mid-call.
+ *
+ * Unlike the other two, this one leaves the call *screen* — the history is a route, not a
+ * dialog — so the caller minimizes the call before navigating and the visit carries on in
+ * the docked tile. That is only possible because the call is held above the router; while it
+ * was a step inside the booking dialog, going to this page hung up.
+ *
+ * No client-side gate beyond "you are the professional on this visit": what may be read is
+ * decided per record by episode-scoped consent on the server, which fails closed. Guessing
+ * at that here would either hide records the professional is entitled to or promise ones
+ * they are not.
+ */
+export function CallClientRecordsButton({
+  booking,
+  onViewRecords,
+}: {
+  booking: TelehealthBooking
+  onViewRecords: (booking: TelehealthBooking) => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onViewRecords(booking)}
+      title="Open this client's records — the call keeps running"
+      className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
+    >
+      <FolderOpen className="size-4" />
+      Client records
+    </button>
+  )
+}
 
 /**
  * Arrange the next visit without leaving the call.

@@ -53,9 +53,10 @@ export function ActiveCallLayer() {
   // Its own instance of the clinical dialogs rather than a page's: the page that started
   // the call may be unmounted by the time these are opened from it, which is precisely
   // what an app-level call makes possible.
-  const { openRecordEditor, openFollowUpProposal, surfaces } = useRecordSurfaces({
-    onBookingPatched: (updated) => session?.applyStatusChange(updated),
-  })
+  const { openRecordEditor, openFollowUpProposal, openClientRecords, surfaces } =
+    useRecordSurfaces({
+      onBookingPatched: (updated) => session?.applyStatusChange(updated),
+    })
 
   if (!session?.call) return null
   const { call, setMinimized, markEnded, rejoin, dismiss } = session
@@ -79,6 +80,19 @@ export function ActiveCallLayer() {
             onToggleCompact={() => setMinimized(!minimized)}
             onWriteRecord={canManage ? openRecordEditor : undefined}
             onProposeFollowUp={canManage ? openFollowUpProposal : undefined}
+            onViewRecords={
+              canManage
+                ? (target) => {
+                    // Minimize *before* navigating, not after: the records page is a route,
+                    // so a full-screen call would otherwise cover the very page it just
+                    // opened. Shrinking first means the visit carries on in the corner while
+                    // the professional reads the history — which is the entire reason the
+                    // call was lifted out of the booking dialog.
+                    setMinimized(true)
+                    openClientRecords(target)
+                  }
+                : undefined
+            }
             onLeave={markEnded}
           />
         ) : (
