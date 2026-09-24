@@ -3,9 +3,12 @@ import { createBrowserRouter, Navigate } from "react-router";
 import { Routes } from "@/routes/constants";
 import RouteErrorPage from "@/pages/error/RouteErrorPage";
 import { AppRouteGuard } from "@/components/AppRouteGuard";
+import { AdminRouteGuard } from "@/components/AdminRouteGuard";
 
 const AuthLayout = lazy(() => import("@/layouts/AuthLayout"));
 const AppLayout = lazy(() => import("@/layouts/AppLayout"));
+const AdminLayout = lazy(() => import("@/layouts/AdminLayout"));
+const AdminCowryPage = lazy(() => import("@/pages/app/admin/cowry"));
 
 const LoginPage = lazy(() => import("@/pages/auth/login"));
 const MfaChallengePage = lazy(() => import("@/pages/auth/mfa-challenge"));
@@ -124,6 +127,17 @@ export const router = createBrowserRouter([
           { path: `${Routes.app.agency.profile}/:id`, Component: ViewProfilePage },
           { path: Routes.app.agency.settings, Component: SettingsPage },
             ],
+          },
+        ],
+      },
+      {
+        // The operator area sits beside the member area, not inside it: its own guard and
+        // its own shell, so nothing here can render member navigation.
+        Component: AdminRouteGuard,
+        children: [
+          {
+            Component: AdminLayout,
+            children: [{ path: Routes.app.admin.cowry, Component: AdminCowryPage }],
           },
         ],
       },

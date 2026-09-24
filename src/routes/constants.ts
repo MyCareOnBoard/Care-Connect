@@ -28,6 +28,11 @@ export const Routes = {
             cowryCreator: "/user/cowry/creator",
             cowryWithdraw: "/user/cowry/withdraw",
         },
+        // Operator area. Separate prefix, separate guard, separate shell — an account here
+        // has no member view, and a member has no business here.
+        admin: {
+            cowry: "/admin/cowry",
+        },
         agency: {
             dashboard: "/agency/dashboard",
             network: "/agency/network",

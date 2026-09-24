@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router"
 import { useAuth, useAuthUser } from "@/utils/auth"
-import { getDashboardRouteForUserType } from "@/utils/auth/helpers/roleDashboard"
+import { getDashboardRouteForUserType, isAdminUserType } from "@/utils/auth/helpers/roleDashboard"
 import { PageLoader } from "./ui/loader"
 import { auth } from "@/lib/firebase"
 import { Routes } from "@/routes/constants"
@@ -14,9 +14,10 @@ const AGENCY_PREFIX = "/agency"
  * reach any route by URL, and the company/individual split was decided only by
  * the login landing page + the URL prefix (see useCareFlow). This enforces it:
  *
- *  1. No Firebase session               → send to login.
- *  2. A denied account (e.g. super_admin) → send to login (mirrors postLogin).
- *  3. An account in the wrong area        → redirect to its own dashboard, so a
+ *  1. No Firebase session          → send to login.
+ *  2. A role with no home here     → send to login (mirrors postLogin).
+ *  3. An operator account          → redirect to `/admin/*`; it has no member view.
+ *  4. An account in the wrong area → redirect to its own dashboard, so a
  *     company account can't open `/user/*` and an individual can't open `/agency/*`.
  *
  * The company-vs-individual decision reuses getDashboardRouteForUserType so this
@@ -35,6 +36,11 @@ export function AppRouteGuard() {
 
   const result = getDashboardRouteForUserType(user.userType)
   if (!result.allowed) return <Navigate to={Routes.auth.login} replace />
+
+  // An operator has no place in either member area. Checked before the agency/individual
+  // split below, which compares prefixes and would otherwise read an admin as an individual
+  // and let them browse `/user/*`.
+  if (isAdminUserType(user.userType)) return <Navigate to={result.route} replace />
 
   // Keep each account inside its own area. `result.route` is the account's correct
   // dashboard, so its prefix tells us which side the account belongs to.
