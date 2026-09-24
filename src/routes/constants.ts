@@ -19,6 +19,19 @@ export const Routes = {
             records: "/user/records",
             clientRecords: (clientId: string) => `/user/records/${clientId}`,
             followUps: "/user/follow-ups",
+            // Cowry reward economy.
+            cowryWallet: "/user/cowry",
+            cowryHistory: "/user/cowry/history",
+            cowryEarn: "/user/cowry/earn",
+            cowryRedeem: "/user/cowry/redeem",
+            cowryBuy: "/user/cowry/buy",
+            cowryCreator: "/user/cowry/creator",
+            cowryWithdraw: "/user/cowry/withdraw",
+        },
+        // Operator area. Separate prefix, separate guard, separate shell — an account here
+        // has no member view, and a member has no business here.
+        admin: {
+            cowry: "/admin/cowry",
         },
         agency: {
             dashboard: "/agency/dashboard",

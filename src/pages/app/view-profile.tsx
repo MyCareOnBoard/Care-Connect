@@ -4,6 +4,7 @@ import { ArrowLeft, MapPin } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { FollowButton } from "@/components/app/FollowButton"
+import { GiftTray } from "@/components/cowry/GiftTray"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCareFlow } from "@/components/app/useCareFlow"
 import { Routes } from "@/routes/constants"
@@ -45,6 +46,7 @@ export default function ViewProfilePage() {
   const { flow } = useCareFlow()
   const [activeTab, setActiveTab] = useState<ProfileTab>("About")
   const [profile, setProfile] = useState<CareConnectProfile | null>(null)
+  const [giftTrayOpen, setGiftTrayOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const messagesPath = flow === "agency" ? Routes.app.agency.messages : Routes.app.user.messages
 
@@ -146,6 +148,13 @@ export default function ViewProfilePage() {
                 <div className="flex items-center gap-3">
                   <Button asChild className="h-10 rounded-full bg-[#00b4b8] px-5 text-white hover:opacity-90">
                     <Link to={`${messagesPath}?to=${profile.uid}`}>Message</Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-10 rounded-full px-5"
+                    onClick={() => setGiftTrayOpen(true)}
+                  >
+                    Send a gift
                   </Button>
                   <FollowButton
                     label="Connect"
@@ -251,6 +260,16 @@ export default function ViewProfilePage() {
           )}
         </div>
       </section>
+
+      {/* Gifts on a profile are in scope; gifts on posts follow when posts do. */}
+      <GiftTray
+        open={giftTrayOpen}
+        onOpenChange={setGiftTrayOpen}
+        recipientId={profile.uid}
+        recipientName={profile.name}
+        targetType="profile"
+        targetId={profile.uid}
+      />
     </div>
   )
 }
