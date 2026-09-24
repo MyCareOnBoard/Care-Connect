@@ -6,6 +6,7 @@
 // Posts go through the merged careconnectCore function (aliased as axiosClient below);
 // media upload stays on the shared root client (uploads is a separate function).
 import rootClient, { careconnectClient as axiosClient } from "@/lib/axios"
+import { publishCowryAward } from "@/utils/careconnect/cowryEarned"
 
 export interface FeedComment {
   id: string
@@ -52,6 +53,8 @@ export interface ListFeedParams {
 
 export async function listFeed(params: ListFeedParams = {}): Promise<FeedPost[]> {
   const { data } = await axiosClient.get("/careconnectPosts", { params })
+  // Opening the app pays once a day, and loading the feed is what opening the app means.
+  publishCowryAward(data.cowry, "visit")
   return data.data
 }
 
@@ -68,6 +71,7 @@ export async function createPost(input: CreatePostInput): Promise<FeedPost> {
     hashtags: input.hashtags,
     mediaUrls,
   })
+  publishCowryAward(data.cowry, "post")
   return data.data
 }
 
@@ -86,6 +90,7 @@ export async function listComments(id: string): Promise<FeedComment[]> {
 
 export async function addComment(id: string, text: string): Promise<FeedComment> {
   const { data } = await axiosClient.post(`/careconnectPosts/${id}/comments`, { text })
+  publishCowryAward(data.cowry, "comment")
   return data.data
 }
 
