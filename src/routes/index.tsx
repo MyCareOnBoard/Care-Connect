@@ -43,6 +43,13 @@ const HealthProfilePage = lazy(() => import("@/pages/app/user/health-profile"));
 const MyRecordsPage = lazy(() => import("@/pages/app/user/records"));
 const ClientRecordsPage = lazy(() => import("@/pages/app/professional/client-records"));
 const FollowUpsPage = lazy(() => import("@/pages/app/user/follow-ups"));
+const CowryWalletPage = lazy(() => import("@/pages/app/user/cowry-wallet"));
+const CowryHistoryPage = lazy(() => import("@/pages/app/user/cowry-history"));
+const CowryEarnPage = lazy(() => import("@/pages/app/user/cowry-earn"));
+const CowryRedeemPage = lazy(() => import("@/pages/app/user/cowry-redeem"));
+const CowryBuyPage = lazy(() => import("@/pages/app/user/cowry-buy"));
+const CowryCreatorPage = lazy(() => import("@/pages/app/user/cowry-creator"));
+const CowryWithdrawPage = lazy(() => import("@/pages/app/user/cowry-withdraw"));
 
 export const router = createBrowserRouter([
   {
@@ -98,6 +105,13 @@ export const router = createBrowserRouter([
           { path: Routes.app.user.records, Component: MyRecordsPage },
           { path: `${Routes.app.user.records}/:clientId`, Component: ClientRecordsPage },
           { path: Routes.app.user.followUps, Component: FollowUpsPage },
+          { path: Routes.app.user.cowryWallet, Component: CowryWalletPage },
+          { path: Routes.app.user.cowryHistory, Component: CowryHistoryPage },
+          { path: Routes.app.user.cowryEarn, Component: CowryEarnPage },
+          { path: Routes.app.user.cowryRedeem, Component: CowryRedeemPage },
+          { path: Routes.app.user.cowryBuy, Component: CowryBuyPage },
+          { path: Routes.app.user.cowryCreator, Component: CowryCreatorPage },
+          { path: Routes.app.user.cowryWithdraw, Component: CowryWithdrawPage },
           { path: Routes.app.agency.dashboard, Component: AgencyDashboardPage },
           { path: Routes.app.agency.network, Component: NetworkPage },
           { path: Routes.app.agency.messages, Component: MessagesPage },

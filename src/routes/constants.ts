@@ -19,6 +19,14 @@ export const Routes = {
             records: "/user/records",
             clientRecords: (clientId: string) => `/user/records/${clientId}`,
             followUps: "/user/follow-ups",
+            // Cowry reward economy.
+            cowryWallet: "/user/cowry",
+            cowryHistory: "/user/cowry/history",
+            cowryEarn: "/user/cowry/earn",
+            cowryRedeem: "/user/cowry/redeem",
+            cowryBuy: "/user/cowry/buy",
+            cowryCreator: "/user/cowry/creator",
+            cowryWithdraw: "/user/cowry/withdraw",
         },
         agency: {
             dashboard: "/agency/dashboard",
