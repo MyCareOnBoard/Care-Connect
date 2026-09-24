@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 import { db } from "@/lib/firebase"
 import { useAuthUser } from "@/utils/auth"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { isCowryPathEnabled } from "@/utils/careconnect/cowryPages"
 import { useCareFlow } from "./useCareFlow"
 import { AccountControls } from "./AccountControls"
 import { RouteProgressBar } from "./RouteProgressBar"
@@ -32,20 +33,30 @@ const userNavItems: NavItem[] = [
       { label: "My Health Records", href: Routes.app.user.healthProfile },
     ],
   },
-  {
-    label: "Cowry",
-    href: Routes.app.user.cowryWallet,
-    children: [
-      { label: "Wallet", href: Routes.app.user.cowryWallet },
-      { label: "Earn", href: Routes.app.user.cowryEarn },
-      { label: "Redeem for data", href: Routes.app.user.cowryRedeem },
-      { label: "Buy Cowries", href: Routes.app.user.cowryBuy },
-      { label: "Creator earnings", href: Routes.app.user.cowryCreator },
-      { label: "Cash out", href: Routes.app.user.cowryWithdraw },
-      { label: "History", href: Routes.app.user.cowryHistory },
-    ],
-  },
+  // The Cowry pages are switched on individually — see cowryPages.ts. A page that is off
+  // loses its entry here and its route; the parent drops out entirely once nothing is
+  // left under it, rather than opening an empty dropdown.
+  ...cowryNavItem(),
 ]
+
+/** Exported for its own test: the empty case and the parent href are easy to get wrong. */
+export function cowryNavItem(): NavItem[] {
+  const children = [
+    { label: "Wallet", href: Routes.app.user.cowryWallet },
+    { label: "Earn", href: Routes.app.user.cowryEarn },
+    { label: "Redeem for data", href: Routes.app.user.cowryRedeem },
+    { label: "Buy Cowries", href: Routes.app.user.cowryBuy },
+    { label: "Creator earnings", href: Routes.app.user.cowryCreator },
+    { label: "Cash out", href: Routes.app.user.cowryWithdraw },
+    { label: "History", href: Routes.app.user.cowryHistory },
+  ].filter((child) => isCowryPathEnabled(child.href))
+
+  if (!children.length) return []
+
+  // The parent points at the first page still standing, so clicking "Cowry" never lands
+  // on a route that has been switched off.
+  return [{ label: "Cowry", href: children[0].href, children }]
+}
 
 const agencyNavItems: NavItem[] = [
   { label: "Home", href: Routes.app.agency.dashboard },
