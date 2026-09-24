@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router"
 import { toast } from "sonner"
-import { Sparkles } from "lucide-react"
 import { Routes } from "@/routes/constants"
+import { CowryIcon } from "@/components/cowry/CowryIcon"
 import {
   COWRY_REFUSAL_MESSAGES,
   onCowryEarned,
@@ -100,7 +100,7 @@ export function CowryEarnedLayer() {
             to={Routes.app.user.cowryWallet}
             className="cowry-landing pointer-events-auto flex items-center gap-2 rounded-full bg-[#10141a] px-4 py-2 text-white shadow-lg"
           >
-            <Sparkles className="size-4 text-[#ffd76e]" aria-hidden="true" />
+            <CowryIcon size={20} className="animate-cowry-pop [animation-delay:150ms]" />
             <span className="text-sm font-semibold tabular-nums">
               +{landing.amount.toLocaleString("en-US")} Cowries
             </span>

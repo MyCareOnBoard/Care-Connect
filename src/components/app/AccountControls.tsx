@@ -195,11 +195,15 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
+          {/* Initials rather than the full name, so the header leaves room for the nav.
+              The full name is still in the label, and at the top of the menu it opens. */}
           <button
             type="button"
-            className="flex h-6 items-center gap-3 rounded-full pl-2 pr-3 outline-none transition hover:bg-[#edf3f5] cursor-pointer"
+            aria-label={`Account menu for ${displayName}`}
+            title={displayName}
+            className="flex h-6 items-center gap-1 rounded-full pl-1.5 pr-2 outline-none transition hover:bg-[#edf3f5] cursor-pointer"
           >
-            <span className="hidden text-xs font-medium sm:inline">{displayName}</span>
+            <span className="text-xs font-bold tracking-wide text-[#00898c]">{initials}</span>
             <ChevronDown className="size-4" />
           </button>
         </DropdownMenuTrigger>

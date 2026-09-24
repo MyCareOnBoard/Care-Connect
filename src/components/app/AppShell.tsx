@@ -9,28 +9,37 @@ import { db } from "@/lib/firebase"
 import { useAuthUser } from "@/utils/auth"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { isCowryPathEnabled } from "@/utils/careconnect/cowryPages"
+import { CowryBalanceChip } from "@/components/cowry/CowryBalanceChip"
 import { useCareFlow } from "./useCareFlow"
 import { AccountControls } from "./AccountControls"
 import { RouteProgressBar } from "./RouteProgressBar"
 
 type NavItem = { label: string; href: string; children?: { label: string; href: string }[] }
 
-// Only user/professional accounts have a health profile — "My health" nests under
-// "Tele health" as a dropdown there, rather than taking its own top-level slot.
+// Related pages nest under one dropdown rather than each taking a top-level slot:
+// Applications sits with the Jobs it applies to, and Schedule (bookings and
+// appointments) and "My health" sit with Tele health. Only user/professional
+// accounts have a health profile, so the agency nav keeps a flat Tele health.
 const userNavItems: NavItem[] = [
   { label: "Home", href: Routes.app.user.dashboard },
   { label: "My network", href: Routes.app.user.network },
   { label: "Messages", href: Routes.app.user.messages },
-  { label: "Jobs", href: Routes.app.user.jobs },
-  { label: "Applications", href: Routes.app.user.applications },
+  {
+    label: "Jobs",
+    href: Routes.app.user.jobs,
+    children: [
+      { label: "Jobs", href: Routes.app.user.jobs },
+      { label: "Applications", href: Routes.app.user.applications },
+    ],
+  },
   { label: "Market place", href: Routes.app.user.marketplace },
-  { label: "Schedule", href: Routes.app.user.schedule },
   {
     label: "Tele health",
     href: Routes.app.user.telehealth,
     children: [
       { label: "Tele health", href: Routes.app.user.telehealth },
       { label: "My Health Records", href: Routes.app.user.healthProfile },
+      { label: "Schedule", href: Routes.app.user.schedule },
     ],
   },
   // The Cowry pages are switched on individually — see cowryPages.ts. A page that is off
@@ -194,7 +203,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <div className="ml-auto lg:ml-0">
+        <div className="ml-auto flex items-center gap-2 lg:ml-0">
+          {/* Agencies have no Cowry wallet, so the balance is a member-only fixture. */}
+          {flow !== "agency" && <CowryBalanceChip />}
           <AccountControls flow={flow} />
         </div>
       </header>

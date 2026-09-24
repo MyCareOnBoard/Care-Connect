@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { CowryAmount, CowryIcon } from "@/components/cowry/CowryIcon"
+import { celebrateCowries } from "@/components/cowry/celebrate"
 import { Routes } from "@/routes/constants"
 import { getAuthErrorMessage } from "@/utils/auth"
 import {
@@ -136,6 +138,7 @@ export function GiftTray({
 
       // Only now. The server has taken the Cowries.
       setSentLabel(selected.label)
+      celebrateCowries(selected.set === "legendary" || selected.set === "rare" ? "shower" : "burst")
       setCatalog((current) =>
         current ? { ...current, purchasedAvailable: current.purchasedAvailable - selected.cost } : current,
       )
@@ -154,8 +157,12 @@ export function GiftTray({
         {sentLabel ? (
           <DialogBody className="py-10 text-center">
             {/* The celebration, shown only once the spend is confirmed. */}
-            <div className="mx-auto flex size-16 animate-[pulse_1s_ease-in-out_2] items-center justify-center rounded-full bg-[#e2f7e8]">
-              <Check className="size-8 text-[#1f9c4c]" aria-hidden="true" />
+            <div className="relative mx-auto flex size-20 items-center justify-center">
+              <span className="animate-check-ring absolute size-16 rounded-full bg-[#00b4b8]" />
+              <span className="animate-cowry-pop relative flex size-16 items-center justify-center rounded-full bg-[#00b4b8]">
+                <Check className="size-8 text-white" aria-hidden="true" />
+              </span>
+              <CowryIcon size={26} className="animate-cowry-pop absolute -right-1 -top-1 [animation-delay:250ms]" />
             </div>
             <p className="mt-4 text-lg font-bold text-[#141922]">{sentLabel} sent</p>
             <p className="mt-1 text-sm text-[#657080]">
@@ -166,16 +173,16 @@ export function GiftTray({
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Gift className="size-5 text-[#0d8de0]" aria-hidden="true" />
+                <Gift className="size-5 text-[#00b4b8]" aria-hidden="true" />
                 Send a gift
                 {recipientName && <span className="font-normal text-[#657080]">to {recipientName}</span>}
               </DialogTitle>
             </DialogHeader>
 
             <DialogBody className="space-y-4">
-              <div className="flex items-center justify-between rounded-lg bg-[#f7f9fb] px-4 py-3 text-sm">
+              <div className="flex items-center justify-between rounded-xl bg-[#f7f9fb] px-4 py-3 text-sm">
                 <span className="text-[#657080]">Your bought Cowries</span>
-                <span className="font-semibold tabular-nums">{formatCowries(balance)}</span>
+                <CowryAmount amount={balance} size={18} className="font-semibold" />
               </div>
 
               {loading && (
@@ -197,7 +204,7 @@ export function GiftTray({
                         aria-pressed={activeSet === set}
                         className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                           activeSet === set
-                            ? "bg-[#0d8de0] text-white"
+                            ? "bg-[#10141a] text-white"
                             : "bg-[#eef1f3] text-[#565656] hover:bg-[#e2e6ea]"
                         }`}
                       >
@@ -218,30 +225,30 @@ export function GiftTray({
                           aria-pressed={active}
                           // Dimmed, not hidden: seeing the next tier is most of why
                           // anyone buys more Cowries.
-                          className={`rounded-lg border p-2.5 text-center transition ${
+                          className={`cowry-press cowry-hover rounded-xl border-2 p-2.5 text-center transition ${
                             active
-                              ? "border-[#0d8de0] bg-[#e0f2ff]"
-                              : "border-[#e2e2e2] bg-white hover:border-[#c8cdd4]"
+                              ? "border-[#00b4b8] bg-[#effbfb]"
+                              : "border-[#e2e6ea] bg-white hover:border-[#c8cdd4]"
                           } ${affordable ? "" : "opacity-55"}`}
                         >
+                          <Gift
+                            className={`cowry-wobble mx-auto mb-1 size-5 ${active ? "text-[#00b4b8]" : "text-[#9aa4b2]"}`}
+                            aria-hidden="true"
+                          />
                           <span className="block truncate text-xs font-medium text-[#141922]">
                             {gift.label}
                           </span>
-                          <span className="mt-1 block text-xs tabular-nums text-[#657080]">
-                            {formatCowries(gift.cost)}
-                          </span>
+                          <CowryAmount amount={gift.cost} size={12} className="mt-1 text-xs text-[#657080]" />
                         </button>
                       )
                     })}
                   </div>
 
                   {selected && (
-                    <div className="space-y-3 rounded-lg border border-[#e2e2e2] p-4">
+                    <div key={selected.id} className="animate-fade-in-up space-y-3 rounded-xl border border-[#e2e6ea] p-4">
                       <div className="flex items-baseline justify-between">
                         <span className="font-semibold">{selected.label}</span>
-                        <span className="tabular-nums text-[#565656]">
-                          {formatCowries(selected.cost)} Cowries
-                        </span>
+                        <CowryAmount amount={selected.cost} size={16} className="text-[#565656]" />
                       </div>
 
                       <Input
