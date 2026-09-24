@@ -797,7 +797,7 @@ export function HealthProfileForm({
           description="Who your professional escalates to if they are concerned."
         >
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="GP name">
+            <Field label="General Practitioner name">
               <Input
                 value={value.careCircle?.gpName ?? ""}
                 onChange={(event) => setCareCircle({ gpName: event.target.value })}
@@ -805,7 +805,7 @@ export function HealthProfileForm({
                 className="h-11"
               />
             </Field>
-            <Field label="GP phone">
+            <Field label="General Practitioner phone">
               <Input
                 type="tel"
                 value={value.careCircle?.gpPhone ?? ""}

@@ -59,6 +59,7 @@ export function ConsentPanel() {
   const [accessCursor, setAccessCursor] = useState<string | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [confirmGrant, setConfirmGrant] = useState(false)
   const [confirmRevoke, setConfirmRevoke] = useState(false)
   // Per-course-of-care sharing, independent of the account-level switch above.
   const [episodeShares, setEpisodeShares] = useState<EpisodeShareGrant[]>([])
@@ -159,12 +160,13 @@ export function ConsentPanel() {
   }
 
   const handleToggle = (next: boolean) => {
-    // Turning sharing OFF is the consequential direction, so it gets the confirm.
-    if (!next) {
+    // Both directions are consequential enough to confirm: turning on hands PHI
+    // access to whoever books you next, turning off hides history immediately.
+    if (next) {
+      setConfirmGrant(true)
+    } else {
       setConfirmRevoke(true)
-      return
     }
-    void applyConsent(true)
   }
 
   if (loading) {
@@ -359,6 +361,34 @@ export function ConsentPanel() {
         </div>
       </section>
 
+      <AlertDialog open={confirmGrant} onOpenChange={setConfirmGrant}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>You are about to share your health records</AlertDialogTitle>
+            <AlertDialogDescription className="whitespace-pre-line">
+              {"Let professionals I book see my past visit records.\n\n" +
+                "Only professionals assigned to a confirmed or completed booking with you, and " +
+                "only records that have been signed. Turning this off hides your history from " +
+                "them straight away.\n\n" +
+                "Turning this off later stops new access, but it does not delete records already " +
+                "written, and professionals who have already read one may have their own notes."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[#00b4b8] text-white hover:opacity-90"
+              onClick={() => {
+                setConfirmGrant(false)
+                void applyConsent(true)
+              }}
+            >
+              Share my records
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={confirmRevoke} onOpenChange={setConfirmRevoke}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -372,6 +402,7 @@ export function ConsentPanel() {
           <AlertDialogFooter>
             <AlertDialogCancel>Keep sharing on</AlertDialogCancel>
             <AlertDialogAction
+              className="bg-[#ff3e66] text-white hover:opacity-90"
               onClick={() => {
                 setConfirmRevoke(false)
                 void applyConsent(false)

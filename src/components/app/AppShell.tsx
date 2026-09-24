@@ -32,6 +32,19 @@ const userNavItems: NavItem[] = [
       { label: "My Health Records", href: Routes.app.user.healthProfile },
     ],
   },
+  {
+    label: "Cowry",
+    href: Routes.app.user.cowryWallet,
+    children: [
+      { label: "Wallet", href: Routes.app.user.cowryWallet },
+      { label: "Earn", href: Routes.app.user.cowryEarn },
+      { label: "Redeem for data", href: Routes.app.user.cowryRedeem },
+      { label: "Buy Cowries", href: Routes.app.user.cowryBuy },
+      { label: "Creator earnings", href: Routes.app.user.cowryCreator },
+      { label: "Cash out", href: Routes.app.user.cowryWithdraw },
+      { label: "History", href: Routes.app.user.cowryHistory },
+    ],
+  },
 ]
 
 const agencyNavItems: NavItem[] = [
