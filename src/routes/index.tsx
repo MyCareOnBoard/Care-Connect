@@ -4,6 +4,7 @@ import { Routes } from "@/routes/constants";
 import RouteErrorPage from "@/pages/error/RouteErrorPage";
 import { AppRouteGuard } from "@/components/AppRouteGuard";
 import { AdminRouteGuard } from "@/components/AdminRouteGuard";
+import { isCowryPathEnabled } from "@/utils/careconnect/cowryPages";
 
 const AuthLayout = lazy(() => import("@/layouts/AuthLayout"));
 const AppLayout = lazy(() => import("@/layouts/AppLayout"));
@@ -53,6 +54,11 @@ const CowryRedeemPage = lazy(() => import("@/pages/app/user/cowry-redeem"));
 const CowryBuyPage = lazy(() => import("@/pages/app/user/cowry-buy"));
 const CowryCreatorPage = lazy(() => import("@/pages/app/user/cowry-creator"));
 const CowryWithdrawPage = lazy(() => import("@/pages/app/user/cowry-withdraw"));
+
+/** Drops the routes for Cowry pages that are switched off. */
+function cowryRoutes<T extends { path: string }>(routes: T[]): T[] {
+  return routes.filter((route) => isCowryPathEnabled(route.path));
+}
 
 export const router = createBrowserRouter([
   {
@@ -108,13 +114,18 @@ export const router = createBrowserRouter([
           { path: Routes.app.user.records, Component: MyRecordsPage },
           { path: `${Routes.app.user.records}/:clientId`, Component: ClientRecordsPage },
           { path: Routes.app.user.followUps, Component: FollowUpsPage },
-          { path: Routes.app.user.cowryWallet, Component: CowryWalletPage },
-          { path: Routes.app.user.cowryHistory, Component: CowryHistoryPage },
-          { path: Routes.app.user.cowryEarn, Component: CowryEarnPage },
-          { path: Routes.app.user.cowryRedeem, Component: CowryRedeemPage },
-          { path: Routes.app.user.cowryBuy, Component: CowryBuyPage },
-          { path: Routes.app.user.cowryCreator, Component: CowryCreatorPage },
-          { path: Routes.app.user.cowryWithdraw, Component: CowryWithdrawPage },
+          // A Cowry page that is switched off loses its route as well as its nav entry.
+          // Hiding only the link would leave it reachable by URL and by an old bookmark,
+          // which is not "off" — it is just harder to find.
+          ...cowryRoutes([
+            { path: Routes.app.user.cowryWallet, Component: CowryWalletPage },
+            { path: Routes.app.user.cowryHistory, Component: CowryHistoryPage },
+            { path: Routes.app.user.cowryEarn, Component: CowryEarnPage },
+            { path: Routes.app.user.cowryRedeem, Component: CowryRedeemPage },
+            { path: Routes.app.user.cowryBuy, Component: CowryBuyPage },
+            { path: Routes.app.user.cowryCreator, Component: CowryCreatorPage },
+            { path: Routes.app.user.cowryWithdraw, Component: CowryWithdrawPage },
+          ]),
           { path: Routes.app.agency.dashboard, Component: AgencyDashboardPage },
           { path: Routes.app.agency.network, Component: NetworkPage },
           { path: Routes.app.agency.messages, Component: MessagesPage },
