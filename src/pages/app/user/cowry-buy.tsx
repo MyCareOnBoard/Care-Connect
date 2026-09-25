@@ -49,8 +49,8 @@ const POLL_ATTEMPTS = 8
 
 function BuySkeleton() {
   return (
-    <div className="space-y-6 p-5 sm:p-8">
-      <Skeleton className="h-8 w-40" />
+    <div className="p-5 space-y-6 sm:p-8">
+      <Skeleton className="w-40 h-8" />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-36 rounded-2xl" />
@@ -64,7 +64,7 @@ function BuySkeleton() {
 /** A pile of shells that grows with the package, so bigger reads as bigger at a glance. */
 function ShellStack({ count }: { count: number }) {
   return (
-    <span className="flex h-8 items-end" aria-hidden="true">
+    <span className="flex items-end h-8" aria-hidden="true">
       {Array.from({ length: count }).map((_, i) => (
         <CowryIcon
           key={i}
@@ -250,7 +250,7 @@ export default function CowryBuyPage() {
 
   if (packages.length === 0) {
     return (
-      <div className="animate-fade-in-up space-y-6 p-5 sm:p-8">
+      <div className="p-5 space-y-6 animate-fade-in-up sm:p-8">
         <CowryPageHeader title="Buy Cowries" />
         <CowryEmpty title="Buying Cowries isn't available yet">
           You can still earn them by taking part.
@@ -264,7 +264,7 @@ export default function CowryBuyPage() {
     : 0
 
   return (
-    <div className="animate-fade-in-up space-y-7 p-5 sm:p-8">
+    <div className="p-5 animate-fade-in-up space-y-7 sm:p-8">
       <CowryPageHeader
         title="Buy Cowries"
         subtitle="Bought Cowries are for sending gifts. They can also go toward mobile data, with a fee."
@@ -272,7 +272,7 @@ export default function CowryBuyPage() {
 
       <section>
         <h2 className="mb-3 text-sm font-semibold text-[#141922]">Choose an amount</h2>
-        <div className="cowry-stagger grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 cowry-stagger sm:grid-cols-2 lg:grid-cols-4">
           {packages.map((pkg, index) => (
             <ChoiceCard key={pkg.id} selected={pkg.id === selectedId} onSelect={() => setSelectedId(pkg.id)}>
               <ShellStack count={Math.min(4, index + 1)} />
@@ -305,7 +305,7 @@ export default function CowryBuyPage() {
               </ReceiptRow>
             </dl>
 
-            <Button className="cowry-press mt-5 h-12 w-full text-base" onClick={buy} disabled={starting}>
+            <Button className="w-full h-12 mt-5 text-base cowry-press bg-[#00b4b8] hover:bg-[#0b7bc8]" onClick={buy} >
               {starting ? (
                 <>
                   <Loader2 className="size-4 animate-spin" aria-hidden="true" />
@@ -334,7 +334,7 @@ export default function CowryBuyPage() {
             <p className="mt-2">
               Taking money back out carries a {Math.round((selected.withdrawalFeeRate ?? 0) * 100)}% fee.
             </p>
-            <div className="mt-4 flex items-center gap-2 text-center text-xs">
+            <div className="flex items-center gap-2 mt-4 text-xs text-center">
               <div className="flex-1 rounded-xl bg-white p-3 ring-1 ring-[#e2e6ea]">
                 <p className="text-[#8a94a3]">You pay</p>
                 <p className="mt-0.5 text-base font-bold tabular-nums text-[#141922]">
