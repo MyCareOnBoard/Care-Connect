@@ -7,6 +7,7 @@
 // media upload stays on the shared root client (uploads is a separate function).
 import rootClient, { careconnectClient as axiosClient } from "@/lib/axios"
 import { publishCowryAward } from "@/utils/careconnect/cowryEarned"
+import type { Timestampish } from "@/utils/careconnect/types"
 
 export interface FeedComment {
   id: string
@@ -28,6 +29,8 @@ export interface FeedPost {
   likesCount: number
   commentsCount: number
   likedByMe?: boolean
+  /** Not yet in every backend response; the feed shows a time only when it is present. */
+  createdAt?: Timestampish
 }
 
 export interface CreatePostInput {

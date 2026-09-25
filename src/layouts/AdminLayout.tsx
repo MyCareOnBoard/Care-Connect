@@ -3,6 +3,7 @@ import { NavLink, Outlet } from "react-router"
 import { LogOut } from "lucide-react"
 import { CowryIcon } from "@/components/cowry/CowryIcon"
 import { RouteLoader } from "@/components/ui/loader"
+import { ScrollToTop } from "@/components/app/ScrollToTop"
 import { Routes } from "@/routes/constants"
 import { useAuth, useAuthUser } from "@/utils/auth"
 
@@ -78,6 +79,7 @@ export default function AdminLayout() {
           <Outlet />
         </Suspense>
       </main>
+      <ScrollToTop />
     </div>
   )
 }

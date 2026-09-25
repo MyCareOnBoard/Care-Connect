@@ -1,13 +1,16 @@
-import { useEffect, useState, type CSSProperties } from "react"
-import { Bookmark } from "lucide-react"
+import { useEffect, useMemo, useState, type CSSProperties } from "react"
+import { Bookmark, Sparkles, Users } from "lucide-react"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
-import { StatRow } from "@/components/app/StatRow"
 import { ViewAllLink } from "@/components/app/ViewAllLink"
 import { PostComposer } from "@/components/app/PostComposer"
 import { DashboardFeed } from "@/components/app/DashboardFeed"
 import { ConnectionsSection, type Connection } from "@/components/app/ConnectionsSection"
 import { MarketplacePromoCard } from "@/components/app/MarketplacePromoCard"
+import { avatarColor } from "@/components/app/avatarColor"
+import { WelcomeStrip } from "@/components/home/WelcomeStrip"
+import { ProfileStrengthCard } from "@/components/home/ProfileStrengthCard"
+import { profileStrength } from "@/components/home/profileStrength"
 import { Routes } from "@/routes/constants"
 import { cn, getInitials } from "@/lib/utils"
 import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
@@ -19,24 +22,23 @@ import {
 } from "@/utils/careconnect/services/jobsService"
 import { getProfile, listProfiles } from "@/utils/careconnect/services/profilesService"
 import { listConnections } from "@/utils/careconnect/services/connectionsService"
-import { formatSalary, type CareConnectProfile, type Job } from "@/utils/careconnect/types"
+import { formatSalary, toDate, type CareConnectProfile, type Job } from "@/utils/careconnect/types"
+import { onCowryEarned } from "@/utils/careconnect/cowryEarned"
+import { isCowryPathEnabled } from "@/utils/careconnect/cowryPages"
+import { getEarnSummary, type CowryEarnSummary } from "@/utils/careconnect/services/cowryService"
 
-const AVATAR_PALETTE = [
-  "bg-[#00b4b8]",
-  "bg-[#ffa33d]",
-  "bg-[#a782d8]",
-  "bg-[#d193ce]",
-  "bg-[#ffc95c]",
-  "bg-[#33b6a6]",
-]
+/** A job posted within this many days wears a "New" badge. */
+const NEW_JOB_DAYS = 7
 
 /** Map a directory profile into the presentational Connection shape. */
-function toConnection(profile: CareConnectProfile, index: number): Connection {
+function toConnection(profile: CareConnectProfile): Connection {
   return {
     name: profile.name || "Care Connect user",
     subtitle: profile.subtitle,
     initials: getInitials(profile.name),
-    avatarClassName: AVATAR_PALETTE[index % AVATAR_PALETTE.length],
+    // Coloured by who they are, so a person keeps one colour across the page.
+    avatarClassName: avatarColor(profile.uid),
+    photo: profile.photo,
     profileHref: Routes.app.user.viewProfile(profile.uid),
     uid: profile.uid,
     isFollowing: profile.isFollowing,
@@ -54,19 +56,46 @@ function JobCard({
   onToggleSave: () => void
   style?: CSSProperties
 }) {
+  const posted = toDate(job.createdAt ?? null)
+  const isNew = posted ? Date.now() - posted.getTime() < NEW_JOB_DAYS * 86_400_000 : false
+  const salary = formatSalary(job)
+
   return (
     <article
       style={style}
-      className="animate-fade-in-up group rounded-xl border border-white/60 bg-white/80 p-4 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00b4b8]/30 hover:shadow-[0_12px_28px_rgba(0,180,184,0.12)]"
+      className="animate-fade-in-up group rounded-2xl border border-white/60 bg-white/85 p-4 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00b4b8]/30 hover:shadow-[0_12px_28px_rgba(0,180,184,0.12)]"
     >
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="text-base font-semibold leading-[1.35]">{job.title}</h3>
+      <div className="flex items-start gap-3">
+        {/* A monogram tile stands in for a company logo until jobs carry one. */}
+        <span
+          className={cn(
+            "flex size-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white shadow-sm",
+            avatarColor(job.company),
+          )}
+          aria-hidden="true"
+        >
+          {getInitials(job.company)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h3 className="truncate text-sm font-bold leading-snug text-[#151922]">{job.title}</h3>
+            {isNew && (
+              <span className="shrink-0 rounded-full bg-[#e2f7e8] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#1f9c4c]">
+                New
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 truncate text-xs text-[#565f6d]">
+            {job.company}
+            {job.location && ` · ${job.location}`}
+          </p>
+        </div>
         <button
           type="button"
           onClick={onToggleSave}
           aria-pressed={saved}
           aria-label={saved ? "Unsave job" : "Save job"}
-          className="shrink-0 cursor-pointer text-[#20242c] transition-transform duration-150 hover:scale-110 active:scale-90"
+          className="-mr-1 -mt-1 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#20242c] transition hover:bg-[#f2f6f8] active:scale-90"
         >
           <Bookmark
             key={saved ? "saved" : "unsaved"}
@@ -74,15 +103,23 @@ function JobCard({
           />
         </button>
       </div>
-      <p className="mt-4 text-sm text-[#20242c]">{job.company}</p>
-      <p className="mt-2 text-sm leading-6 text-[#20242c]">{job.location}</p>
-      {formatSalary(job) && (
-        <p className="mt-2 text-sm font-semibold text-[#00b4b8]">{formatSalary(job)}</p>
+
+      {(salary || job.applicationsCount > 0) && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          {salary && <span className="text-sm font-bold text-[#00898c]">{salary}</span>}
+          {job.applicationsCount > 0 && (
+            <span className="inline-flex items-center gap-1 text-xs text-[#657080]">
+              <Users className="size-3.5" aria-hidden="true" />
+              {job.applicationsCount} applied
+            </span>
+          )}
+        </div>
       )}
+
       {job.tags && job.tags.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-2">
-          {job.tags.map((tag) => (
-            <span key={tag} className="rounded-full bg-[#dddddd] px-3 py-1 text-sm font-semibold text-[#20242c]">
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {job.tags.slice(0, 3).map((tag) => (
+            <span key={tag} className="rounded-full bg-[#eef4f6] px-2.5 py-0.5 text-xs font-medium text-[#3f4855]">
               {tag}
             </span>
           ))}
@@ -94,34 +131,32 @@ function JobCard({
 
 function DashboardSkeleton() {
   return (
-    <div className="grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-0 pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,680px)_326px] w-full">
-      <aside className="space-y-10">
-        <Skeleton className="h-20 rounded-lg" />
+    <div className="grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-4 pb-10 pt-4 sm:px-8 xl:grid-cols-[332px_minmax(560px,680px)_326px] w-full">
+      <aside className="order-2 space-y-10 xl:order-0">
+        <Skeleton className="h-56 rounded-2xl" />
         <div className="space-y-3">
           <Skeleton className="w-24 h-4" />
-          <Skeleton className="h-28 rounded-xl" />
-          <Skeleton className="h-28 rounded-xl" />
-          <Skeleton className="h-28 rounded-xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
         </div>
-        <Skeleton className="h-48 rounded-lg" />
       </aside>
 
-      <main className="space-y-8">
-        <Skeleton className="h-32 rounded-[30px]" />
-        <div className="space-y-4">
-          <div className="flex items-start gap-3">
-            <Skeleton className="rounded-full size-12 shrink-0" />
-            <div className="flex-1 space-y-3">
-              <Skeleton className="w-48 h-5" />
-              <Skeleton className="w-full h-4 max-w-md" />
-              <Skeleton className="w-full h-4 max-w-sm" />
-            </div>
-          </div>
-          <Skeleton className="h-96 rounded-xl" />
+      <main className="order-1 space-y-6 xl:order-0">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-80 max-w-full" />
         </div>
+        <div className="flex gap-3 overflow-hidden">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} className="h-36 w-[15.5rem] shrink-0 rounded-2xl" />
+          ))}
+        </div>
+        <Skeleton className="h-32 rounded-[30px]" />
+        <Skeleton className="h-96 rounded-2xl" />
       </main>
 
-      <aside className="space-y-10">
+      <aside className="order-3 space-y-10 xl:order-0">
         <div className="space-y-4">
           <Skeleton className="w-32 h-4" />
           {Array.from({ length: 4 }).map((_, index) => (
@@ -147,6 +182,8 @@ export default function DashboardPage() {
   const [people, setPeople] = useState<Connection[]>([])
   const [profileViews, setProfileViews] = useState(0)
   const [applicationViews, setApplicationViews] = useState(0)
+  const [me, setMe] = useState<CareConnectProfile | null>(null)
+  const [earn, setEarn] = useState<CowryEarnSummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   const uid = user?.uid
@@ -170,14 +207,14 @@ export default function DashboardPage() {
         setJobs(feedJobs)
         setSavedJobIds(new Set(saved.map((job) => job.id)))
         setCompanies(
-          companyProfiles.map((profile, index) => ({
-            ...toConnection(profile, index),
+          companyProfiles.map((profile) => ({
+            ...toConnection(profile),
             isFollowing: followed.has(profile.uid),
           })),
         )
         setPeople(
-          peopleProfiles.map((profile, index) => ({
-            ...toConnection(profile, index),
+          peopleProfiles.map((profile) => ({
+            ...toConnection(profile),
             isFollowing: followed.has(profile.uid),
           })),
         )
@@ -192,16 +229,18 @@ export default function DashboardPage() {
     }
   }, [])
 
-  // Own view/application-view counters for the stats card (no self-increment on GET /:uid).
+  // Own profile: view counters for the stats (no self-increment on GET /:uid), and the
+  // fields the profile-strength ring is worked out from.
   useEffect(() => {
     if (!uid) return
     let active = true
     ;(async () => {
       try {
-        const me = await getProfile(uid)
+        const profile = await getProfile(uid)
         if (!active) return
-        setProfileViews(me.profileViewsCount ?? 0)
-        setApplicationViews(me.applicationViewsCount ?? 0)
+        setMe(profile)
+        setProfileViews(profile.profileViewsCount ?? 0)
+        setApplicationViews(profile.applicationViewsCount ?? 0)
       } catch {
         // stats are non-critical; leave at 0 on failure
       }
@@ -210,6 +249,31 @@ export default function DashboardPage() {
       active = false
     }
   }, [uid])
+
+  // Streak and today's post reward, for the welcome strip and the composer's Cowry pill.
+  // Refetched when an award lands, so the "+10" goes once today's posts are paid.
+  const earnEnabled = isCowryPathEnabled(Routes.app.user.cowryEarn)
+  useEffect(() => {
+    if (!earnEnabled) return
+    let active = true
+    const load = () =>
+      getEarnSummary()
+        .then((summary) => {
+          if (active) setEarn(summary)
+        })
+        .catch(() => undefined)
+    void load()
+    const unsubscribe = onCowryEarned(() => void load())
+    return () => {
+      active = false
+      unsubscribe()
+    }
+  }, [earnEnabled])
+
+  const strength = useMemo(() => (me ? profileStrength(me) : null), [me])
+  const postRow = earn?.today.find((row) => row.activityType === "post")
+  const postReward = postRow ? { value: postRow.value, remaining: postRow.remaining } : null
+  const firstName = (user?.fullName || "there").trim().split(" ")[0]
 
   const toggleSaved = async (id: string) => {
     const isSaved = savedJobIds.has(id)
@@ -237,24 +301,34 @@ export default function DashboardPage() {
   if (isLoading) return <DashboardSkeleton />
 
   return (
-    <div className="animate-fade-in-up grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-4 sm:px-8 sm:w-full pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,1fr)_326px] w-full">
+    <div className="relative isolate animate-fade-in-up grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-4 sm:px-8 sm:w-full pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,1fr)_326px] w-full">
+      {/* A soft wash of brand colour behind the top of the page, so it does not open on flat grey. */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(60%_60%_at_20%_0%,rgba(0,180,184,0.14),transparent_70%),radial-gradient(50%_50%_at_85%_10%,rgba(167,130,216,0.14),transparent_70%)]"
+        aria-hidden="true"
+      />
+
       <aside className="order-2 xl:order-0 space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
-        <section className="rounded-lg border border-white/60 bg-white/80 px-4 py-3 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md">
-          <div className="space-y-5">
-            <StatRow label="Profile views" value={String(profileViews)} />
-            <StatRow label="Application views" value={String(applicationViews)} />
-          </div>
-        </section>
+        {strength && (
+          <ProfileStrengthCard
+            strength={strength}
+            profileHref={Routes.app.user.profile}
+            profileViews={profileViews}
+            applicationViews={applicationViews}
+          />
+        )}
 
         <section>
-          <h2 className="mb-4 text-xl font-semibold">Jobs for you</h2>
-          <ViewAllLink href={Routes.app.user.jobs} />
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
+            <Sparkles className="size-4 text-[#00b4b8]" aria-hidden="true" />
+            Jobs for you
+          </h2>
           {jobs.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-[#e2e2e2] p-6 text-center text-sm text-[#657080]">
-              No jobs yet.
+            <p className="rounded-2xl border border-dashed border-[#e2e2e2] p-6 text-center text-sm text-[#657080]">
+              No jobs yet. New roles appear here as providers post them.
             </p>
           ) : (
-            <div className="mt-5 space-y-3">
+            <div className="space-y-3">
               {jobs.map((job, index) => (
                 <JobCard
                   key={job.id}
@@ -266,13 +340,26 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
+          <ViewAllLink href={Routes.app.user.jobs} />
         </section>
 
         <MarketplacePromoCard marketplaceHref={Routes.app.user.marketplace} />
       </aside>
 
-      <main className="order-1 space-y-8 xl:order-0">
-        <PostComposer />
+      <main className="order-1 space-y-6 xl:order-0">
+        <WelcomeStrip
+          firstName={firstName}
+          streak={earn?.streak ?? null}
+          earnHref={earnEnabled ? Routes.app.user.cowryEarn : null}
+          postReward={postReward}
+          strength={strength}
+          profileHref={Routes.app.user.profile}
+          jobs={{ count: jobs.length, firstTitle: jobs[0]?.title, href: Routes.app.user.jobs }}
+        />
+        <PostComposer
+          photo={me?.photo}
+          cowryReward={postReward && postReward.remaining > 0 ? postReward.value : 0}
+        />
         <DashboardFeed />
       </main>
 

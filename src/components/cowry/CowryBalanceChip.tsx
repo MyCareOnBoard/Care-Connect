@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
-import { createPortal } from "react-dom"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useLocation, useNavigate } from "react-router"
 import { ArrowRight, Clock, Gift, ShoppingCart, Sparkles, X, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { CowryIcon } from "@/components/cowry/CowryIcon"
+import { CowryRain, RAIN_MS } from "@/components/cowry/CowryRain"
 import { AnimatedCowries } from "@/components/cowry/CowryUI"
 import { celebrateCowries } from "@/components/cowry/celebrate"
 import { cn } from "@/lib/utils"
@@ -36,9 +36,6 @@ import { WALLET_LABELS, formatCowries, spendableTotal } from "@/utils/careconnec
 /** Refetch at most this often on navigation, so moving between pages is not a request each. */
 const REFRESH_THROTTLE_MS = 30_000
 
-/** How long the rain runs before it is removed. Longest drop is duration + delay. */
-const RAIN_MS = 3400
-const RAIN_DROPS = 28
 
 const BUCKETS: Array<{ type: CowryWalletType; icon: LucideIcon; tint: string }> = [
   { type: "reward", icon: Sparkles, tint: "bg-[#fff4df] text-[#c8963e]" },
@@ -51,53 +48,6 @@ function compact(amount: number): string {
   if (amount < 10_000) return formatCowries(amount)
   if (amount < 1_000_000) return `${(amount / 1000).toFixed(amount < 100_000 ? 1 : 0).replace(/\.0$/, "")}K`
   return `${(amount / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`
-}
-
-/**
- * Shells falling across the whole screen.
- *
- * Portalled to the body so the dialog's rounded, clipped box does not cut the rain off at
- * its edges. Pointer-events are off: it is weather, not something to click.
- */
-function CowryRain({ seed }: { seed: number }) {
-  const drops = useMemo(
-    () =>
-      Array.from({ length: RAIN_DROPS }, (_, i) => ({
-        id: `${seed}-${i}`,
-        left: Math.random() * 100,
-        size: 18 + Math.random() * 26,
-        delay: Math.random() * 1.1,
-        duration: 1.6 + Math.random() * 1.2,
-        drift: (Math.random() - 0.5) * 18,
-        spinFrom: Math.random() * 360,
-        spin: (Math.random() > 0.5 ? 1 : -1) * (180 + Math.random() * 360),
-      })),
-    [seed],
-  )
-
-  return createPortal(
-    <div className="fixed inset-0 overflow-hidden pointer-events-none z-60" aria-hidden="true">
-      {drops.map((drop) => (
-        <span
-          key={drop.id}
-          className="cowry-rain-drop"
-          style={
-            {
-              left: `${drop.left}%`,
-              "--cowry-rain-dur": `${drop.duration}s`,
-              "--cowry-rain-delay": `${drop.delay}s`,
-              "--cowry-rain-dx": `${drop.drift}vw`,
-              "--cowry-rain-r0": `${drop.spinFrom}deg`,
-              "--cowry-rain-r1": `${drop.spinFrom + drop.spin}deg`,
-            } as CSSProperties
-          }
-        >
-          <CowryIcon size={drop.size} className="drop-shadow-[0_6px_8px_rgba(0,0,0,0.25)]" />
-        </span>
-      ))}
-    </div>,
-    document.body,
-  )
 }
 
 export function CowryBalanceChip() {
@@ -171,12 +121,12 @@ export function CowryBalanceChip() {
         onClick={openPopup}
         aria-label={`${formatCowries(spendable)} Cowries. Open your Cowry balance`}
         aria-haspopup="dialog"
-        className="cowry-hover cowry-press group flex h-10 shrink-0 items-center gap-1.5 rounded-full border-[3px] border-[#f3e6c8] bg-[linear-gradient(135deg,#fffaf0,#fbeed2)] pl-1.5 pr-3 shadow-[0_4px_14px_-6px_rgba(200,150,62,0.6)] transition hover:border-[#e8d1a0] hover:shadow-[0_6px_18px_-6px_rgba(200,150,62,0.8)]"
+        className="cowry-hover cowry-press group flex h-9 shrink-0 items-center gap-1 rounded-full border-2 border-[#f3e6c8] bg-[linear-gradient(135deg,#fffaf0,#fbeed2)] pl-1 pr-2.5 sm:h-10 sm:gap-1.5 sm:border-[3px] sm:pl-1.5 sm:pr-3 shadow-[0_4px_14px_-6px_rgba(200,150,62,0.6)] transition hover:border-[#e8d1a0] hover:shadow-[0_6px_18px_-6px_rgba(200,150,62,0.8)]"
       >
         <span className="flex">
-          <CowryIcon size={24} className="cowry-wobble" />
+          <CowryIcon size={22} className="cowry-wobble" />
         </span>
-        <span className="text-sm font-bold tabular-nums text-[#7a5310]">{compact(spendable)}</span>
+        <span className="text-xs font-bold tabular-nums text-[#7a5310] sm:text-sm">{compact(spendable)}</span>
         {pending > 0 && (
           <span
             className="size-1.5 rounded-full bg-[#00b4b8] animate-cowry-glow"
@@ -206,7 +156,7 @@ export function CowryBalanceChip() {
             <DialogTitle className="relative mt-4 text-sm font-medium text-white/75">
               Your Cowries
             </DialogTitle>
-            <p className="relative mt-1 text-5xl font-bold tracking-tight">
+            <p className="relative mt-1 break-all text-4xl font-bold tracking-tight sm:text-5xl">
               <AnimatedCowries value={spendable} />
             </p>
             <DialogDescription className="relative mt-2 text-xs text-white/75">

@@ -289,7 +289,7 @@ export default function CowryWithdrawPage() {
             <div className="relative">
               <p className="text-xs uppercase tracking-wide text-white/60">You receive</p>
               <p className="mt-1 text-4xl font-bold tabular-nums">{formatNaira(quote.netNaira)}</p>
-              <p className="mt-3 flex items-center gap-2 text-sm text-white/80">
+              <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-white/80">
                 <Landmark className="size-4" aria-hidden="true" />
                 {accountName} · <span className="tabular-nums">{accountNumber}</span> · {bank?.name}
               </p>
@@ -505,7 +505,7 @@ export default function CowryWithdrawPage() {
         </section>
       </div>
 
-      <div className="sticky bottom-4 z-10 flex flex-wrap items-center gap-4 rounded-2xl bg-white/90 p-4 shadow-[0_12px_40px_-20px_rgba(16,20,26,0.5)] ring-1 ring-[#e2e6ea] backdrop-blur">
+      <div data-floating-actions className="sticky bottom-4 z-10 flex flex-wrap items-center gap-4 rounded-2xl bg-white/90 p-4 shadow-[0_12px_40px_-20px_rgba(16,20,26,0.5)] ring-1 ring-[#e2e6ea] backdrop-blur">
         <p className="min-w-0 flex-1 text-sm text-[#657080]">
           {blocker ?? (
             <>

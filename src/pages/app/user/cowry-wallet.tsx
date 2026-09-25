@@ -275,8 +275,8 @@ export default function CowryWalletPage() {
 
         <div className="relative max-w-xl">
           <p className="text-sm font-medium text-white/70">Spendable now</p>
-          <p className="mt-2 flex items-center gap-3 text-5xl font-bold tracking-tight">
-            <CowryIcon size={44} className="animate-cowry-pop" />
+          <p className="mt-2 flex min-w-0 items-center gap-2 text-4xl font-bold tracking-tight sm:gap-3 sm:text-5xl">
+            <CowryIcon size={40} className="animate-cowry-pop shrink-0" />
             <AnimatedCowries value={spendable} />
           </p>
           <p className="mt-2 text-xs text-white/70">
