@@ -8,6 +8,18 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Urbanist:wght@100..900&display=swap" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>CareConnect</title>
+    <!-- Apply the theme before first paint, so dark mode never flashes white on load.
+         Reads the same key as src/lib/theme.ts; falls back to the OS setting. -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("careconnect-theme");
+          var dark = saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          if (dark) document.documentElement.classList.add("dark");
+          document.documentElement.style.colorScheme = dark ? "dark" : "light";
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

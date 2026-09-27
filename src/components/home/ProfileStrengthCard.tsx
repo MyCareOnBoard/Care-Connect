@@ -14,11 +14,14 @@ export function StrengthRing({
   size = 64,
   stroke = 6,
   className,
+  showLabel = true,
 }: {
   percent: number
   size?: number
   stroke?: number
   className?: string
+  /** The percentage in the middle. Off for icon-sized rings, where it would not fit. */
+  showLabel?: boolean
 }) {
   // Each ring gets its own gradient id; two on one page must not share a definition.
   const gradientId = `strength-${useId().replace(/:/g, "")}`
@@ -48,9 +51,11 @@ export function StrengthRing({
           </linearGradient>
         </defs>
       </svg>
-      <span className="absolute text-sm font-bold tabular-nums text-[#151922]">
-        {complete ? <Check className="size-5 text-[#1f9c4c]" aria-hidden="true" /> : `${percent}%`}
-      </span>
+      {showLabel && (
+        <span className="absolute text-sm font-bold tabular-nums text-[#151922]">
+          {complete ? <Check className="size-5 text-[#1f9c4c]" aria-hidden="true" /> : `${percent}%`}
+        </span>
+      )}
     </span>
   )
 }

@@ -19,6 +19,8 @@ import { notificationTarget } from "@/utils/careconnect/notificationTarget"
 import { AvailabilityModal } from "@/components/professional/AvailabilityModal"
 import { useProfessionalMembership } from "@/utils/professional/useProfessionalMembership"
 import type { CareFlow } from "./useCareFlow"
+import { ThemeMenuRow } from "./ThemeToggle"
+import { toggleTheme } from "@/lib/theme"
 
 type AccountControlsProps = {
   flow?: CareFlow
@@ -268,6 +270,17 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
               </button>
             </DropdownMenuItem>
           </div>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={(event) => {
+              // Stay open, so the switch can be seen flipping and flipped back.
+              event.preventDefault()
+              toggleTheme()
+            }}
+            className="mx-2 rounded-lg px-3 py-2 text-sm hover:bg-[#edf3f5] cursor-pointer"
+          >
+            <ThemeMenuRow />
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={handleLogout} variant="destructive" className="rounded-lg mx-2 hover:bg-[#ff313157] mb-2">
             <div className="flex items-center gap-2 px-3 py-2 text-sm">

@@ -19,6 +19,7 @@ export function FollowButton({
   relation = "connect",
   targetType,
   initialActive = false,
+  onChange,
 }: {
   label: string
   activeLabel: string
@@ -26,6 +27,11 @@ export function FollowButton({
   relation?: ConnectionRelation
   targetType?: "individual" | "company"
   initialActive?: boolean
+  /**
+   * Told when the state settles on a new value. Lets a parent keep its own list in step —
+   * needed where the same person is shown twice, as in the focus-mode panels.
+   */
+  onChange?: (active: boolean) => void
 }) {
   const [active, setActive] = useState(initialActive)
   const [busy, setBusy] = useState(false)
@@ -38,6 +44,7 @@ export function FollowButton({
   const handleClick = async () => {
     if (!targetId) {
       setActive((current) => !current)
+      onChange?.(!active)
       return
     }
     const next = !active
@@ -46,6 +53,7 @@ export function FollowButton({
     try {
       if (next) await follow(targetId, relation, targetType)
       else await unfollow(targetId)
+      onChange?.(next)
     } catch (error) {
       setActive(!next) // revert
       toast.error(getAuthErrorMessage(error))

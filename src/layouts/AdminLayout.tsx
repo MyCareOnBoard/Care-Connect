@@ -4,6 +4,7 @@ import { LogOut } from "lucide-react"
 import { CowryIcon } from "@/components/cowry/CowryIcon"
 import { RouteLoader } from "@/components/ui/loader"
 import { ScrollToTop } from "@/components/app/ScrollToTop"
+import { ThemeToggle } from "@/components/app/ThemeToggle"
 import { Routes } from "@/routes/constants"
 import { useAuth, useAuthUser } from "@/utils/auth"
 
@@ -59,6 +60,7 @@ export default function AdminLayout() {
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
+            <ThemeToggle />
             {user?.email && (
               <span className="hidden text-xs text-[#6b7280] sm:inline">{user.email}</span>
             )}
