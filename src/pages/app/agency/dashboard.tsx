@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react"
 import { Link } from "react-router"
 import { toast } from "sonner"
+import { BarChart3, Briefcase, Building2, Store, Users } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { StatRow } from "@/components/app/StatRow"
 import { ViewAllLink } from "@/components/app/ViewAllLink"
@@ -9,7 +10,10 @@ import { DashboardFeed } from "@/components/app/DashboardFeed"
 import { ConnectionsSection, type Connection } from "@/components/app/ConnectionsSection"
 import { MarketplacePromoCard } from "@/components/app/MarketplacePromoCard"
 import { Routes } from "@/routes/constants"
-import { getInitials } from "@/lib/utils"
+import { cn, getInitials } from "@/lib/utils"
+import { useFeedFocus } from "@/components/home/feedFocus"
+import { FeedFocusToggle } from "@/components/home/FeedFocusToggle"
+import { FocusRail, type RailItem } from "@/components/home/FocusRail"
 import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
 import { getProfile, listProfiles } from "@/utils/careconnect/services/profilesService"
 import { listConnections } from "@/utils/careconnect/services/connectionsService"
@@ -113,6 +117,7 @@ export default function AgencyDashboardPage() {
   const [profileViews, setProfileViews] = useState(0)
   const [applicationViews, setApplicationViews] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const focus = useFeedFocus()
 
   useEffect(() => {
     let active = true
@@ -166,48 +171,124 @@ export default function AgencyDashboardPage() {
 
   if (isLoading) return <AgencyDashboardSkeleton />
 
+  /* Each side section is built once and shown in two places: in its full column, and in the
+     focus-mode strip's panel. One definition keeps the two from drifting apart. */
+  const statsSection = (
+    <section className="rounded-2xl border border-white/60 bg-white/80 px-4 py-3 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md">
+      <div className="space-y-5">
+        <StatRow label="Profile views" value={String(profileViews)} />
+        <StatRow label="Application views" value={String(applicationViews)} />
+      </div>
+    </section>
+  )
+
+  const jobsSection = (
+    <section>
+      <h2 className="mb-4 text-xl font-semibold">Jobs overview</h2>
+      <ViewAllLink href={Routes.app.agency.jobs} />
+      {postings.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-[#e2e2e2] p-6 text-center text-sm text-[#657080]">
+          You haven&apos;t posted any jobs yet.
+        </p>
+      ) : (
+        <div className="mt-5 space-y-3">
+          {postings.map((job, index) => (
+            <JobOverviewCard key={job.id} job={job} style={{ animationDelay: `${index * 80}ms` }} />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+
+  const marketplaceSection = <MarketplacePromoCard marketplaceHref={Routes.app.agency.marketplace} />
+
+  /** Keep a suggestion list in step when someone in it is followed, wherever that happened. */
+  const markFollowing =
+    (setList: typeof setPeople) =>
+    (uid: string, following: boolean) =>
+      setList((list) => list.map((item) => (item.uid === uid ? { ...item, isFollowing: following } : item)))
+
+  const providersSection = companies.length > 0 && (
+    <ConnectionsSection title="Top Healthcare Providers around you" items={companies} actionLabel="Subscribe" activeLabel="Subscribed" relation="subscribe" targetType="company" onFollowChange={markFollowing(setCompanies)} viewAllHref={`${Routes.app.agency.network}?tab=agencies`} />
+  )
+
+  const peopleSection = people.length > 0 && (
+    <ConnectionsSection title="Professionals you may be interested in" items={people} actionLabel="Connect" activeLabel="Pending" relation="connect" targetType="individual" onFollowChange={markFollowing(setPeople)} viewAllHref={`${Routes.app.agency.network}?tab=connections`} />
+  )
+
+  const leftRail: RailItem[] = [
+    { key: "stats", label: "Your stats", icon: <BarChart3 className="size-5" aria-hidden="true" />, content: statsSection },
+    {
+      key: "jobs",
+      label: "Jobs overview",
+      icon: <Briefcase className="size-5" aria-hidden="true" />,
+      // Live postings are what an agency comes back to check on.
+      badge: postings.length,
+      content: jobsSection,
+    },
+    { key: "marketplace", label: "Marketplace", icon: <Store className="size-5" aria-hidden="true" />, content: marketplaceSection },
+  ]
+
+  const rightRail: RailItem[] = [
+    ...(providersSection
+      ? [
+          {
+            key: "providers",
+            label: "Healthcare providers",
+            icon: <Building2 className="size-5" aria-hidden="true" />,
+            badge: companies.filter((company) => !company.isFollowing).length,
+            content: providersSection,
+          },
+        ]
+      : []),
+    ...(peopleSection
+      ? [
+          {
+            key: "people",
+            label: "Professionals",
+            icon: <Users className="size-5" aria-hidden="true" />,
+            badge: people.filter((person) => !person.isFollowing).length,
+            content: peopleSection,
+          },
+        ]
+      : []),
+  ]
+
+  const left = focus.aside("left")
+  const right = focus.aside("right")
+  const asideClass =
+    "space-y-10 xl:sticky xl:top-22 xl:row-start-1 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide"
+
   return (
-    <div className="animate-fade-in-up grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-4 sm:px-8 pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,1fr)_326px] w-full">
-      <aside className="order-2 xl:order-0 space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
-        <section className="rounded-lg border border-white/60 bg-white/80 px-4 py-3 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md">
-          <div className="space-y-5">
-            <StatRow label="Profile views" value={String(profileViews)} />
-            <StatRow label="Application views" value={String(applicationViews)} />
-          </div>
-        </section>
-
-        <section>
-          <h2 className="mb-4 text-xl font-semibold">Jobs overview</h2>
-          <ViewAllLink href={Routes.app.agency.jobs} />
-          {postings.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-[#e2e2e2] p-6 text-center text-sm text-[#657080]">
-              You haven&apos;t posted any jobs yet.
-            </p>
-          ) : (
-            <div className="mt-5 space-y-3">
-              {postings.map((job, index) => (
-                <JobOverviewCard key={job.id} job={job} style={{ animationDelay: `${index * 80}ms` }} />
-              ))}
-            </div>
-          )}
-        </section>
-
-        <MarketplacePromoCard marketplaceHref={Routes.app.agency.marketplace} />
+    <div
+      className={cn(
+        "animate-fade-in-up grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-4 sm:px-8 pb-10 pt-4 w-full",
+        focus.grid.className,
+      )}
+      style={focus.grid.style}
+    >
+      {/* Every column is placed explicitly on wide screens: the focus strips share the side
+          cells, and automatic placement would otherwise shuffle the columns around them. */}
+      <aside inert={left.inert} className={cn("order-2 xl:order-0 xl:col-start-1", asideClass, left.className)}>
+        {statsSection}
+        {jobsSection}
+        {marketplaceSection}
       </aside>
+      <FocusRail side="left" items={leftRail} active={focus.active} />
 
-      <main className="order-1 space-y-8 xl:order-0">
+      {/* The toggle hangs from a zero-height rail; the space-y gap after it plus xl:pt-2 clears
+          it, since there is no greeting row here for it to sit beside. */}
+      <main className="order-1 min-w-0 space-y-8 xl:order-0 xl:col-start-2 xl:row-start-1 xl:pt-2">
+        <FeedFocusToggle focus={focus} />
         <PostComposer />
         <DashboardFeed />
       </main>
 
-      <aside className="order-3 xl:order-0 space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
-        {companies.length > 0 && (
-          <ConnectionsSection title="Top Healthcare Providers around you" items={companies} actionLabel="Subscribe" activeLabel="Subscribed" relation="subscribe" targetType="company" viewAllHref={`${Routes.app.agency.network}?tab=agencies`} />
-        )}
-        {people.length > 0 && (
-          <ConnectionsSection title="Professionals you may be interested in" items={people} actionLabel="Connect" activeLabel="Pending" relation="connect" targetType="individual" viewAllHref={`${Routes.app.agency.network}?tab=connections`} />
-        )}
+      <aside inert={right.inert} className={cn("order-3 xl:order-0 xl:col-start-3", asideClass, right.className)}>
+        {providersSection}
+        {peopleSection}
       </aside>
+      <FocusRail side="right" items={rightRail} active={focus.active} />
     </div>
   )
 }

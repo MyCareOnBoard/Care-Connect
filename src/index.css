@@ -1,4 +1,10 @@
 @import "tailwindcss";
+/* Dark theme overrides, generated from the colour classes in src/ — see the script. */
+@import "./styles/dark-theme.generated.css";
+
+/* `dark:` follows the toggle (a class on <html>), not the OS setting directly. The OS
+   setting only decides the default before anyone has chosen — see src/lib/theme.ts. */
+@custom-variant dark (&:where(.dark, .dark *));
 
 * {
   font-family: "Urbanist", system-ui, sans-serif;
@@ -56,6 +62,45 @@
     --radius-sm: 10px;
 
     font-family: "Urbanist", system-ui, sans-serif;
+}
+
+/* Dark theme tokens. Page and card match PAGE and CARD in the generator script. */
+html.dark {
+    color-scheme: dark;
+
+    --background: #0d1117;
+    --foreground: #e6edf3;
+    --card: #161b22;
+    --card-foreground: #e6edf3;
+    --border: rgba(255, 255, 255, 0.08);
+
+    --input-bg: #0f141a;
+    --input-border: #30363d;
+    --input-text: #e6edf3;
+    --input-placeholder: #6e7681;
+
+    --secondary: rgba(255, 255, 255, 0.06);
+    --secondary-foreground: #e6edf3;
+    --muted: rgba(255, 255, 255, 0.04);
+    --muted-foreground: #9aa4b2;
+    --accent: rgba(255, 255, 255, 0.06);
+    --accent-foreground: #e6edf3;
+}
+
+/* Hand-written dark exceptions the generator deliberately leaves alone. */
+html.dark .bg-black\/10 {
+    /* Skeletons: a black tint vanishes on a dark page, so shimmer in white instead. */
+    background-color: rgba(255, 255, 255, 0.07);
+}
+
+/* Colour changes ease rather than snap when the theme is switched. Scoped to the moment of
+   switching (the class is added for a beat by src/lib/theme.ts) so it never slows down
+   ordinary hover transitions. */
+html.theme-switching,
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+    transition: background-color 0.35s ease, border-color 0.35s ease, color 0.35s ease, fill 0.35s ease !important;
 }
 
 html,

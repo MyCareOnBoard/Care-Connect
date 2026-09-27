@@ -10,6 +10,7 @@ import { useAuthUser } from "@/utils/auth"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { isCowryPathEnabled } from "@/utils/careconnect/cowryPages"
 import { CowryBalanceChip } from "@/components/cowry/CowryBalanceChip"
+import { ThemeToggle } from "./ThemeToggle"
 import { useCareFlow } from "./useCareFlow"
 import { AccountControls } from "./AccountControls"
 import { RouteProgressBar } from "./RouteProgressBar"
@@ -213,6 +214,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="ml-auto flex min-w-0 items-center gap-1.5 sm:gap-2 lg:ml-0">
           {/* Agencies have no Cowry wallet, so the balance is a member-only fixture. */}
+          {/* On phones the header has no room to spare; the switch lives in the account menu. */}
+          <ThemeToggle className="hidden sm:flex" />
           {flow !== "agency" && <CowryBalanceChip />}
           <AccountControls flow={flow} />
         </div>

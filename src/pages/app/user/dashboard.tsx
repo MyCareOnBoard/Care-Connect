@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react"
-import { Bookmark, Sparkles, Users } from "lucide-react"
+import { Bookmark, Briefcase, Building2, Sparkles, Store, Users } from "lucide-react"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ViewAllLink } from "@/components/app/ViewAllLink"
@@ -9,8 +9,11 @@ import { ConnectionsSection, type Connection } from "@/components/app/Connection
 import { MarketplacePromoCard } from "@/components/app/MarketplacePromoCard"
 import { avatarColor } from "@/components/app/avatarColor"
 import { WelcomeStrip } from "@/components/home/WelcomeStrip"
-import { ProfileStrengthCard } from "@/components/home/ProfileStrengthCard"
+import { ProfileStrengthCard, StrengthRing } from "@/components/home/ProfileStrengthCard"
+import { FocusRail, type RailItem } from "@/components/home/FocusRail"
 import { profileStrength } from "@/components/home/profileStrength"
+import { useFeedFocus } from "@/components/home/feedFocus"
+import { FeedFocusToggle } from "@/components/home/FeedFocusToggle"
 import { Routes } from "@/routes/constants"
 import { cn, getInitials } from "@/lib/utils"
 import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
@@ -270,6 +273,7 @@ export default function DashboardPage() {
     }
   }, [earnEnabled])
 
+  const focus = useFeedFocus()
   const strength = useMemo(() => (me ? profileStrength(me) : null), [me])
   const postRow = earn?.today.find((row) => row.activityType === "post")
   const postReward = postRow ? { value: postRow.value, remaining: postRow.remaining } : null
@@ -300,53 +304,148 @@ export default function DashboardPage() {
 
   if (isLoading) return <DashboardSkeleton />
 
+  /* Each side section is built once and shown in two places: in its full column, and in the
+     focus-mode strip's panel. One definition keeps the two from drifting apart. */
+  const profileSection = strength && (
+    <ProfileStrengthCard
+      strength={strength}
+      profileHref={Routes.app.user.profile}
+      profileViews={profileViews}
+      applicationViews={applicationViews}
+    />
+  )
+
+  const jobsSection = (
+    <section>
+      <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
+        <Sparkles className="size-4 text-[#00b4b8]" aria-hidden="true" />
+        Jobs for you
+      </h2>
+      {jobs.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-[#e2e2e2] p-6 text-center text-sm text-[#657080]">
+          No jobs yet. New roles appear here as providers post them.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {jobs.map((job, index) => (
+            <JobCard
+              key={job.id}
+              job={job}
+              saved={savedJobIds.has(job.id)}
+              onToggleSave={() => toggleSaved(job.id)}
+              style={{ animationDelay: `${index * 80}ms` }}
+            />
+          ))}
+        </div>
+      )}
+      <ViewAllLink href={Routes.app.user.jobs} />
+    </section>
+  )
+
+  const marketplaceSection = <MarketplacePromoCard marketplaceHref={Routes.app.user.marketplace} />
+
+  /** Keep a suggestion list in step when someone in it is followed, wherever that happened. */
+  const markFollowing =
+    (setList: typeof setPeople) =>
+    (uid: string, following: boolean) =>
+      setList((list) => list.map((item) => (item.uid === uid ? { ...item, isFollowing: following } : item)))
+
+  const providersSection = companies.length > 0 && (
+    <ConnectionsSection title="Top healthcare providers around you" items={companies} actionLabel="Subscribe" activeLabel="Subscribed" relation="subscribe" targetType="company" onFollowChange={markFollowing(setCompanies)} viewAllHref={`${Routes.app.user.network}?tab=agencies`} />
+  )
+
+  const peopleSection = people.length > 0 && (
+    <ConnectionsSection title="Professionals you may be interested in" items={people} actionLabel="Connect" activeLabel="Pending" relation="connect" targetType="individual" onFollowChange={markFollowing(setPeople)} viewAllHref={`${Routes.app.user.network}?tab=connections`} />
+  )
+
+  // Badges count only what is actionable: jobs still new, suggestions not yet followed.
+  const newJobs = jobs.filter((job) => {
+    const posted = toDate(job.createdAt ?? null)
+    return posted ? Date.now() - posted.getTime() < NEW_JOB_DAYS * 86_400_000 : false
+  }).length
+
+  const leftRail: RailItem[] = [
+    ...(strength
+      ? [
+          {
+            key: "profile",
+            label: "Profile strength",
+            icon: <StrengthRing percent={strength.percent} size={28} stroke={3} showLabel={false} />,
+            badge: strength.percent < 100,
+            content: profileSection,
+          },
+        ]
+      : []),
+    {
+      key: "jobs",
+      label: "Jobs for you",
+      icon: <Briefcase className="size-5" aria-hidden="true" />,
+      badge: newJobs,
+      content: jobsSection,
+    },
+    {
+      key: "marketplace",
+      label: "Marketplace",
+      icon: <Store className="size-5" aria-hidden="true" />,
+      content: marketplaceSection,
+    },
+  ]
+
+  const rightRail: RailItem[] = [
+    ...(providersSection
+      ? [
+          {
+            key: "providers",
+            label: "Healthcare providers",
+            icon: <Building2 className="size-5" aria-hidden="true" />,
+            badge: companies.filter((company) => !company.isFollowing).length,
+            content: providersSection,
+          },
+        ]
+      : []),
+    ...(peopleSection
+      ? [
+          {
+            key: "people",
+            label: "People you may know",
+            icon: <Users className="size-5" aria-hidden="true" />,
+            badge: people.filter((person) => !person.isFollowing).length,
+            content: peopleSection,
+          },
+        ]
+      : []),
+  ]
+
+  const left = focus.aside("left")
+  const right = focus.aside("right")
+  const asideClass =
+    "space-y-10 xl:sticky xl:top-22 xl:row-start-1 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide"
+
   return (
-    <div className="relative isolate animate-fade-in-up grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-4 sm:px-8 sm:w-full pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,1fr)_326px] w-full">
+    <div
+      className={cn(
+        "relative isolate animate-fade-in-up grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-4 sm:px-8 sm:w-full pb-10 pt-4 w-full",
+        focus.grid.className,
+      )}
+      style={focus.grid.style}
+    >
       {/* A soft wash of brand colour behind the top of the page, so it does not open on flat grey. */}
       <div
         className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(60%_60%_at_20%_0%,rgba(0,180,184,0.14),transparent_70%),radial-gradient(50%_50%_at_85%_10%,rgba(167,130,216,0.14),transparent_70%)]"
         aria-hidden="true"
       />
 
-      <aside className="order-2 xl:order-0 space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
-        {strength && (
-          <ProfileStrengthCard
-            strength={strength}
-            profileHref={Routes.app.user.profile}
-            profileViews={profileViews}
-            applicationViews={applicationViews}
-          />
-        )}
-
-        <section>
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-bold">
-            <Sparkles className="size-4 text-[#00b4b8]" aria-hidden="true" />
-            Jobs for you
-          </h2>
-          {jobs.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-[#e2e2e2] p-6 text-center text-sm text-[#657080]">
-              No jobs yet. New roles appear here as providers post them.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {jobs.map((job, index) => (
-                <JobCard
-                  key={job.id}
-                  job={job}
-                  saved={savedJobIds.has(job.id)}
-                  onToggleSave={() => toggleSaved(job.id)}
-                  style={{ animationDelay: `${index * 80}ms` }}
-                />
-              ))}
-            </div>
-          )}
-          <ViewAllLink href={Routes.app.user.jobs} />
-        </section>
-
-        <MarketplacePromoCard marketplaceHref={Routes.app.user.marketplace} />
+      {/* Every column is placed explicitly on wide screens: the focus strips share the side
+          cells, and automatic placement would otherwise shuffle the columns around them. */}
+      <aside inert={left.inert} className={cn("order-2 xl:order-0 xl:col-start-1", asideClass, left.className)}>
+        {profileSection}
+        {jobsSection}
+        {marketplaceSection}
       </aside>
+      <FocusRail side="left" items={leftRail} active={focus.active} />
 
-      <main className="order-1 space-y-6 xl:order-0">
+      <main className="order-1 min-w-0 space-y-6 xl:order-0 xl:col-start-2 xl:row-start-1">
+        <FeedFocusToggle focus={focus} />
         <WelcomeStrip
           firstName={firstName}
           streak={earn?.streak ?? null}
@@ -363,14 +462,11 @@ export default function DashboardPage() {
         <DashboardFeed />
       </main>
 
-      <aside className="order-3 xl:order-0 space-y-10 xl:sticky xl:top-22 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide">
-        {companies.length > 0 && (
-          <ConnectionsSection title="Top healthcare providers around you" items={companies} actionLabel="Subscribe" activeLabel="Subscribed" relation="subscribe" targetType="company" viewAllHref={`${Routes.app.user.network}?tab=agencies`} />
-        )}
-        {people.length > 0 && (
-          <ConnectionsSection title="Professionals you may be interested in" items={people} actionLabel="Connect" activeLabel="Pending" relation="connect" targetType="individual" viewAllHref={`${Routes.app.user.network}?tab=connections`} />
-        )}
+      <aside inert={right.inert} className={cn("order-3 xl:order-0 xl:col-start-3", asideClass, right.className)}>
+        {providersSection}
+        {peopleSection}
       </aside>
+      <FocusRail side="right" items={rightRail} active={focus.active} />
     </div>
   )
 }

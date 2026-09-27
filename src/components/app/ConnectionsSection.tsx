@@ -31,9 +31,11 @@ type ConnectionsSectionProps = {
   viewAllHref?: string
   /** Set false to omit "View all" entirely (e.g. when there's nowhere further to go). Defaults to true. */
   showViewAll?: boolean
+  /** Told when someone in the list is followed or unfollowed. */
+  onFollowChange?: (uid: string, following: boolean) => void
 }
 
-export function ConnectionsSection({ title, items, actionLabel, activeLabel, relation, targetType, viewAllHref, showViewAll = true }: ConnectionsSectionProps) {
+export function ConnectionsSection({ title, items, actionLabel, activeLabel, relation, targetType, viewAllHref, showViewAll = true, onFollowChange }: ConnectionsSectionProps) {
   return (
     <section>
       <h2 className="mb-5 text-base font-bold leading-snug">{title}</h2>
@@ -74,6 +76,7 @@ export function ConnectionsSection({ title, items, actionLabel, activeLabel, rel
               relation={relation}
               targetType={targetType}
               initialActive={item.isFollowing}
+              onChange={item.uid && onFollowChange ? (next) => onFollowChange(item.uid as string, next) : undefined}
             />
           </div>
         ))}

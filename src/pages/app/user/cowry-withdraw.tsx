@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CowryAmount, CowryIcon } from "@/components/cowry/CowryIcon"
+import { CurrencyPicker, RateNote } from "@/components/cowry/CurrencyPicker"
+import { useCurrencyEquivalent } from "@/components/cowry/useCurrencyEquivalent"
 import {
   CowryLoadError,
   CowryPageHeader,
@@ -82,6 +84,20 @@ export default function CowryWithdrawPage() {
 
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<CowryWithdrawalResult | null>(null)
+
+  // What the withdrawal is worth in another currency, for reference. Naira is still what
+  // is paid; see exchangeRates.ts.
+  const fx = useCurrencyEquivalent()
+
+  /**
+   * A naira amount in the chosen currency — the figure people see first. Falls back to naira
+   * until rates arrive, or if they cannot load, so there is never a blank where money goes.
+   */
+  const money = (naira: number | null | undefined) =>
+    (fx.converting && fx.format(naira)) || formatNaira(naira)
+  /** The naira figure beneath a converted one: what the bank transfer is actually made in. */
+  const nairaNote = (naira: number | null | undefined) =>
+    fx.converting && fx.format(naira) ? formatNaira(naira) : null
 
   // One opening call, both to learn the balance and to find out whether cashing out is
   // possible at all. The minimum doubles as a sensible default amount.
@@ -226,10 +242,10 @@ export default function CowryWithdrawPage() {
               <>
                 <ReceiptRow label="Cowries used">{formatCowries(result.withdrawal.cowries)}</ReceiptRow>
                 <ReceiptRow label="Fee">
-                  <span className="text-[#565656]">{formatNaira(result.withdrawal.feeNaira)}</span>
+                  <span className="text-[#565656]">{money(result.withdrawal.feeNaira)}</span>
                 </ReceiptRow>
                 <ReceiptRow label="Sent to your bank" strong>
-                  {formatNaira(result.withdrawal.netNaira)}
+                  {money(result.withdrawal.netNaira)}
                 </ReceiptRow>
               </>
             ) : undefined
@@ -256,7 +272,7 @@ export default function CowryWithdrawPage() {
           }
         >
           {paid &&
-            `${formatNaira(result.withdrawal?.netNaira)} is on its way to your ${accountName || "bank"} account.`}
+            `${money(result.withdrawal?.netNaira)} is on its way to your ${accountName || "bank"} account.`}
           {pending &&
             "Your bank hasn't confirmed yet. If it doesn't go through, your Cowries come back automatically within half an hour."}
           {result.released &&
@@ -288,7 +304,19 @@ export default function CowryWithdrawPage() {
           <div className="cowry-shine bg-[linear-gradient(135deg,#10141a_0%,#2a3442_100%)] p-6 text-white">
             <div className="relative">
               <p className="text-xs uppercase tracking-wide text-white/60">You receive</p>
-              <p className="mt-1 text-4xl font-bold tabular-nums">{formatNaira(quote.netNaira)}</p>
+              <p key={fx.currency} className="animate-fadeIn mt-1 text-4xl font-bold tabular-nums">
+                {money(quote.netNaira)}
+              </p>
+              {nairaNote(quote.netNaira) && (
+                <p className="mt-1 text-sm font-semibold tabular-nums text-white/75">
+                  Sent as {nairaNote(quote.netNaira)}
+                </p>
+              )}
+              {fx.converting && (
+                <div className="mt-2">
+                  <RateNote currency={fx.currency} status={fx.status} table={fx.table} onRetry={fx.retry} tone="dark" />
+                </div>
+              )}
               <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-white/80">
                 <Landmark className="size-4" aria-hidden="true" />
                 {accountName} · <span className="tabular-nums">{accountNumber}</span> · {bank?.name}
@@ -306,13 +334,18 @@ export default function CowryWithdrawPage() {
               <ReceiptRow label="Cowries used">
                 <CowryAmount amount={quote.cowries} size={14} />
               </ReceiptRow>
-              <ReceiptRow label="Worth">{formatNaira(quote.grossNaira)}</ReceiptRow>
+              <ReceiptRow label="Worth">{money(quote.grossNaira)}</ReceiptRow>
               <ReceiptRow label={`Fee (${Math.round(quote.withdrawalFeeRate * 100)}%)`} tone="fee">
-                {formatNaira(quote.feeNaira)}
+                {money(quote.feeNaira)}
               </ReceiptRow>
               <ReceiptRow label="You receive" strong>
-                {formatNaira(quote.netNaira)}
+                {money(quote.netNaira)}
               </ReceiptRow>
+              {nairaNote(quote.netNaira) && (
+                <ReceiptRow label="Paid to your bank as">
+                  <span className="text-[#565656]">{nairaNote(quote.netNaira)}</span>
+                </ReceiptRow>
+              )}
             </dl>
 
             <Button className="cowry-press mt-6 h-12 w-full text-base" onClick={submit} disabled={submitting}>
@@ -322,7 +355,7 @@ export default function CowryWithdrawPage() {
                   Sending…
                 </>
               ) : (
-                `Send ${formatNaira(quote.netNaira)}`
+                `Send ${money(quote.netNaira)}`
               )}
             </Button>
           </div>
@@ -420,27 +453,49 @@ export default function CowryWithdrawPage() {
 
           {/* The net is the largest figure; nobody should have to subtract to learn it. */}
           <div className="rounded-2xl bg-[#f7f9fb] p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <span className="text-xs font-semibold uppercase tracking-wide text-[#8a94a3]">Your quote</span>
+              <span className="flex items-center gap-2 text-xs text-[#657080]">
+                Currency
+                <CurrencyPicker value={fx.currency} onChange={fx.setCurrency} />
+              </span>
+            </div>
             {quoting && !quote ? (
               <Skeleton className="h-20" />
             ) : quote ? (
-              <dl className="space-y-1.5 text-sm">
+              <dl key={fx.currency} className="animate-fadeIn space-y-1.5 text-sm">
                 <div className="flex justify-between">
                   <dt className="text-[#657080]">Worth</dt>
-                  <dd className="tabular-nums text-[#565656]">{formatNaira(quote.grossNaira)}</dd>
+                  <dd className="tabular-nums text-[#565656]">{money(quote.grossNaira)}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-[#657080]">Fee ({Math.round(quote.withdrawalFeeRate * 100)}%)</dt>
-                  <dd className="tabular-nums text-[#d97a2b]">{formatNaira(quote.feeNaira)}</dd>
+                  <dd className="tabular-nums text-[#d97a2b]">{money(quote.feeNaira)}</dd>
                 </div>
                 <div className="flex items-baseline justify-between border-t border-[#e2e6ea] pt-2">
                   <dt className="font-semibold text-[#141922]">You receive</dt>
                   <dd
-                    key={quote.netNaira}
+                    key={`${fx.currency}-${quote.netNaira}`}
                     className="animate-fadeIn text-2xl font-bold tabular-nums text-[#141922]"
                   >
-                    {formatNaira(quote.netNaira)}
+                    {fx.converting && fx.status === "loading" ? (
+                      <Skeleton className="h-7 w-28" />
+                    ) : (
+                      money(quote.netNaira)
+                    )}
                   </dd>
                 </div>
+                {nairaNote(quote.netNaira) && (
+                  <div className="flex justify-between text-xs">
+                    <dt className="text-[#8a94a3]">Paid to your bank as</dt>
+                    <dd className="tabular-nums text-[#657080]">{nairaNote(quote.netNaira)}</dd>
+                  </div>
+                )}
+                {fx.converting && (
+                  <div className="pt-1">
+                    <RateNote currency={fx.currency} status={fx.status} table={fx.table} onRetry={fx.retry} />
+                  </div>
+                )}
               </dl>
             ) : (
               <p className="text-sm text-[#657080]">Enter an amount to see what you&apos;d receive.</p>
@@ -509,7 +564,7 @@ export default function CowryWithdrawPage() {
         <p className="min-w-0 flex-1 text-sm text-[#657080]">
           {blocker ?? (
             <>
-              Send <span className="font-semibold text-[#141922]">{formatNaira(quote?.netNaira)}</span> to{" "}
+              Send <span className="font-semibold text-[#141922]">{money(quote?.netNaira)}</span> to{" "}
               {accountName}
             </>
           )}

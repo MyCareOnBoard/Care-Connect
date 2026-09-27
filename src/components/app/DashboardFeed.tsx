@@ -23,7 +23,7 @@ import {
   POST_CREATED_EVENT,
   type FeedPost,
 } from "@/utils/careconnect/services/postsService"
-import { listConnections } from "@/utils/careconnect/services/connectionsService"
+import { isEstablished, listConnections } from "@/utils/careconnect/services/connectionsService"
 
 /** How many faces the "in your feed" row shows before it stops. */
 const STORY_LIMIT = 12
@@ -57,24 +57,30 @@ function FeedSkeleton() {
 }
 
 /**
- * The people behind the posts, as a row of faces.
+ * Your network, as a row of faces.
+ *
+ * Only people you are actually connected with (the request was accepted) and providers you
+ * subscribe to — not everyone who happens to appear in the feed. Pending requests and
+ * strangers stay out, so the row reads as "your people are posting".
  *
  * Built from the feed already loaded rather than a separate "who posted recently" query —
  * there isn't one yet — so every face here genuinely has a post below. Tapping a face
  * scrolls to that person's latest post and flashes it.
  */
-function FeedFaces({ posts, myUid }: { posts: FeedPost[]; myUid?: string }) {
+function FeedFaces({ posts, myUid, network }: { posts: FeedPost[]; myUid?: string; network: Set<string> }) {
   const authors = useMemo(() => {
     const seen = new Map<string, FeedPost>()
     for (const post of posts) {
       if (!post.authorId || post.authorId === myUid || seen.has(post.authorId)) continue
+      if (!network.has(post.authorId)) continue
       seen.set(post.authorId, post)
       if (seen.size >= STORY_LIMIT) break
     }
     return [...seen.values()]
-  }, [posts, myUid])
+  }, [posts, myUid, network])
 
-  if (authors.length < 2) return null
+  // One connection who posted is worth showing now that the row only holds your network.
+  if (authors.length === 0) return null
 
   function jumpTo(postId: string) {
     const element = document.getElementById(`post-${postId}`)
@@ -194,6 +200,8 @@ export function DashboardFeed() {
   const viewProfile = flow === "agency" ? Routes.app.agency.viewProfile : Routes.app.user.viewProfile
   const [posts, setPosts] = useState<FeedPost[]>([])
   const [followed, setFollowed] = useState<Set<string>>(new Set())
+  // Accepted connections and subscriptions only; drives the row of faces.
+  const [network, setNetwork] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [giftTarget, setGiftTarget] = useState<GiftTarget | null>(null)
 
@@ -208,6 +216,7 @@ export function DashboardFeed() {
         if (!active) return
         setPosts(feed)
         setFollowed(new Set(connections.map((connection) => connection.targetId)))
+        setNetwork(new Set(connections.filter(isEstablished).map((connection) => connection.targetId)))
       } catch {
         // feed is non-critical; leave empty on failure
       } finally {
@@ -234,7 +243,7 @@ export function DashboardFeed() {
 
   return (
     <div className="space-y-6">
-      <FeedFaces posts={posts} myUid={myUid} />
+      <FeedFaces posts={posts} myUid={myUid} network={network} />
 
       {posts.map((post, index) => {
         const mine = post.authorId === myUid
