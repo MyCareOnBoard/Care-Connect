@@ -5,13 +5,23 @@
  * is that roughly worth to me", and are labelled as indicative wherever they appear. Nothing
  * here feeds the amount actually sent.
  *
- * SOURCE. The Cowry API has no rates endpoint, so this reads a free public feed
- * (open.er-api.com: no key, NGN base, refreshed daily). It sends nothing about the user —
- * only asks for today's table. When the backend grows a rates endpoint, replace `fetchTable`
- * and nothing else changes.
+ * SOURCE. The Cowry API now serves the table: GET /careconnectCowry/rates, refreshed once a
+ * day server-side from a free public feed. This used to call that feed from the browser,
+ * which meant one request per user per six hours, a figure that differed between two people
+ * depending on when their cache filled, and a third-party host an ad blocker or a corporate
+ * proxy could quietly refuse — emptying the cash-out screen for that one person with nobody
+ * the wiser.
+ *
+ * The server may answer with a table older than it would like, flagged stale. That is
+ * deliberate and it is passed through: two-day-old figures are far more useful than none,
+ * provided the screen says so, which RateNote does.
  */
 
-const RATES_URL = "https://open.er-api.com/v6/latest/NGN"
+// The default client, not careconnectClient: the Cowry API is its own function, so it is
+// addressed from the root. careconnectClient prefixes /careconnectCore and would send this
+// to /careconnectCore/careconnectCowry/rates.
+import axiosClient from "@/lib/axios"
+
 const CACHE_KEY = "careconnect-fx-ngn"
 /** The feed updates daily; six hours keeps it fresh without a request on every visit. */
 const CACHE_MS = 6 * 60 * 60 * 1000
@@ -67,17 +77,18 @@ function writeCache(table: RateTable) {
 }
 
 async function fetchTable(): Promise<RateTable> {
-  const response = await fetch(RATES_URL)
-  if (!response.ok) throw new Error(`Exchange rates unavailable (${response.status})`)
-  const body = (await response.json()) as {
-    result?: string
-    rates?: Record<string, number>
-    time_last_update_unix?: number
+  const { data } = await axiosClient.get("/careconnectCowry/rates")
+  const payload = data?.data as
+    | { rates?: Record<string, number>; updatedAt?: string; stale?: boolean }
+    | undefined
+
+  if (!payload?.rates || Object.keys(payload.rates).length === 0) {
+    throw new Error("Exchange rates unavailable")
   }
-  if (body.result !== "success" || !body.rates) throw new Error("Exchange rates unavailable")
+
   return {
-    rates: body.rates,
-    updatedAt: new Date((body.time_last_update_unix ?? Date.now() / 1000) * 1000),
+    rates: payload.rates,
+    updatedAt: payload.updatedAt ? new Date(payload.updatedAt) : new Date(),
   }
 }
 
