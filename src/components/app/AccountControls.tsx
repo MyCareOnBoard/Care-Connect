@@ -19,6 +19,8 @@ import { notificationTarget } from "@/utils/careconnect/notificationTarget"
 import { AvailabilityModal } from "@/components/professional/AvailabilityModal"
 import { useProfessionalMembership } from "@/utils/professional/useProfessionalMembership"
 import type { CareFlow } from "./useCareFlow"
+import { ThemeMenuRow } from "./ThemeToggle"
+import { toggleTheme } from "@/lib/theme"
 
 type AccountControlsProps = {
   flow?: CareFlow
@@ -195,11 +197,15 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
+          {/* Initials rather than the full name, so the header leaves room for the nav.
+              The full name is still in the label, and at the top of the menu it opens. */}
           <button
             type="button"
-            className="flex h-6 items-center gap-3 rounded-full pl-2 pr-3 outline-none transition hover:bg-[#edf3f5] cursor-pointer"
+            aria-label={`Account menu for ${displayName}`}
+            title={displayName}
+            className="flex h-6 items-center gap-1 rounded-full pl-1.5 pr-2 outline-none transition hover:bg-[#edf3f5] cursor-pointer"
           >
-            <span className="hidden text-xs font-medium sm:inline">{displayName}</span>
+            <span className="text-xs font-bold tracking-wide text-[#00898c]">{initials}</span>
             <ChevronDown className="size-4" />
           </button>
         </DropdownMenuTrigger>
@@ -264,6 +270,17 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
               </button>
             </DropdownMenuItem>
           </div>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={(event) => {
+              // Stay open, so the switch can be seen flipping and flipped back.
+              event.preventDefault()
+              toggleTheme()
+            }}
+            className="mx-2 rounded-lg px-3 py-2 text-sm hover:bg-[#edf3f5] cursor-pointer"
+          >
+            <ThemeMenuRow />
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={handleLogout} variant="destructive" className="rounded-lg mx-2 hover:bg-[#ff313157] mb-2">
             <div className="flex items-center gap-2 px-3 py-2 text-sm">

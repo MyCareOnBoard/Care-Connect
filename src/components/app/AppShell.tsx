@@ -9,28 +9,38 @@ import { db } from "@/lib/firebase"
 import { useAuthUser } from "@/utils/auth"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { isCowryPathEnabled } from "@/utils/careconnect/cowryPages"
+import { CowryBalanceChip } from "@/components/cowry/CowryBalanceChip"
+import { ThemeToggle } from "./ThemeToggle"
 import { useCareFlow } from "./useCareFlow"
 import { AccountControls } from "./AccountControls"
 import { RouteProgressBar } from "./RouteProgressBar"
 
 type NavItem = { label: string; href: string; children?: { label: string; href: string }[] }
 
-// Only user/professional accounts have a health profile — "My health" nests under
-// "Tele health" as a dropdown there, rather than taking its own top-level slot.
+// Related pages nest under one dropdown rather than each taking a top-level slot:
+// Applications sits with the Jobs it applies to, and Schedule (bookings and
+// appointments) and "My health" sit with Tele health. Only user/professional
+// accounts have a health profile, so the agency nav keeps a flat Tele health.
 const userNavItems: NavItem[] = [
   { label: "Home", href: Routes.app.user.dashboard },
   { label: "My network", href: Routes.app.user.network },
   { label: "Messages", href: Routes.app.user.messages },
-  { label: "Jobs", href: Routes.app.user.jobs },
-  { label: "Applications", href: Routes.app.user.applications },
+  {
+    label: "Jobs",
+    href: Routes.app.user.jobs,
+    children: [
+      { label: "Jobs", href: Routes.app.user.jobs },
+      { label: "Applications", href: Routes.app.user.applications },
+    ],
+  },
   { label: "Market place", href: Routes.app.user.marketplace },
-  { label: "Schedule", href: Routes.app.user.schedule },
   {
     label: "Tele health",
     href: Routes.app.user.telehealth,
     children: [
       { label: "Tele health", href: Routes.app.user.telehealth },
       { label: "My Health Records", href: Routes.app.user.healthProfile },
+      { label: "Schedule", href: Routes.app.user.schedule },
     ],
   },
   // The Cowry pages are switched on individually — see cowryPages.ts. A page that is off
@@ -111,7 +121,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <main className="min-h-screen bg-[#f5f8fa] text-[#11151d]">
       <RouteProgressBar />
-      <header className="sticky top-0 z-20 flex min-h-16 items-center gap-3 border-b border-white/40 bg-white/70 px-4 py-3 shadow-[0_1px_0_rgba(16,20,26,0.06)] backdrop-blur-xl supports-backdrop-filter:bg-white/60 sm:min-h-18 sm:gap-5 sm:px-6 xl:px-8">
+      <header className="sticky top-0 z-20 flex min-h-16 items-center gap-2 border-b border-white/40 bg-white/70 px-4 py-3 shadow-[0_1px_0_rgba(16,20,26,0.06)] backdrop-blur-xl supports-backdrop-filter:bg-white/60 sm:min-h-18 sm:gap-5 sm:px-6 xl:px-8">
         <button
           type="button"
           onClick={() => setIsSidebarOpen(true)}
@@ -121,8 +131,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Menu className="size-5" />
         </button>
 
-        <Link to={homeHref} className="shrink-0">
-          <CareConnectLogo />
+        {/* Mark only on phones: the full wordmark, the Cowry balance and the account
+            controls do not fit side by side under ~640px, and the overflow pushed the
+            whole page sideways. The slide-out menu carries the full wordmark. */}
+        <Link to={homeHref} className="shrink-0" aria-label="Home">
+          <span className="sm:hidden">
+            <CareConnectLogo compact />
+          </span>
+          <span className="hidden sm:block">
+            <CareConnectLogo />
+          </span>
         </Link>
 
         <nav className="hidden max-w-full gap-2 px-2 mx-auto overflow-x-auto lg:flex">
@@ -194,7 +212,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <div className="ml-auto lg:ml-0">
+        <div className="ml-auto flex min-w-0 items-center gap-1.5 sm:gap-2 lg:ml-0">
+          {/* Agencies have no Cowry wallet, so the balance is a member-only fixture. */}
+          {/* On phones the header has no room to spare; the switch lives in the account menu. */}
+          <ThemeToggle className="hidden sm:flex" />
+          {flow !== "agency" && <CowryBalanceChip />}
           <AccountControls flow={flow} />
         </div>
       </header>
@@ -209,7 +231,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           />
           <aside className="animate-slide-in-left relative z-10 flex h-full w-72 max-w-[80vw] flex-col gap-1 overflow-y-auto bg-white p-4 shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <CareConnectLogo compact />
+              {/* The full wordmark lives here on phones, where the header only has room
+                  for the mark. */}
+              <Link to={homeHref} aria-label="Home">
+                <CareConnectLogo />
+              </Link>
               <button
                 type="button"
                 onClick={() => setIsSidebarOpen(false)}

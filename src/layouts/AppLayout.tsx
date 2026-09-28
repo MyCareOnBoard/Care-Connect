@@ -5,6 +5,7 @@ import { ActiveCallLayer } from "@/components/call/ActiveCallLayer";
 import { CallSessionProvider } from "@/components/call/CallSessionProvider";
 import { CowryEarnedLayer } from "@/components/cowry/CowryEarnedLayer";
 import { RouteLoader } from "@/components/ui/loader";
+import { ScrollToTop } from "@/components/app/ScrollToTop";
 
 export default function AppLayout() {
   return (
@@ -21,6 +22,7 @@ export default function AppLayout() {
       {/* Outside the Outlet for the same reason the call is: a route change while Cowries
           are landing must not unmount the animation halfway through. */}
       <CowryEarnedLayer />
+      <ScrollToTop />
     </CallSessionProvider>
   )
 }

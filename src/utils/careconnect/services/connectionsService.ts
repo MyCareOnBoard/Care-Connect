@@ -14,6 +14,26 @@ export interface Connection {
   targetId: string
   relation: ConnectionRelation
   targetType?: string | null
+  /**
+   * Where a connect request stands. Not documented as part of the response yet — read
+   * defensively by `isEstablished` below.
+   */
+  status?: string | null
+}
+
+/**
+ * Is this relationship real yet?
+ *
+ * A subscription is one-way and takes effect at once. A connection needs the other person
+ * to accept, so a connect record only counts once it is accepted. A record with no status at
+ * all is taken as accepted, because that is how the My Network page already treats every
+ * connect record — if the API returns pending requests without a status, both places need
+ * the backend to add one (see the note in DashboardFeed).
+ */
+export function isEstablished(connection: Connection): boolean {
+  if (connection.relation === "subscribe") return true
+  const status = connection.status?.toLowerCase()
+  return !status || status === "accepted" || status === "active" || status === "connected"
 }
 
 export async function follow(

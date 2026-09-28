@@ -1,7 +1,10 @@
 import { Suspense } from "react"
 import { NavLink, Outlet } from "react-router"
-import { Coins, LogOut } from "lucide-react"
+import { LogOut } from "lucide-react"
+import { CowryIcon } from "@/components/cowry/CowryIcon"
 import { RouteLoader } from "@/components/ui/loader"
+import { ScrollToTop } from "@/components/app/ScrollToTop"
+import { ThemeToggle } from "@/components/app/ThemeToggle"
 import { Routes } from "@/routes/constants"
 import { useAuth, useAuthUser } from "@/utils/auth"
 
@@ -16,7 +19,11 @@ import { useAuth, useAuthUser } from "@/utils/auth"
  * an entry here and nothing else.
  */
 
-const NAV = [{ to: Routes.app.admin.cowry, label: "Cowry economy", icon: Coins }]
+const NAV = [{ to: Routes.app.admin.cowry, label: "Cowry economy", icon: CowryNavIcon }]
+
+function CowryNavIcon({ className }: { className?: string }) {
+  return <CowryIcon size={18} className={className} />
+}
 
 export default function AdminLayout() {
   const { user } = useAuthUser()
@@ -39,20 +46,21 @@ export default function AdminLayout() {
                 key={to}
                 to={to}
                 className={({ isActive }) =>
-                  `flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                  `cowry-hover flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition ${
                     isActive
                       ? "bg-[#00b3ad] text-white"
                       : "text-[#4f4f4f] hover:bg-gray-100"
                   }`
                 }
               >
-                <Icon className="size-4" aria-hidden="true" />
+                <Icon className="cowry-wobble" />
                 {label}
               </NavLink>
             ))}
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
+            <ThemeToggle />
             {user?.email && (
               <span className="hidden text-xs text-[#6b7280] sm:inline">{user.email}</span>
             )}
@@ -73,6 +81,7 @@ export default function AdminLayout() {
           <Outlet />
         </Suspense>
       </main>
+      <ScrollToTop />
     </div>
   )
 }
