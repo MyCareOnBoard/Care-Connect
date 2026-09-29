@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react"
 import { Bookmark, Briefcase, Building2, Sparkles, Store, Users } from "lucide-react"
+import { Link } from "react-router"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ViewAllLink } from "@/components/app/ViewAllLink"
@@ -66,7 +67,7 @@ function JobCard({
   return (
     <article
       style={style}
-      className="animate-fade-in-up group rounded-2xl border border-white/60 bg-white/85 p-4 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00b4b8]/30 hover:shadow-[0_12px_28px_rgba(0,180,184,0.12)]"
+      className="animate-fade-in-up group relative rounded-2xl border border-white/60 bg-white/85 p-4 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00b4b8]/30 hover:shadow-[0_12px_28px_rgba(0,180,184,0.12)]"
     >
       <div className="flex items-start gap-3">
         {/* A monogram tile stands in for a company logo until jobs carry one. */}
@@ -81,7 +82,16 @@ function JobCard({
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="truncate text-sm font-bold leading-snug text-[#151922]">{job.title}</h3>
+            <h3 className="truncate text-sm font-bold leading-snug text-[#151922]">
+              {/* The whole card opens the job: this link's hit area is stretched over it,
+                  while the bookmark sits above it and stays its own button. */}
+              <Link
+                to={`${Routes.app.user.jobs}?job=${encodeURIComponent(job.id)}`}
+                className="outline-none after:absolute after:inset-0 after:rounded-2xl after:content-[''] focus-visible:after:ring-2 focus-visible:after:ring-[#00b4b8] group-hover:text-[#00898c]"
+              >
+                {job.title}
+              </Link>
+            </h3>
             {isNew && (
               <span className="shrink-0 rounded-full bg-[#e2f7e8] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#1f9c4c]">
                 New
@@ -98,7 +108,7 @@ function JobCard({
           onClick={onToggleSave}
           aria-pressed={saved}
           aria-label={saved ? "Unsave job" : "Save job"}
-          className="-mr-1 -mt-1 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#20242c] transition hover:bg-[#f2f6f8] active:scale-90"
+          className="relative z-10 -mr-1 -mt-1 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#20242c] transition hover:bg-[#f2f6f8] active:scale-90"
         >
           <Bookmark
             key={saved ? "saved" : "unsaved"}
@@ -453,7 +463,12 @@ export default function DashboardPage() {
           postReward={postReward}
           strength={strength}
           profileHref={Routes.app.user.profile}
-          jobs={{ count: jobs.length, firstTitle: jobs[0]?.title, href: Routes.app.user.jobs }}
+          jobs={{
+            count: jobs.length,
+            firstTitle: jobs[0]?.title,
+            // The card previews the first job, so it opens that job rather than the list.
+            href: jobs[0] ? `${Routes.app.user.jobs}?job=${encodeURIComponent(jobs[0].id)}` : Routes.app.user.jobs,
+          }}
         />
         <PostComposer
           photo={me?.photo}

@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Link } from "react-router"
 import { toast } from "sonner"
-import { Check, Gift, Loader2 } from "lucide-react"
+import { Gift, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import { CowryAmount, CowryIcon } from "@/components/cowry/CowryIcon"
-import { celebrateCowries } from "@/components/cowry/celebrate"
+import { CowryAmount } from "@/components/cowry/CowryIcon"
+import { GiftIcon } from "@/components/cowry/GiftIcon"
+import { giftColor } from "@/components/cowry/giftIcons"
+import { playGiftSplash } from "@/components/cowry/giftPreview"
 import { Routes } from "@/routes/constants"
 import { getAuthErrorMessage } from "@/utils/auth"
 import {
@@ -66,7 +68,7 @@ export function GiftTray({
   const [selected, setSelected] = useState<CowryGiftCatalogItem | null>(null)
   const [message, setMessage] = useState("")
   const [sending, setSending] = useState(false)
-  const [sentLabel, setSentLabel] = useState<string | null>(null)
+  const [sent, setSent] = useState<CowryGiftCatalogItem | null>(null)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -94,7 +96,7 @@ export function GiftTray({
     if (open) return
     setSelected(null)
     setMessage("")
-    setSentLabel(null)
+    setSent(null)
     if (closeTimer.current) clearTimeout(closeTimer.current)
   }, [open])
 
@@ -137,8 +139,18 @@ export function GiftTray({
       }
 
       // Only now. The server has taken the Cowries.
-      setSentLabel(selected.label)
-      celebrateCowries(selected.set === "legendary" || selected.set === "rare" ? "shower" : "burst")
+      setSent(selected)
+      // The gift's own icon rains down for the sender too — the same moment the receiver
+      // gets, so both sides see what was given.
+      playGiftSplash({
+        key: `sent-${result.gift?.id ?? Date.now()}`,
+        gift: { id: selected.id, label: selected.label, icon: selected.icon },
+        set: selected.set,
+        cost: selected.cost,
+        recipientName,
+        message: message.trim() || null,
+        direction: "sent",
+      })
       setCatalog((current) =>
         current ? { ...current, purchasedAvailable: current.purchasedAvailable - selected.cost } : current,
       )
@@ -154,17 +166,19 @@ export function GiftTray({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
-        {sentLabel ? (
+        {sent ? (
           <DialogBody className="py-10 text-center">
             {/* The celebration, shown only once the spend is confirmed. */}
             <div className="relative mx-auto flex size-20 items-center justify-center">
-              <span className="animate-check-ring absolute size-16 rounded-full bg-[#00b4b8]" />
-              <span className="animate-cowry-pop relative flex size-16 items-center justify-center rounded-full bg-[#00b4b8]">
-                <Check className="size-8 text-white" aria-hidden="true" />
+              <span
+                className="animate-check-ring absolute size-16 rounded-full"
+                style={{ backgroundColor: giftColor(sent) }}
+              />
+              <span className="animate-cowry-pop relative flex size-16 items-center justify-center rounded-full bg-white shadow-[0_8px_20px_-8px_rgba(16,20,26,0.45)]">
+                <GiftIcon gift={sent} size={34} />
               </span>
-              <CowryIcon size={26} className="animate-cowry-pop absolute -right-1 -top-1 [animation-delay:250ms]" />
             </div>
-            <p className="mt-4 text-lg font-bold text-[#141922]">{sentLabel} sent</p>
+            <p className="mt-4 text-lg font-bold text-[#141922]">{sent.label} sent</p>
             <p className="mt-1 text-sm text-[#657080]">
               {recipientName ? `${recipientName} will see it on their profile.` : "It's on its way."}
             </p>
@@ -231,10 +245,10 @@ export function GiftTray({
                               : "border-[#e2e6ea] bg-white hover:border-[#c8cdd4]"
                           } ${affordable ? "" : "opacity-55"}`}
                         >
-                          <Gift
-                            className={`cowry-wobble mx-auto mb-1 size-5 ${active ? "text-[#00b4b8]" : "text-[#9aa4b2]"}`}
-                            aria-hidden="true"
-                          />
+                          {/* Each gift wears its own icon — see giftIcons.ts. */}
+                          <span className="cowry-wobble mx-auto mb-1 flex size-8 items-center justify-center">
+                            <GiftIcon gift={gift} size={26} />
+                          </span>
                           <span className="block truncate text-xs font-medium text-[#141922]">
                             {gift.label}
                           </span>
@@ -246,8 +260,11 @@ export function GiftTray({
 
                   {selected && (
                     <div key={selected.id} className="animate-fade-in-up space-y-3 rounded-xl border border-[#e2e6ea] p-4">
-                      <div className="flex items-baseline justify-between">
-                        <span className="font-semibold">{selected.label}</span>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="flex items-center gap-2 font-semibold">
+                          <GiftIcon gift={selected} size={22} />
+                          {selected.label}
+                        </span>
                         <CowryAmount amount={selected.cost} size={16} className="text-[#565656]" />
                       </div>
 

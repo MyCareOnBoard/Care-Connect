@@ -100,7 +100,8 @@ export function ScrollToTop() {
           ? "translate-y-0 scale-100 opacity-100"
           : "pointer-events-none translate-y-4 scale-75 opacity-0",
       )}
-      style={{ bottom: `calc(env(safe-area-inset-bottom, 0px) + ${20 + lift}px)` }}
+      // Above the phone tab bar when there is one; see --app-bottom-inset in index.css.
+      style={{ bottom: `calc(max(var(--app-bottom-inset, 0px), env(safe-area-inset-bottom, 0px)) + ${20 + lift}px)` }}
     >
       {/* The bob lives on its own wrapper so it never fights the show/hide transform. */}
       <div className="animate-float-soft">
