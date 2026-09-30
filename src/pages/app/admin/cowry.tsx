@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   Coins,
   Gauge,
+  Gift,
   History,
   Loader2,
   Package,
@@ -17,6 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { toast } from "sonner"
+import { holdDescription } from "@/utils/careconnect/creatorHold"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -35,6 +37,7 @@ import {
   updateMismatch,
   updatePools,
   updatePricing,
+  updateGifts,
   updateRewards,
   type CowryActivityType,
   type CowryAdminConfig,
@@ -57,13 +60,14 @@ import {
  * what it would become before pressing save. Save stays off until something has changed.
  */
 
-type TabKey = "pools" | "rewards" | "pricing" | "packages" | "reconciliation" | "log"
+type TabKey = "pools" | "rewards" | "pricing" | "packages" | "gifts" | "reconciliation" | "log"
 
 const TABS: Array<{ key: TabKey; label: string; icon: LucideIcon }> = [
   { key: "pools", label: "Budget pools", icon: Gauge },
   { key: "rewards", label: "Reward rates", icon: Sparkles },
   { key: "pricing", label: "Pricing & fees", icon: Coins },
   { key: "packages", label: "Data packages", icon: Package },
+  { key: "gifts", label: "Gifts", icon: Gift },
   { key: "reconciliation", label: "Reconciliation", icon: Scale },
   { key: "log", label: "Change log", icon: History },
 ]
@@ -295,6 +299,7 @@ export default function AdminCowryPage() {
   const [rewardDraft, setRewardDraft] = useState<Record<string, string>>({})
   const [capDraft, setCapDraft] = useState<Record<string, string>>({})
   const [pricingDraft, setPricingDraft] = useState<Record<string, string>>({})
+  const [giftDraft, setGiftDraft] = useState<Record<string, string>>({})
   const [packageDraft, setPackageDraft] = useState<Record<string, Record<string, string>>>({})
   const [notice, setNotice] = useState<{ tone: "ok" | "info"; text: string } | null>(null)
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -337,6 +342,7 @@ export default function AdminCowryPage() {
     setRewardDraft(rewardLive(config))
     setCapDraft(capLive(config))
     setPricingDraft(pricingLive(config))
+    setGiftDraft({ creatorHoldMinutes: String(config.gifts?.creatorHoldMinutes ?? "") })
     setPackageDraft({})
   }, [config])
 
@@ -716,6 +722,75 @@ export default function AdminCowryPage() {
       )}
 
       {/* ── pricing ────────────────────────────────────────────────────── */}
+      {activeTab === "gifts" && (
+        <section className="max-w-xl rounded-xl border border-gray-200 bg-white p-6">
+          <h2 className="text-lg font-semibold text-[#10141a]">Gifts</h2>
+          <p className="mt-1 text-sm text-[#4f4f4f]">
+            How long a creator waits before a gift they received becomes spendable.
+          </p>
+
+          <div className="mt-5 space-y-4">
+            <div>
+              <label htmlFor="creator-hold" className="text-sm font-medium text-[#10141a]">
+                Hold on creator earnings (minutes)
+              </label>
+              <Input
+                id="creator-hold"
+                type="number"
+                min={0}
+                max={525600}
+                step={1}
+                className="mt-1.5"
+                value={giftDraft.creatorHoldMinutes ?? ""}
+                onChange={(e) =>
+                  setGiftDraft((d) => ({ ...d, creatorHoldMinutes: e.target.value }))
+                }
+              />
+              <p className="mt-1 text-xs text-[#6b7280]">
+                {holdDescription(giftDraft.creatorHoldMinutes)}
+              </p>
+            </div>
+
+            {/* The hold is not an arbitrary delay, and an operator shortening it should
+                know what it is protecting. */}
+            <div className="rounded-lg bg-gray-50 p-4 text-sm text-[#4f4f4f]">
+              <p className="font-semibold text-[#10141a]">What the hold is for</p>
+              <p className="mt-1">
+                A gift is bought with purchased Cowries, and that purchase can still be
+                charged back. The hold is the window in which that can be unwound before the
+                creator has spent the proceeds. 43,200 minutes &mdash; thirty days &mdash; is
+                the production setting.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <p className="font-semibold">Two things that surprise people</p>
+              <p className="mt-1">
+                The release sweep runs every fifteen minutes, so a hold shorter than that is
+                effectively fifteen &mdash; setting 5 does not release in 5.
+              </p>
+              <p className="mt-2">
+                A gift&apos;s release date is stamped when it is sent, so shortening the hold
+                does not free gifts already held. Send a new gift to see the change.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            className="mt-5"
+            disabled={saving}
+            onClick={() =>
+              save(() =>
+                updateGifts({ creatorHoldMinutes: Number(giftDraft.creatorHoldMinutes) }),
+              )
+            }
+          >
+            <Save className="mr-2 size-4" aria-hidden="true" />
+            Save gift settings
+          </Button>
+        </section>
+      )}
+
       {activeTab === "pricing" && (
         <section key="pricing" className="animate-fade-in-up grid gap-5 lg:grid-cols-[1.2fr_1fr]">
           <div className="rounded-2xl border border-gray-200 bg-white p-6">
