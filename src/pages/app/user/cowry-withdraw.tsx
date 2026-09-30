@@ -560,7 +560,7 @@ export default function CowryWithdrawPage() {
         </section>
       </div>
 
-      <div data-floating-actions className="sticky bottom-4 z-10 flex flex-wrap items-center gap-4 rounded-2xl bg-white/90 p-4 shadow-[0_12px_40px_-20px_rgba(16,20,26,0.5)] ring-1 ring-[#e2e6ea] backdrop-blur">
+      <div data-floating-actions className="sticky bottom-[calc(var(--app-bottom-inset,0px)+1rem)] z-10 flex flex-wrap items-center gap-4 rounded-2xl bg-white/90 p-4 shadow-[0_12px_40px_-20px_rgba(16,20,26,0.5)] ring-1 ring-[#e2e6ea] backdrop-blur">
         <p className="min-w-0 flex-1 text-sm text-[#657080]">
           {blocker ?? (
             <>

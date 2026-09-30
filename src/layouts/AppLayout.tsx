@@ -6,6 +6,7 @@ import { CallSessionProvider } from "@/components/call/CallSessionProvider";
 import { CowryEarnedLayer } from "@/components/cowry/CowryEarnedLayer";
 import { RouteLoader } from "@/components/ui/loader";
 import { ScrollToTop } from "@/components/app/ScrollToTop";
+import { GiftArrivalLayer } from "@/components/cowry/GiftArrivalLayer";
 
 export default function AppLayout() {
   return (
@@ -22,6 +23,8 @@ export default function AppLayout() {
       {/* Outside the Outlet for the same reason the call is: a route change while Cowries
           are landing must not unmount the animation halfway through. */}
       <CowryEarnedLayer />
+      {/* Gifts arriving play here, on whatever page the receiver is on. */}
+      <GiftArrivalLayer />
       <ScrollToTop />
     </CallSessionProvider>
   )

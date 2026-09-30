@@ -44,6 +44,7 @@ html.dark .bg-\[\#f2f5f8\] { background-color: #252b31; }
 html.dark .bg-\[\#f2f6f8\] { background-color: #252d31; }
 html.dark .bg-\[\#f2fbfb\] { background-color: #203434; }
 html.dark .bg-\[\#f3dfb3\] { background-color: #504429; }
+html.dark .bg-\[\#f3f6f8\] { background-color: #262c30; }
 html.dark .bg-\[\#f4f4f5\] { background-color: #2b2b2d; }
 html.dark .bg-\[\#f4f4f5d7\] { background-color: color-mix(in srgb, #2b2b2d 84%, transparent); }
 html.dark .bg-\[\#f5dcc4\] { background-color: #493726; }
@@ -86,6 +87,7 @@ html.dark .bg-\[linear-gradient\(135deg\,\#f1e8ff\,\#faf6ff\)\] { background-ima
 html.dark .bg-\[linear-gradient\(135deg\,\#fff1c7\,\#f3c969\)\] { background-image: linear-gradient(135deg,#4c401d,#f3c969); }
 html.dark .bg-\[linear-gradient\(135deg\,\#fff6ec\,\#ffe9d6\)\] { background-image: linear-gradient(135deg,#3e2c18,#4b321c); }
 html.dark .bg-\[linear-gradient\(135deg\,\#fffaf0\,\#fbeed2\)\] { background-image: linear-gradient(135deg,#3c2f17,#4b3e22); }
+html.dark .bg-\[linear-gradient\(180deg\,\#fff8e6_0\%\,\#fbeed2_45\%\,\#f1d9a4_100\%\)\] { background-image: linear-gradient(180deg,#423619 0%,#4b3e22 45%,#56492b 100%); }
 html.dark .bg-gray-100 { background-color: #292b2e; }
 html.dark .bg-gray-50 { background-color: #24272b; }
 html.dark .bg-slate-100 { background-color: #232b33; }
@@ -95,6 +97,7 @@ html.dark .bg-white\/70 { background-color: color-mix(in srgb, #161b22 70%, tran
 html.dark .bg-white\/80 { background-color: color-mix(in srgb, #161b22 80%, transparent); }
 html.dark .bg-white\/85 { background-color: color-mix(in srgb, #161b22 85%, transparent); }
 html.dark .bg-white\/90 { background-color: color-mix(in srgb, #161b22 90%, transparent); }
+html.dark .bg-white\/92 { background-color: color-mix(in srgb, #161b22 92%, transparent); }
 html.dark .bg-white\/95 { background-color: color-mix(in srgb, #161b22 95%, transparent); }
 html.dark .border-\[\#D9D9D9\] { border-color: #404040; }
 html.dark .border-\[\#b8e6e4\] { border-color: #3a4e4d; }
@@ -150,12 +153,14 @@ html.dark .disabled\:text-\[\#8a8a8a\]:disabled { color: #adadad; }
 html.dark .disabled\:text-\[\#8a8f98\]:disabled { color: #aeb0b4; }
 html.dark .divide-\[\#eef1f3\] > :not(:last-child) { border-color: #35393b; }
 html.dark .fill-\[\#00b4b8\] { fill: #2bc7ca; }
+html.dark .fill-\[\#10141a\] { fill: #e5e6e9; }
 html.dark .fill-\[\#151922\] { fill: #e2e4e7; }
 html.dark .focus-visible\:bg-white:focus-visible { background-color: #161b22; }
 html.dark .from-\[\#eaf4ff\] { --tw-gradient-from: #182b3f; }
 html.dark .from-\[\#effbfb\] { --tw-gradient-from: #203737; }
 html.dark .from-\[\#f5f8fa\] { --tw-gradient-from: #0d1117; }
 html.dark .from-slate-50 { --tw-gradient-from: #20272e; }
+html.dark .group:hover .group-hover\:text-\[\#00898c\] { color: #28babd; }
 html.dark .hover\:bg-\[\#e0f7fa\]:hover { background-color: #213e42; }
 html.dark .hover\:bg-\[\#e2e6ea\]:hover { background-color: #33373b; }
 html.dark .hover\:bg-\[\#e3f8f8\]:hover { background-color: #243e3e; }
@@ -167,6 +172,7 @@ html.dark .hover\:bg-\[\#edf3f5\]:hover { background-color: #283134; }
 html.dark .hover\:bg-\[\#eef1f3\]:hover { background-color: #2b3032; }
 html.dark .hover\:bg-\[\#f2f6f8\]:hover { background-color: #252d31; }
 html.dark .hover\:bg-\[\#f2f8f9\]:hover { background-color: #243032; }
+html.dark .hover\:bg-\[\#f7f9fb\]:hover { background-color: #22282e; }
 html.dark .hover\:bg-\[\#f7fafb\]:hover { background-color: #222b2e; }
 html.dark .hover\:bg-\[\#f7fafc\]:hover { background-color: #1f2930; }
 html.dark .hover\:bg-\[\#f8fbff\]:hover { background-color: #181e25; }
@@ -195,6 +201,7 @@ html.dark .ring-\[\#bfe8cc\] { --tw-ring-color: #394c3f; }
 html.dark .ring-\[\#d7eef0\] { --tw-ring-color: #344445; }
 html.dark .ring-\[\#e2e6ea\] { --tw-ring-color: #393c3f; }
 html.dark .ring-\[\#e4d6fb\] { --tw-ring-color: #372c49; }
+html.dark .ring-\[\#e8edef\] { --tw-ring-color: #373b3d; }
 html.dark .ring-\[\#e8edf0\] { --tw-ring-color: #363b3d; }
 html.dark .ring-\[\#f3dfb3\] { --tw-ring-color: #514834; }
 html.dark .ring-\[\#f5d2ae\] { --tw-ring-color: #534333; }
@@ -245,6 +252,7 @@ html.dark .text-\[\#656f80\] { color: #999ea7; }
 html.dark .text-\[\#657080\] { color: #999fa7; }
 html.dark .text-\[\#665555\] { color: #9a8f8f; }
 html.dark .text-\[\#687182\] { color: #9b9fa8; }
+html.dark .text-\[\#6b5a8a\] { color: #9c94ac; }
 html.dark .text-\[\#6b7280\] { color: #9da0a7; }
 html.dark .text-\[\#737780\] { color: #a1a3a7; }
 html.dark .text-\[\#7a5310\] { color: #ac8239; }

@@ -6,6 +6,7 @@ import { openComposer } from "@/components/app/composeEvent"
 import { StrengthRing } from "@/components/home/ProfileStrengthCard"
 import type { ProfileStrength } from "@/components/home/profileStrength"
 import { cn } from "@/lib/utils"
+import { greeting } from "@/components/home/greeting"
 import { formatCowries } from "@/utils/careconnect/cowry"
 import type { CowryStreak } from "@/utils/careconnect/services/cowryService"
 
@@ -30,14 +31,8 @@ interface WelcomeStripProps {
   jobs: { count: number; firstTitle?: string; href: string }
 }
 
-function greeting(): string {
-  const hour = new Date().getHours()
-  if (hour < 12) return "Good morning"
-  if (hour < 17) return "Good afternoon"
-  return "Good evening"
-}
-
-function StripCard({
+/** One card in a welcome row. Shared with the agency homepage's AgencyWelcome. */
+export function StripCard({
   children,
   to,
   onClick,
@@ -66,7 +61,7 @@ function StripCard({
   )
 }
 
-function CardFooter({ label, className }: { label: string; className?: string }) {
+export function CardFooter({ label, className }: { label: string; className?: string }) {
   return (
     <span className={cn("mt-auto flex items-center gap-1 pt-3 text-xs font-semibold", className)}>
       {label}

@@ -5,6 +5,7 @@ import { Gift, Lock, ShieldAlert, Smartphone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CowryIcon } from "@/components/cowry/CowryIcon"
+import { GiftIcon } from "@/components/cowry/GiftIcon"
 import {
   AnimatedCowries,
   CowryEmpty,
@@ -206,7 +207,10 @@ export default function CowryCreatorPage() {
               return (
                 <li key={hold.giftId} className="rounded-2xl bg-white p-4 ring-1 ring-[#e2e6ea]">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-[#141922]">{hold.giftLabel}</p>
+                    <p className="flex items-center gap-2 text-sm font-semibold text-[#141922]">
+                      <GiftIcon gift={{ id: hold.giftId, label: hold.giftLabel }} size={18} />
+                      {hold.giftLabel}
+                    </p>
                     <p className="flex items-center gap-1 text-sm font-bold tabular-nums text-[#141922]">
                       <CowryIcon size={16} />
                       {formatCowries(hold.amount)}
@@ -248,7 +252,7 @@ export default function CowryCreatorPage() {
                   }`}
                   title={GIFT_SET_LABELS[gift.giftSet] ?? gift.giftSet}
                 >
-                  <Gift className="size-5" aria-hidden="true" />
+                  <GiftIcon gift={{ id: gift.giftId, label: gift.giftLabel, icon: gift.giftIcon }} size={22} />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-[#141922]">

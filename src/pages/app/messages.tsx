@@ -66,7 +66,7 @@ function mapConversationDoc(id: string, data: DocumentData, myUid: string): Care
 
 function MessagesSkeleton() {
   return (
-    <div className="flex h-[calc(100vh-72px)] gap-4 p-5 sm:p-8">
+    <div className="flex h-[calc(100vh-72px-var(--app-bottom-inset,0px))] gap-4 p-5 sm:p-8">
       <div className="w-full max-w-sm space-y-3">
         <Skeleton className="w-full h-10" />
         <Skeleton className="h-16 rounded-xl" />
@@ -254,7 +254,7 @@ export default function MessagesPage() {
   return (
     <div
       className={cn(
-        "animate-fade-in-up flex h-[calc(100vh-72px)] flex-col lg:flex-row lg:gap-4 lg:p-8",
+        "animate-fade-in-up flex h-[calc(100vh-72px-var(--app-bottom-inset,0px))] flex-col lg:flex-row lg:gap-4 lg:p-8",
         mobileView === "chat" ? "gap-0 p-0" : "gap-4 p-5 sm:p-8"
       )}
     >

@@ -64,6 +64,19 @@
     font-family: "Urbanist", system-ui, sans-serif;
 }
 
+/* Space taken by the phone tab bar (BottomTabBar). Anything pinned to the bottom of the
+   screen adds this, so it sits above the bar instead of under it. Zero on wide screens and
+   on pages without the bar (auth, admin). */
+:root {
+    --app-bottom-inset: 0px;
+}
+
+@media (max-width: 63.99rem) {
+    html.has-bottom-nav {
+        --app-bottom-inset: calc(64px + env(safe-area-inset-bottom, 0px));
+    }
+}
+
 /* Dark theme tokens. Page and card match PAGE and CARD in the generator script. */
 html.dark {
     color-scheme: dark;
@@ -314,6 +327,39 @@ body {
 @media (prefers-reduced-motion: reduce) {
     .animate-wave {
         animation: none;
+    }
+}
+
+/* ── Skeletons ─────────────────────────────────────────────────────────────
+   A band of light sweeping across each loading placeholder. */
+
+.skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.skeleton-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+    animation: skeletonSweep 1.4s ease-in-out infinite;
+}
+
+html.dark .skeleton-shimmer::after {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent);
+}
+
+@keyframes skeletonSweep {
+    to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .skeleton-shimmer::after {
+        animation: none;
+        display: none;
     }
 }
 

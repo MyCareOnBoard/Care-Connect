@@ -428,6 +428,11 @@ export interface CowryGiftCatalogItem {
   set: CowryGiftSet
   cost: number
   creatorRate?: number | null
+  /**
+   * Optional icon choice: a key from GIFT_ICON_RULES ("drop", "flower", …) or an emoji.
+   * Without it the icon is matched from the label — see components/cowry/giftIcons.ts.
+   */
+  icon?: string | null
 }
 
 export interface CowryGiftCatalog {
@@ -441,6 +446,8 @@ export interface CowryGift {
   id: string
   giftId: string
   giftLabel: string
+  /** Same as `icon` on the catalogue item, when the backend copies it onto the gift. */
+  giftIcon?: string | null
   giftSet: CowryGiftSet
   cost: number
   /** Minted for the recipient. Never equal to the cost. */

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { Image, Loader2, PartyPopper, PlaySquare, Send, X } from "lucide-react"
+import { useSearchParams } from "react-router"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -82,6 +83,25 @@ export function PostComposer({ photo, cowryReward = 0 }: PostComposerProps = {})
     window.addEventListener(COMPOSE_EVENT, onCompose)
     return () => window.removeEventListener(COMPOSE_EVENT, onCompose)
   }, [])
+
+  // Arrived via the tab bar's + from another page: open straight into writing, then tidy
+  // the address so a refresh does not reopen it.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const composeRequested = searchParams.get("compose") === "1"
+  useEffect(() => {
+    if (!composeRequested) return
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        next.delete("compose")
+        return next
+      },
+      { replace: true },
+    )
+    // After the page has painted, so the scroll lands on the composer in its final place.
+    const timer = setTimeout(() => window.dispatchEvent(new CustomEvent(COMPOSE_EVENT, { detail: {} })), 150)
+    return () => clearTimeout(timer)
+  }, [composeRequested, setSearchParams])
 
   const startCelebration = () => {
     setText((current) => (current.startsWith(CELEBRATE_STARTER) ? current : `${CELEBRATE_STARTER}${current}`))

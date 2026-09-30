@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { useSearchParams } from "react-router"
 import { toast } from "sonner"
 import { Search, Heart, Bookmark } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -8,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { SidePanel } from "@/components/app/SidePanel"
 import { getAuthErrorMessage } from "@/utils/auth"
 import {
+  getJob,
   listJobs,
   listSavedJobs,
   saveJob,
@@ -214,6 +216,24 @@ export default function UserJobsPage() {
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set())
   const [isApplyOpen, setIsApplyOpen] = useState(false)
 
+  // `?job=<id>` opens that job — how the homepage's "Jobs for you" cards link here. The
+  // param follows the selection, so the address can be copied and shared as it stands.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const linkedJobId = searchParams.get("job")
+  const revealed = useRef(false)
+
+  const selectJob = (id: string) => {
+    setSelectedJobId(id)
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        next.set("job", id)
+        return next
+      },
+      { replace: true },
+    )
+  }
+
   useEffect(() => {
     let active = true
     ;(async () => {
@@ -227,8 +247,25 @@ export default function UserJobsPage() {
             .catch(() => []),
         ])
         if (!active) return
-        setJobs(fetchedJobs)
-        setSelectedJobId((current) => current ?? fetchedJobs[0]?.id ?? null)
+
+        // A linked job that is not in the list (filtered out server-side, or since closed)
+        // is fetched on its own, so the link still lands on it rather than on job one.
+        let allJobs = fetchedJobs
+        if (linkedJobId && !fetchedJobs.some((job) => job.id === linkedJobId)) {
+          const linked = await getJob(linkedJobId).catch(() => null)
+          if (!active) return
+          if (linked) allJobs = [linked, ...fetchedJobs]
+          else toast("That job is no longer available.")
+        }
+
+        setJobs(allJobs)
+        setSelectedJobId(
+          (current) =>
+            current ??
+            (linkedJobId && allJobs.some((job) => job.id === linkedJobId) ? linkedJobId : null) ??
+            allJobs[0]?.id ??
+            null,
+        )
         setSavedJobIds(new Set(saved.map((job) => job.id)))
         setAppliedJobIds(new Set(applications.map((application) => application.jobId)))
       } catch (error) {
@@ -240,7 +277,25 @@ export default function UserJobsPage() {
     return () => {
       active = false
     }
+    // Loads once; later changes to ?job= come from selecting here, not from outside.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Arriving from a link: bring the job into view once, in the list and — on narrow screens,
+  // where the details sit below the list — the details too, with a brief glow.
+  useEffect(() => {
+    if (loading || !linkedJobId || revealed.current) return
+    revealed.current = true
+    requestAnimationFrame(() => {
+      document.getElementById(`job-${linkedJobId}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+      const detail = document.getElementById("job-detail")
+      if (!detail) return
+      if (window.matchMedia("(max-width: 79.99rem)").matches) {
+        detail.scrollIntoView({ block: "start", behavior: "smooth" })
+      }
+      detail.classList.add("feed-flash")
+    })
+  }, [loading, linkedJobId])
 
   if (loading) return <JobsSkeleton />
 
@@ -322,10 +377,11 @@ export default function UserJobsPage() {
             {visibleJobs.map((job) => (
               <article
                 key={job.id}
+                id={`job-${job.id}`}
                 role="button"
                 tabIndex={0}
-                onClick={() => setSelectedJobId(job.id)}
-                onKeyDown={(event) => event.key === "Enter" && setSelectedJobId(job.id)}
+                onClick={() => selectJob(job.id)}
+                onKeyDown={(event) => event.key === "Enter" && selectJob(job.id)}
                 className={`cursor-pointer rounded-xl border p-4 transition-colors ${
                   job.id === selectedJob?.id ? "border-[#00b4b8] bg-[#eaf4ff]" : "border-[#e2e2e2] bg-white hover:border-[#00b4b8]/40"
                 }`}
@@ -377,7 +433,7 @@ export default function UserJobsPage() {
       </aside>
 
       {selectedJob && (
-        <main className="space-y-5">
+        <main id="job-detail" className="scroll-mt-24 space-y-5 rounded-2xl">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold">{selectedJob.title}</h1>
