@@ -15,6 +15,7 @@ import {
   ReceiptRow,
 } from "@/components/cowry/CowryUI"
 import { Routes } from "@/routes/constants"
+import { isMockAuthorizationUrl } from "@/utils/careconnect/mockPaymentProvider"
 import { getAuthErrorMessage } from "@/utils/auth"
 import {
   getPurchasePackages,
@@ -169,6 +170,14 @@ export default function CowryBuyPage() {
         toast.error(PURCHASE_REFUSAL_MESSAGES[result.reason ?? ""] ?? "We couldn't start that purchase.")
         return
       }
+      // With the mock provider there is nowhere to send anyone, so the return leg is
+      // entered directly. Same screen, same settle call, same result the redirect would
+      // have produced — minus a round trip to a host that does not exist.
+      if (isMockAuthorizationUrl(result.authorizationUrl) && result.purchase?.id) {
+        setSearchParams({ purchase: result.purchase.id })
+        return
+      }
+
       if (result.authorizationUrl) {
         // Leaving the app entirely, so nothing is assumed about the outcome here — the
         // return leg above is what decides it.
