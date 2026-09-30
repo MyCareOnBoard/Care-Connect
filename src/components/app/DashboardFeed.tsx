@@ -301,7 +301,12 @@ export function DashboardFeed() {
               }}
               onLoadComments={async (): Promise<PostComment[]> => {
                 const comments = await listComments(post.id)
-                return comments.map((c) => ({ id: c.id, author: c.author, text: c.text }))
+                return comments.map((c) => ({
+                  id: c.id,
+                  author: c.author,
+                  authorPhoto: c.authorPhoto,
+                  text: c.text,
+                }))
               }}
               action={
                 mine ? undefined : (
