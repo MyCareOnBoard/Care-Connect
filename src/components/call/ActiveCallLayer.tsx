@@ -68,7 +68,7 @@ export function ActiveCallLayer() {
       <div
         className={
           minimized
-            ? "pointer-events-auto fixed bottom-4 left-4 z-[60] flex h-48 w-64 flex-col overflow-hidden rounded-2xl bg-[#1f2430] shadow-[0_18px_48px_rgba(17,24,39,0.34)]"
+            ? "pointer-events-auto fixed bottom-[calc(var(--app-bottom-inset,0px)+1rem)] left-4 z-[60] flex h-48 w-64 flex-col overflow-hidden rounded-2xl bg-[#1f2430] shadow-[0_18px_48px_rgba(17,24,39,0.34)]"
             : "pointer-events-auto fixed inset-0 z-[35] flex flex-col bg-[#1f2430]"
         }
       >

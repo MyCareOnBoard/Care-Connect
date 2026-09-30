@@ -105,7 +105,7 @@ export function CowryEarnedLayer() {
         // steals no focus and nothing here is interactive except the link out.
         aria-live="polite"
         className="fixed inset-x-0 z-50 flex flex-col items-center gap-2 px-4 pointer-events-none"
-        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 84px)" }}
+        style={{ bottom: "calc(max(var(--app-bottom-inset, 0px), env(safe-area-inset-bottom, 0px)) + 84px)" }}
       >
         {landings.map((landing) => (
           <Link

@@ -203,7 +203,7 @@ export default function HealthProfilePage() {
       </section>
 
       {/* Sticky so the save action stays reachable while scrolling a long, section-by-section form. */}
-      <div className="fixed inset-x-0 bottom-0 z-10 border-t border-[#e5ecf5] bg-white/95 px-5 py-4 backdrop-blur-sm sm:px-8">
+      <div className="fixed inset-x-0 bottom-(--app-bottom-inset) z-10 border-t border-[#e5ecf5] bg-white/95 px-5 py-4 backdrop-blur-sm sm:px-8">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-end gap-3">
           {errors.length > 0 ? (
             <span className="mr-auto text-sm text-[#ff3e66]">

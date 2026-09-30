@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react"
-import { Link } from "react-router"
-import { Briefcase, Gift, PenLine, Users } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Link, useSearchParams } from "react-router"
+import { Briefcase, PenLine, Users } from "lucide-react"
 import { PortfolioPost, type PostComment } from "@/components/profile/PortfolioPost"
 import { toPortfolioData } from "@/components/profile/postMapping"
 import { FollowButton } from "@/components/app/FollowButton"
@@ -8,6 +8,7 @@ import { Avatar } from "@/components/app/DashboardAvatar"
 import { avatarColor } from "@/components/app/avatarColor"
 import { openComposer } from "@/components/app/composeEvent"
 import { GiftTray } from "@/components/cowry/GiftTray"
+import { PullToRefresh } from "@/components/app/PullToRefresh"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCareFlow, type CareFlow } from "@/components/app/useCareFlow"
 import { Routes } from "@/routes/constants"
@@ -208,22 +209,38 @@ export function DashboardFeed() {
   // Gifts are a member feature and only exist while some Cowry page is switched on.
   const canGift = flow !== "agency" && isAnyCowryPageEnabled()
 
+  const homePath = flow === "agency" ? Routes.app.agency.dashboard : Routes.app.user.dashboard
+
+  // `?post=<id>` — a shared link — scrolls to that post once the feed has loaded.
+  const [searchParams] = useSearchParams()
+  const linkedPostId = searchParams.get("post")
+  const revealed = useRef(false)
+
+  const mounted = useRef(true)
   useEffect(() => {
-    let active = true
-    const load = async () => {
-      try {
-        const [feed, connections] = await Promise.all([listFeed(), listConnections().catch(() => [])])
-        if (!active) return
-        setPosts(feed)
-        setFollowed(new Set(connections.map((connection) => connection.targetId)))
-        setNetwork(new Set(connections.filter(isEstablished).map((connection) => connection.targetId)))
-      } catch {
-        // feed is non-critical; leave empty on failure
-      } finally {
-        if (active) setLoading(false)
-      }
+    mounted.current = true
+    return () => {
+      mounted.current = false
     }
-    load()
+  }, [])
+
+  /** Load (or reload) the feed. Also what pulling down to refresh calls. */
+  const refresh = useCallback(async () => {
+    try {
+      const [feed, connections] = await Promise.all([listFeed(), listConnections().catch(() => [])])
+      if (!mounted.current) return
+      setPosts(feed)
+      setFollowed(new Set(connections.map((connection) => connection.targetId)))
+      setNetwork(new Set(connections.filter(isEstablished).map((connection) => connection.targetId)))
+    } catch {
+      // feed is non-critical; leave what is showing on failure
+    } finally {
+      if (mounted.current) setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refresh()
 
     // A new post from the composer (either dashboard) prepends live.
     const onCreated = (event: Event) => {
@@ -231,11 +248,19 @@ export function DashboardFeed() {
       if (post) setPosts((current) => [post, ...current])
     }
     window.addEventListener(POST_CREATED_EVENT, onCreated)
-    return () => {
-      active = false
-      window.removeEventListener(POST_CREATED_EVENT, onCreated)
-    }
-  }, [])
+    return () => window.removeEventListener(POST_CREATED_EVENT, onCreated)
+  }, [refresh])
+
+  useEffect(() => {
+    if (loading || !linkedPostId || revealed.current) return
+    revealed.current = true
+    requestAnimationFrame(() => {
+      const element = document.getElementById(`post-${linkedPostId}`)
+      if (!element) return
+      element.scrollIntoView({ behavior: "smooth", block: "center" })
+      element.classList.add("feed-flash")
+    })
+  }, [loading, linkedPostId])
 
   if (loading) return <FeedSkeleton />
 
@@ -243,6 +268,7 @@ export function DashboardFeed() {
 
   return (
     <div className="space-y-6">
+      <PullToRefresh onRefresh={refresh} />
       <FeedFaces posts={posts} myUid={myUid} network={network} />
 
       {posts.map((post, index) => {
@@ -282,24 +308,17 @@ export function DashboardFeed() {
                   <FollowButton label="Connect" activeLabel="Pending" targetId={post.authorId} relation="connect" initialActive={followed.has(post.authorId)} />
                 )
               }
-              footerAction={
-                canGift && !mine ? (
-                  <button
-                    type="button"
-                    onClick={() =>
+              onGift={
+                canGift && !mine
+                  ? () =>
                       setGiftTarget({
                         postId: post.id,
                         authorId: post.authorId,
                         authorName: post.authorName || "this member",
                       })
-                    }
-                    className="cowry-hover inline-flex items-center gap-1.5 rounded-full border border-[#f3e6c8] bg-[linear-gradient(135deg,#fffaf0,#fbeed2)] px-3 py-1.5 text-sm font-semibold text-[#7a5310] transition hover:border-[#e8d1a0] hover:shadow-[0_4px_14px_-6px_rgba(200,150,62,0.7)] active:scale-95"
-                  >
-                    <Gift className="cowry-wobble size-4" aria-hidden="true" />
-                    Gift
-                  </button>
-                ) : undefined
+                  : undefined
               }
+              shareUrl={`${window.location.origin}${homePath}?post=${encodeURIComponent(post.id)}`}
             />
           </div>
         )

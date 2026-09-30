@@ -1,8 +1,10 @@
-import { useRef, useState, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react"
 import { Link } from "react-router"
-import { Heart, MessageSquare, MoreHorizontal, Repeat2 } from "lucide-react"
+import { Gift, Heart, Link2, MessageSquare, MoreHorizontal, Repeat2, Share2, Upload } from "lucide-react"
 import { toast } from "sonner"
 import { Avatar } from "@/components/app/DashboardAvatar"
+import { PostVideo } from "@/components/profile/PostVideo"
+import { PostImage } from "@/components/profile/PostImage"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -51,14 +53,39 @@ type PortfolioPostProps = {
   onEdit?: () => void
   onRemove?: () => void
   action?: ReactNode
-  /** Extra buttons at the end of the like/comment/repost row, e.g. sending a gift. */
-  footerAction?: ReactNode
+  /** Adds a Gift button to the action row. Omit where gifting does not apply. */
+  onGift?: () => void
+  /** A link to this post, for Share → Copy link. Share only offers what it can do. */
+  shareUrl?: string
   /** Real-data wiring (optional — omitted surfaces stay local-only mock). */
   initialLiked?: boolean
   initialCommentCount?: number
   onLikeChange?: (nextLiked: boolean) => void
   onSubmitComment?: (text: string) => void
   onLoadComments?: () => Promise<PostComment[]>
+}
+
+/** The red of a like, shared with the double-tap heart. */
+const LIKE_RED = "#ff1f3d"
+
+/** Roughly four lines of post text before "see more". */
+const COLLAPSED_HEIGHT = 104
+
+function CommentBubble({ comment }: { comment: PostComment }) {
+  return (
+    <div className="flex items-start gap-2">
+      <span
+        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#e8f1f7] text-[11px] font-bold text-[#383d45]"
+        aria-hidden="true"
+      >
+        {comment.author.slice(0, 2).toUpperCase()}
+      </span>
+      <div className="min-w-0 flex-1 rounded-2xl bg-[#f3f6f8] px-3 py-2">
+        <p className="text-sm font-semibold text-[#151922]">{comment.author}</p>
+        <p className="text-sm text-[#505964]">{comment.text}</p>
+      </div>
+    </div>
+  )
 }
 
 export function PortfolioPost({
@@ -74,7 +101,8 @@ export function PortfolioPost({
   onEdit,
   onRemove,
   action,
-  footerAction,
+  onGift,
+  shareUrl,
   initialLiked = false,
   initialCommentCount,
   onLikeChange,
@@ -90,10 +118,57 @@ export function PortfolioPost({
   const [reposted, setReposted] = useState(false)
   const [repostCount, setRepostCount] = useState(post.reposts ?? 0)
   const [heartBurst, setHeartBurst] = useState(0)
+  const [expanded, setExpanded] = useState(false)
+  const [overflowing, setOverflowing] = useState(false)
   const lastTap = useRef(0)
+  const textRef = useRef<HTMLDivElement>(null)
+  const articleRef = useRef<HTMLElement>(null)
+  const commentInputRef = useRef<HTMLInputElement>(null)
 
-  // Show the server count until real comments are loaded on expand.
+  // Show the server count until real comments are loaded.
   const commentCount = commentsLoaded ? comments.length : initialCommentCount ?? comments.length
+
+  // Long posts fold at about four lines. Measured, so a short post never shows "see more".
+  useLayoutEffect(() => {
+    const el = textRef.current
+    if (!el || expanded) return
+    setOverflowing(el.scrollHeight > COLLAPSED_HEIGHT + 4)
+  }, [post.statement, post.paragraphs, expanded])
+
+  const loadComments = async () => {
+    if (commentsLoaded || !onLoadComments) return
+    try {
+      setComments(await onLoadComments())
+    } catch {
+      // leave existing comments on failure
+    } finally {
+      setCommentsLoaded(true)
+    }
+  }
+
+  /*
+   * A glimpse of the conversation under each post that has one: people answer an ongoing
+   * thread more readily than they start one. Fetched only once the post scrolls near the
+   * screen, so a long feed does not ask for every post's comments up front.
+   */
+  useEffect(() => {
+    if (commentsLoaded || !onLoadComments || (initialCommentCount ?? 0) === 0) return
+    const el = articleRef.current
+    if (!el || typeof IntersectionObserver === "undefined") return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          observer.disconnect()
+          void loadComments()
+        }
+      },
+      { rootMargin: "200px 0px" },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+    // loadComments reads the latest state itself; re-observing on its identity is not needed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [commentsLoaded, onLoadComments, initialCommentCount])
 
   const toggleLike = () => {
     const next = !liked
@@ -120,25 +195,36 @@ export function PortfolioPost({
     lastTap.current = now
   }
 
-  const toggleComments = async () => {
-    const next = !showComments
-    setShowComments(next)
-    if (next && !commentsLoaded && onLoadComments) {
-      try {
-        const loaded = await onLoadComments()
-        setComments(loaded)
-      } catch {
-        // leave existing comments on failure
-      } finally {
-        setCommentsLoaded(true)
-      }
-    }
+  const openComments = async () => {
+    setShowComments(true)
+    await loadComments()
+    // Straight to typing: tapping Comment means you want to write one.
+    requestAnimationFrame(() => commentInputRef.current?.focus())
   }
 
   const toggleRepost = () => {
     setReposted((current) => !current)
     setRepostCount((current) => current + (reposted ? -1 : 1))
     if (!reposted) toast.success("Reposted to your profile")
+  }
+
+  const copyLink = async () => {
+    if (!shareUrl) return
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      toast.success("Link copied")
+    } catch {
+      toast.error("Couldn't copy the link.")
+    }
+  }
+
+  const canNativeShare = typeof navigator !== "undefined" && typeof navigator.share === "function" && Boolean(shareUrl)
+  const nativeShare = async () => {
+    try {
+      await navigator.share({ title: `${authorName} on CareConnect`, text: post.statement.slice(0, 140), url: shareUrl })
+    } catch {
+      // Cancelled from the share sheet: nothing to report.
+    }
   }
 
   const submitComment = () => {
@@ -167,8 +253,18 @@ export function PortfolioPost({
     </div>
   )
 
+  const collapsed = overflowing && !expanded
+  const hasCounts = likeCount > 0 || commentCount > 0 || repostCount > 0
+  const preview = !showComments && comments.length > 0 ? comments[0] : null
+
+  const actionButton =
+    "group flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold text-[#565f6d] transition-all duration-150 hover:bg-[#f2f6f8] active:scale-95"
+
   return (
-    <article className="rounded-2xl border border-white/60 bg-white/85 p-5 shadow-[0_4px_20px_rgba(16,20,26,0.05)] backdrop-blur-md transition-shadow duration-300 hover:shadow-[0_12px_32px_-12px_rgba(16,20,26,0.18)]">
+    <article
+      ref={articleRef}
+      className="rounded-2xl border border-white/60 bg-white/85 p-5 pb-2 shadow-[0_4px_20px_rgba(16,20,26,0.05)] backdrop-blur-md transition-shadow duration-300 hover:shadow-[0_12px_32px_-12px_rgba(16,20,26,0.18)]"
+    >
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center min-w-0 gap-3">
           {authorHref ? (
@@ -209,11 +305,32 @@ export function PortfolioPost({
         )}
       </div>
 
-      <div className="mt-4 space-y-2 text-sm leading-6 text-[#20242c]">
-        {post.statement && <p>{post.statement}</p>}
-        {post.paragraphs.map((paragraph, index) => (
-          <p key={index}>{paragraph}</p>
-        ))}
+      {/* Long posts fold at about four lines, fading out, so the feed keeps moving. */}
+      <div className="relative mt-4">
+        <div
+          ref={textRef}
+          className={cn("space-y-2 overflow-hidden text-sm leading-6 text-[#20242c]", collapsed && "max-h-[104px]")}
+          style={
+            collapsed
+              ? { maskImage: "linear-gradient(to bottom, black 60%, transparent)", WebkitMaskImage: "linear-gradient(to bottom, black 60%, transparent)" }
+              : undefined
+          }
+        >
+          {post.statement && <p className="whitespace-pre-line">{post.statement}</p>}
+          {post.paragraphs.map((paragraph, index) => (
+            <p key={index} className="whitespace-pre-line">{paragraph}</p>
+          ))}
+        </div>
+        {overflowing && (
+          <button
+            type="button"
+            onClick={() => setExpanded((current) => !current)}
+            aria-expanded={expanded}
+            className="mt-1 text-sm font-semibold text-[#657080] hover:text-[#00898c] hover:underline"
+          >
+            {expanded ? "See less" : "…see more"}
+          </button>
+        )}
       </div>
 
       {post.hashtags && <p className="mt-2 text-sm font-bold text-[#0e44c2]">{post.hashtags}</p>}
@@ -227,88 +344,156 @@ export function PortfolioPost({
               aria-hidden="true"
               onAnimationEnd={() => setHeartBurst(0)}
             >
-              <Heart className="size-24 fill-white text-white drop-shadow-[0_6px_20px_rgba(255,62,102,0.7)]" />
+              {/* Red, the colour of a like; a white glow keeps it visible on any photo. */}
+              <Heart className="size-24 fill-[#ff1f3d] text-[#ff1f3d] drop-shadow-[0_0_14px_rgba(255,255,255,0.85)]" />
             </span>
           )}
           {post.media.map((item, index) =>
             item.type === "video" ? (
-              <video
-                key={index}
-                src={item.url}
-                controls
-                preload="metadata"
-                className="object-contain w-full bg-black max-h-96 rounded-xl"
-              />
+              <PostVideo key={index} src={item.url} compact={(post.media?.length ?? 0) > 1} />
             ) : (
-              <img
+              <PostImage
                 key={index}
                 src={item.url}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                onClick={handleMediaTap}
-                draggable={false}
-                className="w-full max-h-[28rem] cursor-pointer select-none rounded-xl object-cover"
+                tiled={(post.media?.length ?? 0) > 1}
+                onTap={handleMediaTap}
               />
             ),
           )}
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2 mt-4 sm:gap-3">
+      {/* The counts, quietly, above the buttons — what the post has earned so far. */}
+      {hasCounts && (
+        <div className="mt-3 flex items-center justify-between gap-3 text-xs text-[#657080]">
+          <span className="flex items-center gap-1.5">
+            {likeCount > 0 && (
+              <>
+                <span
+                  className="flex size-[18px] items-center justify-center rounded-full"
+                  style={{ backgroundColor: LIKE_RED }}
+                  aria-hidden="true"
+                >
+                  <Heart className="size-2.5 fill-white text-white" />
+                </span>
+                <span key={likeCount} className="animate-fadeIn tabular-nums">
+                  {likeCount}
+                </span>
+              </>
+            )}
+          </span>
+          <span className="flex items-center gap-2">
+            {commentCount > 0 && (
+              <button type="button" onClick={() => (showComments ? setShowComments(false) : void openComments())} className="hover:text-[#00898c] hover:underline">
+                {commentCount} comment{commentCount === 1 ? "" : "s"}
+              </button>
+            )}
+            {commentCount > 0 && repostCount > 0 && <span aria-hidden="true">·</span>}
+            {repostCount > 0 && (
+              <span>
+                {repostCount} repost{repostCount === 1 ? "" : "s"}
+              </span>
+            )}
+          </span>
+        </div>
+      )}
+
+      {/* Evenly spaced actions: like, comment, gift, share. */}
+      <div className="mt-2 flex items-center gap-1 border-t border-[#eef1f3] pt-1.5">
         <button
           type="button"
           onClick={toggleLike}
           aria-pressed={liked}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-all active:scale-90",
-            liked ? "border-[#ff3e66] bg-[#fff1f4] text-[#ff3e66]" : "border-[#e2e2e2] text-[#565656] hover:border-[#ff3e66]/40"
-          )}
+          className={actionButton}
+          style={liked ? { color: LIKE_RED } : undefined}
         >
-          <Heart key={liked ? "on" : "off"} className={cn("size-4", liked && "fill-[#ff3e66] animate-heart-pop")} />
-          <span key={likeCount} className="animate-fadeIn tabular-nums">{likeCount}</span>
+          <Heart
+            key={liked ? "on" : "off"}
+            className={cn("size-[18px] transition-transform group-hover:scale-110", liked && "animate-heart-pop")}
+            fill={liked ? LIKE_RED : "none"}
+            aria-hidden="true"
+          />
+          {liked ? "Liked" : "Like"}
         </button>
+
         <button
           type="button"
-          onClick={toggleComments}
-          aria-pressed={showComments}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
-            showComments ? "border-[#00b4b8] bg-[#eaf4ff] text-[#00b4b8]" : "border-[#e2e2e2] text-[#565656] hover:border-[#00b4b8]/40"
-          )}
+          onClick={() => (showComments ? setShowComments(false) : void openComments())}
+          aria-expanded={showComments}
+          className={cn(actionButton, showComments && "text-[#00898c]")}
         >
-          <MessageSquare className="size-4" />
-          {commentCount}
+          <MessageSquare className="size-[18px] transition-transform group-hover:scale-110" aria-hidden="true" />
+          Comment
         </button>
-        <button
-          type="button"
-          onClick={toggleRepost}
-          aria-pressed={reposted}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
-            reposted ? "border-[#0f8a4d] bg-[#e9f9f0] text-[#0f8a4d]" : "border-[#e2e2e2] text-[#565656] hover:border-[#0f8a4d]/40"
-          )}
-        >
-          <Repeat2 className="size-4" />
-          {repostCount}
-        </button>
-        {footerAction && <div className="ml-auto">{footerAction}</div>}
+
+        {onGift && (
+          // Gold, raised and glossy — the one button in the row that spends Cowries, so it
+          // looks like it. Sits centred in its share of the row like the others.
+          <div className="flex flex-1 items-center justify-center">
+            <button
+              type="button"
+              onClick={onGift}
+              className="cowry-hover inline-flex h-9 items-center gap-1.5 rounded-full border border-[#e8d1a0] bg-[linear-gradient(180deg,#fff8e6_0%,#fbeed2_45%,#f1d9a4_100%)] px-4 text-sm font-semibold text-[#7a5310] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),inset_0_-2px_0_rgba(168,121,62,0.25),0_4px_12px_-4px_rgba(200,150,62,0.6)] transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.9),inset_0_-2px_0_rgba(168,121,62,0.25),0_8px_18px_-6px_rgba(200,150,62,0.75)] active:translate-y-0 active:scale-95 active:shadow-[inset_0_2px_4px_rgba(168,121,62,0.35)]"
+            >
+              <Gift className="cowry-wobble size-4" aria-hidden="true" />
+              Gift
+            </button>
+          </div>
+        )}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className={cn(actionButton, reposted && "text-[#0f8a4d]")}>
+              <Share2 className="size-[18px] transition-transform group-hover:scale-110" aria-hidden="true" />
+              Share
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52 rounded-xl border-[#dce2e6] bg-white p-1 shadow-lg">
+            <DropdownMenuItem onSelect={toggleRepost} className="gap-2 rounded-lg px-3 py-2 text-sm">
+              <Repeat2 className="size-4" aria-hidden="true" />
+              {reposted ? "Undo repost" : "Repost"}
+            </DropdownMenuItem>
+            {shareUrl && (
+              <DropdownMenuItem onSelect={() => void copyLink()} className="gap-2 rounded-lg px-3 py-2 text-sm">
+                <Link2 className="size-4" aria-hidden="true" />
+                Copy link
+              </DropdownMenuItem>
+            )}
+            {canNativeShare && (
+              <DropdownMenuItem onSelect={() => void nativeShare()} className="gap-2 rounded-lg px-3 py-2 text-sm">
+                <Upload className="size-4" aria-hidden="true" />
+                Share via…
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
+      {/* One comment, as an invitation into the conversation. */}
+      {preview && (
+        <div className="animate-fade-in-up space-y-2 border-t border-[#eef1f3] pb-2 pt-3">
+          <CommentBubble comment={preview} />
+          {commentCount > 1 && (
+            <button
+              type="button"
+              onClick={() => void openComments()}
+              className="ml-10 text-xs font-semibold text-[#657080] hover:text-[#00898c] hover:underline"
+            >
+              View all {commentCount} comments
+            </button>
+          )}
+        </div>
+      )}
+
       {showComments && (
-        <div className="mt-4 space-y-3 border-t border-[#eef1f3] pt-4">
+        <div className="space-y-3 border-t border-[#eef1f3] pb-3 pt-4">
           {comments.map((comment) => (
-            <div key={comment.id} className="flex items-start gap-2">
-              <Avatar className="bg-[#e8f1f7] shrink-0" initials={comment.author.slice(0, 2).toUpperCase()} />
-              <div className="min-w-0 flex-1 rounded-xl bg-[#f7fafc] px-3 py-2">
-                <p className="text-sm font-semibold text-[#151922]">{comment.author}</p>
-                <p className="text-sm text-[#505964]">{comment.text}</p>
-              </div>
-            </div>
+            <CommentBubble key={comment.id} comment={comment} />
           ))}
 
           <div className="flex items-center gap-2">
             <Input
+              ref={commentInputRef}
               value={commentText}
               onChange={(event) => setCommentText(event.target.value)}
               onKeyDown={(event) => {

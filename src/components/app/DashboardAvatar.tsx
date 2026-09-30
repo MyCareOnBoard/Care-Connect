@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { cn } from "@/lib/utils"
 
 /**
  * A round avatar: the person's photo when there is one, their initials on a colour when not.
@@ -22,7 +23,11 @@ export function Avatar({
 
   return (
     <span
-      className={`flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full shadow-[0_2px_8px_rgba(16,20,26,0.12)] ring-2 ring-white transition-transform duration-200 hover:scale-105 ${className || "bg-[#e8f1f7]"}`}
+      // Merged, so a caller's size or ring really replaces the default instead of competing with it.
+      className={cn(
+        "flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full shadow-[0_2px_8px_rgba(16,20,26,0.12)] ring-2 ring-white transition-transform duration-200 hover:scale-105",
+        className || "bg-[#e8f1f7]",
+      )}
     >
       {showPhoto ? (
         <img

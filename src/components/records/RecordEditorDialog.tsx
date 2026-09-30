@@ -290,7 +290,7 @@ export function RecordEditorDialog({
           // minimized panel should do mid-visit.
           onEscapeKeyDown={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
-          className="fixed bottom-4 right-4 z-50 w-[min(20rem,calc(100vw-2rem))] rounded-2xl p-4 shadow-[0_18px_48px_rgba(17,24,39,0.24)]"
+          className="fixed bottom-[calc(var(--app-bottom-inset,0px)+1rem)] right-4 z-50 w-[min(20rem,calc(100vw-2rem))] rounded-2xl p-4 shadow-[0_18px_48px_rgba(17,24,39,0.24)]"
         >
           <div className="flex items-start gap-3">
             <FileText className="mt-0.5 size-4 shrink-0 text-[#00898c]" />

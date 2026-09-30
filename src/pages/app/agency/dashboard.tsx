@@ -3,7 +3,6 @@ import { Link } from "react-router"
 import { toast } from "sonner"
 import { BarChart3, Briefcase, Building2, Store, Users } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
-import { StatRow } from "@/components/app/StatRow"
 import { ViewAllLink } from "@/components/app/ViewAllLink"
 import { PostComposer } from "@/components/app/PostComposer"
 import { DashboardFeed } from "@/components/app/DashboardFeed"
@@ -14,6 +13,7 @@ import { cn, getInitials } from "@/lib/utils"
 import { useFeedFocus } from "@/components/home/feedFocus"
 import { FeedFocusToggle } from "@/components/home/FeedFocusToggle"
 import { FocusRail, type RailItem } from "@/components/home/FocusRail"
+import { AgencyWelcome } from "@/components/home/AgencyWelcome"
 import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
 import { getProfile, listProfiles } from "@/utils/careconnect/services/profilesService"
 import { listConnections } from "@/utils/careconnect/services/connectionsService"
@@ -40,16 +40,16 @@ function JobOverviewCard({ job, style }: { job: Job; style?: CSSProperties }) {
     <Link
       to={Routes.app.agency.jobs}
       style={style}
-      className="animate-fade-in-up block rounded-xl border border-white/60 bg-white/80 p-4 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00b4b8]/30 hover:shadow-[0_12px_28px_rgba(0,180,184,0.12)]"
+      className="animate-fade-in-up group block rounded-2xl border border-white/60 bg-white/85 p-4 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00b4b8]/30 hover:shadow-[0_12px_28px_rgba(0,180,184,0.12)]"
     >
-      <h3 className="text-base font-semibold leading-[1.35] line-clamp-1">{job.title}</h3>
+      <h3 className="line-clamp-1 text-sm font-bold leading-snug text-[#151922] group-hover:text-[#00898c]">{job.title}</h3>
       <div className="grid grid-cols-3 gap-2 mt-4 text-center">
         <div>
           <p className="text-lg font-bold">{job.viewsCount}</p>
           <p className="text-xs text-[#8a8f98]">Views</p>
         </div>
         <div className="border-x border-[#eef1f3]">
-          <p className="text-lg font-bold">{job.applicationsCount}</p>
+          <p className="text-lg font-bold text-[#00898c]">{job.applicationsCount}</p>
           <p className="text-xs text-[#8a8f98]">Applications</p>
         </div>
         <div>
@@ -174,29 +174,36 @@ export default function AgencyDashboardPage() {
   /* Each side section is built once and shown in two places: in its full column, and in the
      focus-mode strip's panel. One definition keeps the two from drifting apart. */
   const statsSection = (
-    <section className="rounded-2xl border border-white/60 bg-white/80 px-4 py-3 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md">
-      <div className="space-y-5">
-        <StatRow label="Profile views" value={String(profileViews)} />
-        <StatRow label="Application views" value={String(applicationViews)} />
+    <section className="rounded-2xl border border-white/60 bg-white/85 p-5 shadow-[0_4px_20px_rgba(16,20,26,0.05)] backdrop-blur-md">
+      <h2 className="text-base font-bold text-[#151922]">Your reach</h2>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="rounded-xl bg-[#f7fafb] px-3 py-2.5">
+          <p className="text-[11px] text-[#657080]">Profile views</p>
+          <p className="mt-0.5 text-xl font-bold tabular-nums text-[#151922]">{profileViews}</p>
+        </div>
+        <div className="rounded-xl bg-[#f7fafb] px-3 py-2.5">
+          <p className="text-[11px] text-[#657080]">Application views</p>
+          <p className="mt-0.5 text-xl font-bold tabular-nums text-[#151922]">{applicationViews}</p>
+        </div>
       </div>
     </section>
   )
 
   const jobsSection = (
     <section>
-      <h2 className="mb-4 text-xl font-semibold">Jobs overview</h2>
-      <ViewAllLink href={Routes.app.agency.jobs} />
+      <h2 className="mb-4 text-lg font-bold">Jobs overview</h2>
       {postings.length === 0 ? (
         <p className="rounded-xl border border-dashed border-[#e2e2e2] p-6 text-center text-sm text-[#657080]">
           You haven&apos;t posted any jobs yet.
         </p>
       ) : (
-        <div className="mt-5 space-y-3">
+        <div className="space-y-3">
           {postings.map((job, index) => (
             <JobOverviewCard key={job.id} job={job} style={{ animationDelay: `${index * 80}ms` }} />
           ))}
         </div>
       )}
+      <ViewAllLink href={Routes.app.agency.jobs} />
     </section>
   )
 
@@ -262,11 +269,17 @@ export default function AgencyDashboardPage() {
   return (
     <div
       className={cn(
-        "animate-fade-in-up grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-4 sm:px-8 pb-10 pt-4 w-full",
+        "relative isolate animate-fade-in-up grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-4 sm:px-8 pb-10 pt-4 w-full",
         focus.grid.className,
       )}
       style={focus.grid.style}
     >
+      {/* The same soft wash of brand colour as the member homepage. */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(60%_60%_at_20%_0%,rgba(0,180,184,0.14),transparent_70%),radial-gradient(50%_50%_at_85%_10%,rgba(167,130,216,0.14),transparent_70%)]"
+        aria-hidden="true"
+      />
+
       {/* Every column is placed explicitly on wide screens: the focus strips share the side
           cells, and automatic placement would otherwise shuffle the columns around them. */}
       <aside inert={left.inert} className={cn("order-2 xl:order-0 xl:col-start-1", asideClass, left.className)}>
@@ -276,10 +289,13 @@ export default function AgencyDashboardPage() {
       </aside>
       <FocusRail side="left" items={leftRail} active={focus.active} />
 
-      {/* The toggle hangs from a zero-height rail; the space-y gap after it plus xl:pt-2 clears
-          it, since there is no greeting row here for it to sit beside. */}
-      <main className="order-1 min-w-0 space-y-8 xl:order-0 xl:col-start-2 xl:row-start-1 xl:pt-2">
+      <main className="order-1 min-w-0 space-y-6 xl:order-0 xl:col-start-2 xl:row-start-1">
         <FeedFocusToggle focus={focus} />
+        <AgencyWelcome
+          name={(user?.fullName || "there").trim().split(" ")[0]}
+          postings={postings}
+          profileViews={profileViews}
+        />
         <PostComposer />
         <DashboardFeed />
       </main>

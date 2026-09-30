@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useSearchParams } from "react-router"
 import { toast } from "sonner"
 import { ChevronLeft, Search, Plus, Check, MoreVertical, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -650,6 +651,24 @@ export default function AgencyJobsPage() {
   const [selectedPostingId, setSelectedPostingId] = useState<string | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [editingJob, setEditingJob] = useState<Job | null>(null)
+
+  // `?new=1` — the homepage's "Post a job" card — opens a blank posting straight away,
+  // then leaves the address clean so a refresh does not reopen it.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const wantsNew = searchParams.get("new") === "1"
+  useEffect(() => {
+    if (!wantsNew) return
+    setEditingJob(null)
+    setPanelOpen(true)
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        next.delete("new")
+        return next
+      },
+      { replace: true },
+    )
+  }, [wantsNew, setSearchParams])
   const [deleteTarget, setDeleteTarget] = useState<Job | null>(null)
 
   // Applications for the selected posting.
