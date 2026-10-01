@@ -421,6 +421,13 @@ export type CowryGiftRefusal =
   | "same_device"
   | "insufficient_cowries"
   | "recipient_suspended"
+  /**
+   * The post being gifted is gone, or was never a post.
+   *
+   * New: the backend reads a gift on a post from the post itself rather than trusting the
+   * request, so a target it cannot find is now refused instead of recorded.
+   */
+  | "unknown_target"
 
 export interface CowryGiftCatalogItem {
   id: string

@@ -234,6 +234,10 @@ export const GIFT_REFUSAL_MESSAGES: Record<string, string> = {
   same_device: "Gifts can't be sent between accounts that share a device.",
   insufficient_cowries: "You don't have enough bought Cowries for this gift yet.",
   recipient_suspended: "This account can't receive gifts at the moment.",
+  // Reachable by tapping a gift on a card for a post whose author deleted it while the
+  // feed was open. Without its own line this fell through to the generic message, which
+  // gave no hint that refreshing would explain it.
+  unknown_target: "That post isn't there any more.",
 }
 
 export const GIFT_SET_LABELS: Record<string, string> = {
