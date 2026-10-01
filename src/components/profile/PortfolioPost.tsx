@@ -13,13 +13,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { GiftIcon } from "@/components/cowry/GiftIcon"
 import { cn } from "@/lib/utils"
 import { formatRelative, toDate, type Timestampish } from "@/utils/careconnect/types"
 
 export type PostComment = {
   id: string
   author: string
+  /** A face beside the words. Initials are the fallback, not the default. */
+  authorPhoto?: string | null
   text: string
+}
+
+/** How many of one gift a post attracted. */
+export type PostGift = {
+  giftId: string
+  count: number
 }
 
 export type PostMedia = {
@@ -36,6 +45,18 @@ export type PortfolioPostData = {
   likes: number
   comments: PostComment[]
   reposts?: number
+  /**
+   * The opening comment, if the feed already sent it.
+   *
+   * When present the card shows the conversation without asking for the thread. When
+   * absent — an older backend, or a surface that does not send it — the card falls
+   * back to fetching comments when it scrolls into view, as it always did.
+   */
+  topComment?: PostComment | null
+  /** Gifts sent on this post, all kinds. */
+  giftsCount?: number
+  /** The gifts it attracted most, highest first. At most three are drawn. */
+  topGifts?: PostGift[]
 }
 
 type PortfolioPostProps = {
@@ -74,12 +95,21 @@ const COLLAPSED_HEIGHT = 104
 function CommentBubble({ comment }: { comment: PostComment }) {
   return (
     <div className="flex items-start gap-2">
-      <span
-        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#e8f1f7] text-[11px] font-bold text-[#383d45]"
-        aria-hidden="true"
-      >
-        {comment.author.slice(0, 2).toUpperCase()}
-      </span>
+      {comment.authorPhoto ? (
+        <img
+          src={comment.authorPhoto}
+          alt=""
+          loading="lazy"
+          className="size-8 shrink-0 rounded-full object-cover"
+        />
+      ) : (
+        <span
+          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#e8f1f7] text-[11px] font-bold text-[#383d45]"
+          aria-hidden="true"
+        >
+          {comment.author.slice(0, 2).toUpperCase()}
+        </span>
+      )}
       <div className="min-w-0 flex-1 rounded-2xl bg-[#f3f6f8] px-3 py-2">
         <p className="text-sm font-semibold text-[#151922]">{comment.author}</p>
         <p className="text-sm text-[#505964]">{comment.text}</p>
@@ -153,6 +183,10 @@ export function PortfolioPost({
    */
   useEffect(() => {
     if (commentsLoaded || !onLoadComments || (initialCommentCount ?? 0) === 0) return
+    // Nothing to fetch a preview for when the feed already sent one. This is the whole
+    // saving: a page of commented posts used to fetch a thread each, all to show one line
+    // per card, and the full thread is still loaded the moment someone opens comments.
+    if (post.topComment) return
     const el = articleRef.current
     if (!el || typeof IntersectionObserver === "undefined") return
     const observer = new IntersectionObserver(
@@ -168,7 +202,7 @@ export function PortfolioPost({
     return () => observer.disconnect()
     // loadComments reads the latest state itself; re-observing on its identity is not needed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [commentsLoaded, onLoadComments, initialCommentCount])
+  }, [commentsLoaded, onLoadComments, initialCommentCount, post.topComment])
 
   const toggleLike = () => {
     const next = !liked
@@ -254,8 +288,20 @@ export function PortfolioPost({
   )
 
   const collapsed = overflowing && !expanded
-  const hasCounts = likeCount > 0 || commentCount > 0 || repostCount > 0
-  const preview = !showComments && comments.length > 0 ? comments[0] : null
+  const giftCount = post.giftsCount ?? 0
+  const topGifts = (post.topGifts ?? []).slice(0, 3)
+  const hasCounts = likeCount > 0 || commentCount > 0 || repostCount > 0 || giftCount > 0
+
+  /*
+   * The comment shown under the card. Loaded comments win once they exist, because by then
+   * the reader may have added one; before that the feed's own copy is used, which is why
+   * the thread no longer has to be fetched just to show a single line.
+   */
+  const preview = showComments
+    ? null
+    : comments.length > 0
+      ? comments[0]
+      : post.topComment ?? null
 
   const actionButton =
     "group flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold text-[#565f6d] transition-all duration-150 hover:bg-[#f2f6f8] active:scale-95"
@@ -392,6 +438,26 @@ export function PortfolioPost({
             {repostCount > 0 && (
               <span>
                 {repostCount} repost{repostCount === 1 ? "" : "s"}
+              </span>
+            )}
+            {giftCount > 0 && (commentCount > 0 || repostCount > 0) && <span aria-hidden="true">·</span>}
+            {giftCount > 0 && (
+              /*
+               * The icons carry this, not the number: a row of gifts says what a post
+               * attracted at a glance, where "9 gifts" only says that some arrived. The
+               * count follows for anyone who wants it.
+               */
+              <span className="flex items-center gap-1">
+                <span className="flex items-center -space-x-1">
+                  {topGifts.map((gift) => (
+                    <GiftIcon key={gift.giftId} gift={{ id: gift.giftId }} size={16} />
+                  ))}
+                </span>
+                <span className="tabular-nums">{giftCount}</span>
+                <span className="sr-only">
+                  gift{giftCount === 1 ? "" : "s"}
+                  {topGifts.length > 0 && `, mostly ${topGifts[0].giftId.replace(/_/g, " ")}`}
+                </span>
               </span>
             )}
           </span>

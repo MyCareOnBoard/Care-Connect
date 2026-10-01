@@ -13,7 +13,16 @@ export interface FeedComment {
   id: string
   author: string
   authorId?: string
+  /** Resolved on read for comments written before it was stored, so older ones still
+   *  get a face. Null when the author has no picture. */
+  authorPhoto?: string | null
   text: string
+}
+
+/** How many of one gift a post attracted. */
+export interface FeedPostGift {
+  giftId: string
+  count: number
 }
 
 export interface FeedPost {
@@ -29,6 +38,18 @@ export interface FeedPost {
   likesCount: number
   commentsCount: number
   likedByMe?: boolean
+  /**
+   * The opening comment, sent with the feed.
+   *
+   * This is what lets a card show the start of a conversation without asking for the
+   * thread. Absent on an older backend, in which case the card falls back to fetching
+   * comments as it always did.
+   */
+  topComment?: FeedComment | null
+  /** Gifts sent on this post, all kinds. */
+  giftsCount?: number
+  /** The gifts it attracted most, highest first, at most three. */
+  topGifts?: FeedPostGift[]
   /** Not yet in every backend response; the feed shows a time only when it is present. */
   createdAt?: Timestampish
 }

@@ -18,5 +18,10 @@ export function toPortfolioData(post: FeedPost): PortfolioPostData {
     media: toPostMedia(post.mediaUrls),
     likes: post.likesCount ?? 0,
     comments: [],
+    // Carried through rather than fetched: the feed already sent the opening comment and
+    // the gift tally, and the card asks for neither if they are here.
+    topComment: post.topComment ?? null,
+    giftsCount: post.giftsCount ?? 0,
+    topGifts: post.topGifts ?? [],
   }
 }
