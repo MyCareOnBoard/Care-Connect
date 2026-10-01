@@ -186,6 +186,95 @@ export async function updateGifts(
   return data.data
 }
 
+/* ── The gift catalogue ──────────────────────────────────────────────────── */
+
+export type CowryGiftSetId = "everyday" | "warm" | "bold" | "rare" | "legendary"
+
+export interface CowryAdminGift {
+  id: string
+  label: string
+  set: CowryGiftSetId
+  cost: number
+  /**
+   * Share of the cost minted for the recipient. Undefined means the platform default.
+   * Never above 1 — minting more than was spent would make gifting a way to print Cowries.
+   */
+  creatorRate?: number
+  /**
+   * An icon override: a rule key the client knows, or an emoji. Absent means the icon is
+   * matched from the gift's words, which is why a gift is worth naming after a real thing.
+   */
+  icon?: string | null
+  /** False keeps it out of the gift tray while leaving it recoverable. */
+  active?: boolean
+}
+
+export interface CowryAdminGiftCatalog {
+  gifts: CowryAdminGift[]
+  /** Whether the catalogue has been written to the database at all. */
+  seeded: boolean
+  /**
+   * True while these rows are the built-in list rather than stored documents.
+   *
+   * Worth surfacing: without it the screen would imply an admin is editing saved rows when
+   * nothing has been saved. The first write turns them into real rows.
+   */
+  fromDefaults: boolean
+}
+
+/** The catalogue for editing — deactivated gifts included, so they can be turned back on. */
+export async function listAdminGifts(): Promise<CowryAdminGiftCatalog> {
+  const { data } = await axiosClient.get("/careconnectCowry/admin/gifts")
+  return data.data
+}
+
+export type CowryGiftInput = Omit<CowryAdminGift, "id">
+
+/**
+ * Add or edit a gift.
+ *
+ * The first save also copies the fifty built-in gifts into the catalogue, because until
+ * then the catalogue was only a fallback for an empty collection — saving one gift without
+ * that would leave members with that gift and no other. The response reports it once as
+ * `seededCatalogue`.
+ */
+export async function saveGift(
+  id: string,
+  body: CowryGiftInput,
+): Promise<{ gift: CowryAdminGift; seededCatalogue?: number }> {
+  const { data } = await axiosClient.put(`/careconnectCowry/admin/gifts/${id}`, body)
+  return { gift: data.data, seededCatalogue: data.seededCatalogue }
+}
+
+/**
+ * Remove a gift from the catalogue.
+ *
+ * Safe for history: a sent gift copies the label, set and cost onto its own record, so past
+ * gifts and creator earnings still read correctly afterwards. Deactivating is the
+ * recoverable option — that is `saveGift` with `active: false`.
+ */
+export async function deleteGift(id: string): Promise<void> {
+  await axiosClient.delete(`/careconnectCowry/admin/gifts/${id}`)
+}
+
+/**
+ * The id to suggest for a new gift.
+ *
+ * Mirrors slugifyGiftLabel on the backend. The id is what the icon is matched against and
+ * it cannot be changed afterwards — a different id is a different gift — so the screen
+ * shows it and lets it be edited rather than deriving it silently.
+ */
+export function suggestGiftId(label: string): string {
+  return String(label || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 80)
+}
+
+/** What the backend will accept as a gift id. */
+export const GIFT_ID_PATTERN = /^[a-z0-9][a-z0-9_]*$/
+
 /** One data package. Changing a price changes what every user pays next redemption. */
 export async function savePackage(
   id: string,
