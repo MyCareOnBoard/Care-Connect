@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link, useSearchParams } from "react-router"
 import { Briefcase, CloudOff, Hash, PenLine, RefreshCw, Users, X } from "lucide-react"
 import { PortfolioPost, type PostComment } from "@/components/profile/PortfolioPost"
-import { toPortfolioData } from "@/components/profile/postMapping"
+import { feedSource, toPortfolioData } from "@/components/profile/postMapping"
+import { RemovedPost } from "@/components/profile/RemovedPost"
 import { FollowButton } from "@/components/app/FollowButton"
 import { Avatar } from "@/components/app/DashboardAvatar"
 import { avatarColor } from "@/components/app/avatarColor"
@@ -21,6 +22,8 @@ import {
   addComment,
   likePost,
   listComments,
+  repostPost,
+  unrepostPost,
   listFeed,
   unlikePost,
   POST_CREATED_EVENT,
@@ -350,11 +353,40 @@ export function DashboardFeed() {
       )}
 
       {visiblePosts.map((post, index) => {
+      {posts.map((row, index) => {
+        /*
+         * A repost is a row about someone else's post. Everything the card shows and every
+         * action it offers belongs to that post, so the card is built from it; the reposter
+         * is only the line above. Showing the reposter as the author is the confusion that
+         * would have sent a gift to the wrong person.
+         */
+        const post = feedSource(row)
+        const reposter = row.repostOf
+          ? {
+              name: row.authorName || "Someone",
+              href: viewProfile(row.authorId),
+              note: row.note,
+            }
+          : undefined
+
+        if (!post) {
+          // A repost of a post that has since been removed. Kept rather than dropped: a
+          // feed that silently shortened itself reads as posts going missing.
+          return (
+            <div key={row.id} id={`post-${row.id}`} className="animate-fade-in-up scroll-mt-28">
+              <RemovedPost
+                reposterName={reposter?.name ?? "Someone"}
+                reposterHref={reposter?.href}
+              />
+            </div>
+          )
+        }
+
         const mine = post.authorId === myUid
         return (
           <div
-            key={post.id}
-            id={`post-${post.id}`}
+            key={row.id}
+            id={`post-${row.id}`}
             className="animate-fade-in-up scroll-mt-28 rounded-2xl"
             // Only the first screenful staggers; later posts should not wait to appear.
             style={index < 6 ? { animationDelay: `${index * 70}ms` } : undefined}
@@ -368,6 +400,7 @@ export function DashboardFeed() {
               createdAt={post.createdAt}
               authorHref={viewProfile(post.authorId)}
               post={toPortfolioData(post)}
+              repostedBy={reposter}
               initialLiked={post.likedByMe}
               initialCommentCount={post.commentsCount ?? 0}
               // Returned, so the post can undo a like or comment that fails to save.
@@ -375,9 +408,36 @@ export function DashboardFeed() {
               onSubmitComment={(text) => addComment(post.id, text)}
               tagHref={tagHref}
               profileHref={profileHref}
+              initialReposted={row.repostedByMe ?? post.repostedByMe ?? false}
+              // Reposting your own post is refused, so it is not offered.
+              canRepost={!mine}
+              onRepostChange={async (next) => {
+                // Always the post's id, never the repost's: a repost of a repost is
+                // flattened anyway, and this keeps the count on the thing being reposted.
+                if (next) await repostPost(post.id)
+                else await unrepostPost(post.id)
+                // Reflected in the row so a later re-render does not snap the button back.
+                setPosts((current) =>
+                  current.map((item) =>
+                    item.id === row.id ? { ...item, repostedByMe: next } : item,
+                  ),
+                )
+              }}
+              onLikeChange={(next) => {
+                const call = next ? likePost : unlikePost
+                call(post.id).catch(() => undefined)
+              }}
+              onSubmitComment={(text) => {
+                addComment(post.id, text).catch(() => undefined)
+              }}
               onLoadComments={async (): Promise<PostComment[]> => {
                 const comments = await listComments(post.id)
-                return comments.map((c) => ({ id: c.id, author: c.author, text: c.text }))
+                return comments.map((c) => ({
+                  id: c.id,
+                  author: c.author,
+                  authorPhoto: c.authorPhoto,
+                  text: c.text,
+                }))
               }}
               action={
                 mine ? undefined : (

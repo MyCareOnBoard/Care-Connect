@@ -65,10 +65,20 @@ export interface CowryDataPackage {
   active?: boolean
 }
 
+export interface CowryGiftConfig {
+  /**
+   * How long a gift's creator reward stays pending, in minutes. 43,200 (30 days) by
+   * default — the window in which a chargeback on the buyer's purchase can still be
+   * unwound before the creator has spent the proceeds.
+   */
+  creatorHoldMinutes: number
+}
+
 export interface CowryAdminConfig {
   pools: Partial<Record<CowryPoolType, number>>
   rewards: CowryRewardConfig
   pricing: CowryPricingConfig
+  gifts: CowryGiftConfig
   poolUsage: CowryPoolUsage[]
   packages: CowryDataPackage[]
   /** Derived from supplier prices, never configured. Null until a package carries one. */
@@ -159,6 +169,20 @@ export async function updatePricing(
   body: Partial<CowryPricingConfig>,
 ): Promise<CowryConfigWriteResult> {
   const { data } = await axiosClient.patch("/careconnectCowry/admin/config/pricing", body)
+  return data.data
+}
+
+/**
+ * Gift settings.
+ *
+ * Shortening the hold does not free gifts already held: a gift's release date is stamped
+ * when it is sent. And the release sweep runs every fifteen minutes, so a hold shorter than
+ * that is effectively fifteen. The screen says both, because both surprise people.
+ */
+export async function updateGifts(
+  body: Partial<CowryGiftConfig>,
+): Promise<CowryConfigWriteResult> {
+  const { data } = await axiosClient.patch("/careconnectCowry/admin/config/gifts", body)
   return data.data
 }
 
