@@ -6,7 +6,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ProfileModals } from "@/components/profile/ProfileModals"
 import { PortfolioPost, type PostComment } from "@/components/profile/PortfolioPost"
 import { PostComposer } from "@/components/app/PostComposer"
-import { toPortfolioData } from "@/components/profile/postMapping"
+import { feedSource, toPortfolioData } from "@/components/profile/postMapping"
+import { RemovedPost } from "@/components/profile/RemovedPost"
 import { useCareFlow } from "@/components/app/useCareFlow"
 import { Routes } from "@/routes/constants"
 import { toast } from "sonner"
@@ -843,31 +844,69 @@ export default function ProfilePage() {
                   </p>
                 </div>
               ) : (
-                portfolio.map((post) => (
-                  <PortfolioPost
-                    key={post.id}
-                    authorName={summary.name}
-                    authorRole={summary.headline || (isAgency ? "Healthcare Agency" : "Care Connect member")}
-                    avatarClassName="bg-[#6b9cca]"
-                    initials={getInitials(summary.name)}
-                    post={toPortfolioData(post)}
-                    editable
-                    initialLiked={post.likedByMe}
-                    initialCommentCount={post.commentsCount ?? 0}
-                    onRemove={() => handleRemovePost(post.id)}
-                    onLikeChange={(next) => {
-                      const call = next ? likePost : unlikePost
-                      call(post.id).catch(() => undefined)
-                    }}
-                    onSubmitComment={(text) => {
-                      addComment(post.id, text).catch(() => undefined)
-                    }}
-                    onLoadComments={async (): Promise<PostComment[]> => {
-                      const comments = await listComments(post.id)
-                      return comments.map((c) => ({ id: c.id, author: c.author, text: c.text }))
-                    }}
-                  />
-                ))
+                portfolio.map((row) => {
+                  /*
+                   * This list is "posts by this person", and a repost is in it — but its
+                   * content belongs to whoever wrote the post, not to this profile. So the
+                   * card is built from the post, the profile owner becomes the "reposted"
+                   * line above it, and the author shown is the real one.
+                   *
+                   * Without this the card drew from the repost document, which has no
+                   * statement, no media and no counts, and rendered blank.
+                   */
+                  const post = feedSource(row)
+                  const reposted = Boolean(row.repostOf)
+
+                  if (!post) {
+                    // A repost of a post that has since been removed.
+                    return <RemovedPost key={row.id} reposterName={summary.name} />
+                  }
+
+                  const shownName = reposted
+                    ? post.authorName || "Care Connect member"
+                    : summary.name
+
+                  return (
+                    <PortfolioPost
+                      key={row.id}
+                      authorName={shownName}
+                      authorRole={
+                        reposted
+                          ? post.authorRole || ""
+                          : summary.headline ||
+                            (isAgency ? "Healthcare Agency" : "Care Connect member")
+                      }
+                      avatarClassName="bg-[#6b9cca]"
+                      initials={getInitials(shownName)}
+                      authorPhoto={reposted ? post.authorPhoto : undefined}
+                      post={toPortfolioData(post)}
+                      repostedBy={reposted ? { name: summary.name, note: row.note } : undefined}
+                      editable
+                      initialLiked={post.likedByMe}
+                      initialCommentCount={post.commentsCount ?? 0}
+                      // The row, not the post: removing a repost means un-reposting it, and
+                      // that is what a delete on a repost does. Passing the post's id would
+                      // be asking to delete someone else's post, which is refused.
+                      onRemove={() => handleRemovePost(row.id)}
+                      onLikeChange={(next) => {
+                        const call = next ? likePost : unlikePost
+                        call(post.id).catch(() => undefined)
+                      }}
+                      onSubmitComment={(text) => {
+                        addComment(post.id, text).catch(() => undefined)
+                      }}
+                      onLoadComments={async (): Promise<PostComment[]> => {
+                        const comments = await listComments(post.id)
+                        return comments.map((c) => ({
+                          id: c.id,
+                          author: c.author,
+                          authorPhoto: c.authorPhoto,
+                          text: c.text,
+                        }))
+                      }}
+                    />
+                  )
+                })
               )}
             </div>
           )}
