@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CowryIcon } from "@/components/cowry/CowryIcon"
 import { GiftIcon } from "@/components/cowry/GiftIcon"
+import { TopGiftsBoard } from "@/components/cowry/TopGiftsBoard"
 import {
   AnimatedCowries,
   CowryEmpty,
@@ -277,6 +278,13 @@ export default function CowryCreatorPage() {
           </ul>
         )}
       </section>
+
+      {/*
+        Everyone's biggest gifts, under this creator's own. Here rather than on the feed
+        because this is the page where gifts are already the subject; putting it in front of
+        every member on the main screen is a product decision, not a placement one.
+      */}
+      <TopGiftsBoard limit={5} />
     </div>
   )
 }

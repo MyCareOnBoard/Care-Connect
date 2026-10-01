@@ -421,6 +421,13 @@ export type CowryGiftRefusal =
   | "same_device"
   | "insufficient_cowries"
   | "recipient_suspended"
+  /**
+   * The post being gifted is gone, or was never a post.
+   *
+   * New: the backend reads a gift on a post from the post itself rather than trusting the
+   * request, so a target it cannot find is now refused instead of recorded.
+   */
+  | "unknown_target"
 
 export interface CowryGiftCatalogItem {
   id: string
@@ -488,6 +495,55 @@ export interface CowryCreatorEarnings {
   holdDays: number
   holds: CowryCreatorHold[]
   giftsReceived: number
+}
+
+/**
+ * A gift as shown publicly.
+ *
+ * Deliberately narrower than `CowryGift`: no `message`, which is a note between two
+ * people, and no `creatorAmount`, which is the recipient's earnings. The backend builds
+ * this from a named list of public fields rather than by removing the private ones, and
+ * the type says the same thing so nothing here can start reading one by accident.
+ */
+export interface CowryPublicGift {
+  id: string
+  giftId: string
+  giftLabel: string
+  giftSet: CowryGiftSet
+  cost: number
+  senderId: string
+  senderName?: string | null
+  recipientId: string
+  recipientName?: string | null
+  createdAt?: Timestampish
+}
+
+/** How far back the board looks. */
+export type CowryGiftWindow = "24h" | "7d" | "30d" | "all"
+
+export interface CowryTopGifts {
+  gifts: CowryPublicGift[]
+  window: CowryGiftWindow
+  /** How many gifts were considered. */
+  scanned: number
+  /**
+   * True when the window held more gifts than the backend will scan, so these are the top
+   * of a sample of the most recent rather than of the whole window. Worth surfacing: it is
+   * the difference between "the biggest this month" and "the biggest of what we looked at".
+   */
+  scanCapped: boolean
+}
+
+/**
+ * The biggest gifts anyone sent in a window.
+ *
+ * Public to every member, which is the point — a gift is bought partly to be seen.
+ */
+export async function listTopGifts(
+  params: { limit?: number; window?: CowryGiftWindow } = {},
+): Promise<CowryTopGifts> {
+  const { data } = await axiosClient.get("/careconnectCowry/gifts/top", { params })
+  return data.data
 }
 
 /** Every gift, its set, and what the caller has to spend. */

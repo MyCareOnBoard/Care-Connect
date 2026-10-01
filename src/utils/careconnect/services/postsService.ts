@@ -13,7 +13,16 @@ export interface FeedComment {
   id: string
   author: string
   authorId?: string
+  /** Resolved on read for comments written before it was stored, so older ones still
+   *  get a face. Null when the author has no picture. */
+  authorPhoto?: string | null
   text: string
+}
+
+/** How many of one gift a post attracted. */
+export interface FeedPostGift {
+  giftId: string
+  count: number
 }
 
 export interface FeedPost {
@@ -29,6 +38,40 @@ export interface FeedPost {
   likesCount: number
   commentsCount: number
   likedByMe?: boolean
+  /**
+   * The opening comment, sent with the feed.
+   *
+   * This is what lets a card show the start of a conversation without asking for the
+   * thread. Absent on an older backend, in which case the card falls back to fetching
+   * comments as it always did.
+   */
+  topComment?: FeedComment | null
+  /** Gifts sent on this post, all kinds. */
+  giftsCount?: number
+  /** The gifts it attracted most, highest first, at most three. */
+  topGifts?: FeedPostGift[]
+  /** How many people reposted this post. */
+  repostsCount?: number
+  /** Whether the reader has reposted it. */
+  repostedByMe?: boolean
+  /**
+   * Present only on a repost, naming the post it points at.
+   *
+   * A repost carries no content of its own — no statement, no media, no counts. Everything
+   * a card needs to draw comes from `original`, and the reposter is only the name above it.
+   */
+  repostOf?: string | null
+  /** A quote-repost's own words: the one part of a repost that is new writing. */
+  note?: string | null
+  /** The post a repost points at, decorated exactly as a feed row is. */
+  original?: FeedPost | null
+  /**
+   * True when this repost points at a post that is gone.
+   *
+   * The row is kept rather than dropped so the card can say so. A feed that silently
+   * shortened itself would read as posts going missing.
+   */
+  originalRemoved?: boolean
   /** Not yet in every backend response; the feed shows a time only when it is present. */
   createdAt?: Timestampish
 }
@@ -76,6 +119,23 @@ export async function createPost(input: CreatePostInput): Promise<FeedPost> {
   })
   publishCowryAward(data.cowry, "post")
   return data.data
+}
+
+/**
+ * Repost a post, optionally with a note.
+ *
+ * Idempotent on the backend — the repost's id is derived from the two ids — so a double tap
+ * cannot produce two reposts. Reposting earns no Cowries, which is why nothing is published
+ * to the award channel here.
+ */
+export async function repostPost(id: string, note?: string | null): Promise<FeedPost> {
+  const { data } = await axiosClient.post(`/careconnectPosts/${id}/repost`, { note: note ?? null })
+  return data.data
+}
+
+/** Undo a repost. Also idempotent: undoing one that is not there is not an error. */
+export async function unrepostPost(id: string): Promise<void> {
+  await axiosClient.delete(`/careconnectPosts/${id}/repost`)
 }
 
 export async function likePost(id: string): Promise<void> {
