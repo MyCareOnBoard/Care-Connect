@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { holdDescription } from "@/utils/careconnect/creatorHold"
+import { GiftCatalogManager } from "@/components/cowry/GiftCatalogManager"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -723,6 +724,7 @@ export default function AdminCowryPage() {
 
       {/* ── pricing ────────────────────────────────────────────────────── */}
       {activeTab === "gifts" && (
+        <div key="gifts" className="animate-fade-in-up space-y-5">
         <section className="max-w-xl rounded-xl border border-gray-200 bg-white p-6">
           <h2 className="text-lg font-semibold text-[#10141a]">Gifts</h2>
           <p className="mt-1 text-sm text-[#4f4f4f]">
@@ -789,6 +791,9 @@ export default function AdminCowryPage() {
             Save gift settings
           </Button>
         </section>
+
+        <GiftCatalogManager />
+        </div>
       )}
 
       {activeTab === "pricing" && (
