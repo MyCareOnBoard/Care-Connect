@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { resolveGiftIcon } from "@/components/cowry/giftIcons"
+import { giftArrivalFor } from "@/components/cowry/giftAnimations"
 
 /** The rule key a gift resolves to, or the emoji it was given. */
 function keyOf(gift: Parameters<typeof resolveGiftIcon>[0]) {
@@ -11,7 +12,9 @@ describe("gift icons", () => {
   it("matches a gift by the words in its name", () => {
     expect(keyOf({ label: "Cowry Shell" })).toBe("cowry")
     expect(keyOf({ label: "Water Drop" })).toBe("drop")
-    expect(keyOf({ label: "Rose Bouquet" })).toBe("flower")
+    // The catalogue's own Bouquet rule wins over the general flower words.
+    expect(keyOf({ label: "Rose Bouquet" })).toBe("bouquet")
+    expect(keyOf({ label: "Red Rose" })).toBe("flower")
     expect(keyOf({ label: "Golden Crown" })).toBe("crown")
   })
 
@@ -40,5 +43,21 @@ describe("gift icons", () => {
     expect(keyOf({ label: "Anything", icon: "🦋" })).toBe("emoji:🦋")
     // An unknown key is ignored rather than trusted.
     expect(keyOf({ label: "Water Drop", icon: "not-a-key" })).toBe("drop")
+  })
+
+  it("draws eagles, shells and big cats with their own icons", () => {
+    expect(keyOf({ label: "Golden Eagle" })).toBe("eagle")
+    expect(keyOf({ label: "Golden Lion" })).toBe("king-lion")
+    expect(keyOf({ label: "Seashell" })).toBe("shell")
+    expect(keyOf({ label: "Cowry Shell" })).toBe("cowry")
+    expect(keyOf({ label: "Lion Heart" })).toBe("heart")
+    expect(keyOf({ label: "Proud Lion" })).toBe("big-cat")
+  })
+
+  it("gives the Golden Eagle its flight and the Golden Lion its storm — on the receiver's screen only", () => {
+    expect(giftArrivalFor({ label: "Golden Eagle" }, "received")).toBe("eagle-flight")
+    expect(giftArrivalFor({ label: "Golden Lion" }, "received")).toBe("lion-storm")
+    expect(giftArrivalFor({ label: "Golden Lion" }, "sent")).toBe("rain")
+    expect(giftArrivalFor({ label: "Water Drop" }, "received")).toBe("rain")
   })
 })

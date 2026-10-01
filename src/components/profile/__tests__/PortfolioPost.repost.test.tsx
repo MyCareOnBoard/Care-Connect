@@ -53,7 +53,19 @@ const openShare = async () => {
 
 /* ── the action only exists where it works ───────────────────────────────── */
 
-describe("the repost action", () => {
+/*
+ * Parked, not deleted.
+ *
+ * The repost item in the share menu is commented out on main behind a "REPOST PAUSED"
+ * marker — a deliberate decision taken in the gift-animations work, not an accident of the
+ * merge. The backend and the card wiring are both live, so re-enabling it is uncommenting
+ * one block; these assertions are the ones that should run the moment it is.
+ *
+ * Skipped rather than rewritten because there is nothing wrong with them: they describe the
+ * behaviour the feature is meant to have, and making them pass against a disabled feature
+ * would mean asserting that nothing happens, which protects nothing.
+ */
+describe.skip("the repost action (paused on main)", () => {
   it("is absent on a surface that has not wired it up", async () => {
     // It used to be here and to report success without reposting anything.
     renderCard()
@@ -83,7 +95,7 @@ describe("the repost action", () => {
 
 /* ── what it calls, and what happens when that fails ────────────────────── */
 
-describe("reposting", () => {
+describe.skip("reposting (paused on main)", () => {
   it("asks for the state it is moving to", async () => {
     const onRepostChange = vi.fn().mockResolvedValue(undefined)
     renderCard({ onRepostChange })

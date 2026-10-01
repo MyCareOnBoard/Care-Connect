@@ -1,10 +1,15 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
 import { Link } from "react-router"
-import { Gift, Heart, Link2, MessageSquare, MoreHorizontal, Repeat2, Share2, Upload } from "lucide-react"
+// REPOST PAUSED: add Repeat2 back to this import when reposting returns.
+import { Gift, Heart, Link2, Maximize2, MessageSquare, MoreHorizontal, Repeat2, Share2, Upload } from "lucide-react"
 import { toast } from "sonner"
 import { Avatar } from "@/components/app/DashboardAvatar"
+import { EmojiPicker } from "@/components/app/EmojiPicker"
 import { PostVideo } from "@/components/profile/PostVideo"
 import { PostImage } from "@/components/profile/PostImage"
+import { PostText } from "@/components/profile/PostText"
+import { PostViewer } from "@/components/profile/PostViewer"
+import { MediaCarousel } from "@/components/profile/MediaCarousel"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -13,6 +18,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { haptic } from "@/lib/haptics"
+import { playSound } from "@/lib/sound"
 import { GiftIcon } from "@/components/cowry/GiftIcon"
 import { cn } from "@/lib/utils"
 import { formatRelative, toDate, type Timestampish } from "@/utils/careconnect/types"
@@ -78,6 +85,10 @@ type PortfolioPostProps = {
   onGift?: () => void
   /** A link to this post, for Share → Copy link. Share only offers what it can do. */
   shareUrl?: string
+  /** Where a tapped #hashtag leads (usually the feed filtered to it). */
+  tagHref?: (tag: string) => string
+  /** Where a tapped @mention leads. */
+  profileHref?: (uid: string) => string
   /**
    * Who reposted this, when the card is showing up in the feed because they did.
    *
@@ -94,6 +105,10 @@ type PortfolioPostProps = {
   /** Real-data wiring (optional — omitted surfaces stay local-only mock). */
   initialLiked?: boolean
   initialCommentCount?: number
+  /**
+   * Save a like or unlike. Return the request's promise: if it fails, the like is undone
+   * on screen and the person is told, rather than being left believing it saved.
+   */
   onLikeChange?: (nextLiked: boolean) => void
   initialReposted?: boolean
   /**
@@ -108,8 +123,9 @@ type PortfolioPostProps = {
    * The action also hides itself where `onRepostChange` is absent, so a surface that has
    * not been wired up shows no button rather than one that reports a repost it did not make.
    */
-  canRepost?: boolean
-  onSubmitComment?: (text: string) => void
+  canRepost?: boolean | Promise<unknown>
+  /** Save a comment. As with likes, a failed save takes the comment back off the post. */
+  onSubmitComment?: (text: string) => void | Promise<unknown>
   onLoadComments?: () => Promise<PostComment[]>
 }
 
@@ -119,9 +135,20 @@ const LIKE_RED = "#ff1f3d"
 /** Roughly four lines of post text before "see more". */
 const COLLAPSED_HEIGHT = 104
 
-function CommentBubble({ comment }: { comment: PostComment }) {
+/** How long to wait for a second tap before a single tap opens the viewer. */
+const DOUBLE_TAP_MS = 300
+
+const PHONE_QUERY = "(max-width: 39.99rem)"
+const subscribePhone = (listener: () => void) => {
+  const query = window.matchMedia(PHONE_QUERY)
+  query.addEventListener("change", listener)
+  return () => query.removeEventListener("change", listener)
+}
+const readPhone = () => typeof window !== "undefined" && window.matchMedia(PHONE_QUERY).matches
+
+function CommentBubble({ comment, pending }: { comment: PostComment; pending?: boolean }) {
   return (
-    <div className="flex items-start gap-2">
+    <div className={cn("flex items-start gap-2 transition-opacity", pending && "opacity-60")}>
       {comment.authorPhoto ? (
         <img
           src={comment.authorPhoto}
@@ -139,7 +166,7 @@ function CommentBubble({ comment }: { comment: PostComment }) {
       )}
       <div className="min-w-0 flex-1 rounded-2xl bg-[#f3f6f8] px-3 py-2">
         <p className="text-sm font-semibold text-[#151922]">{comment.author}</p>
-        <p className="text-sm text-[#505964]">{comment.text}</p>
+        <PostText text={comment.text} className="whitespace-pre-line text-sm text-[#505964]" />
       </div>
     </div>
   )
@@ -160,6 +187,8 @@ export function PortfolioPost({
   action,
   onGift,
   shareUrl,
+  tagHref,
+  profileHref,
   initialLiked = false,
   initialCommentCount,
   onLikeChange,
@@ -173,20 +202,27 @@ export function PortfolioPost({
   const [liked, setLiked] = useState(initialLiked)
   const [likeCount, setLikeCount] = useState(post.likes)
   const [comments, setComments] = useState(post.comments)
+  const [pendingComments, setPendingComments] = useState<Set<string>>(new Set())
   const [commentsLoaded, setCommentsLoaded] = useState(false)
   const [showComments, setShowComments] = useState(false)
   const [commentText, setCommentText] = useState("")
-  const [reposted, setReposted] = useState(initialReposted)
-  const [repostCount, setRepostCount] = useState(post.reposts ?? 0)
-  const [repostBusy, setRepostBusy] = useState(false)
+  // REPOST PAUSED: it only ever changed the screen — nothing was saved — so it is off until the backend has repost endpoints (backend list item #4). Restore the lines marked REPOST PAUSED.
+  // const [reposted, setReposted] = useState(false)
+  // const [repostCount, setRepostCount] = useState(post.reposts ?? 0)
+  const reposted: boolean = false
+  const repostCount: number = 0
   const [heartBurst, setHeartBurst] = useState(0)
   const [expanded, setExpanded] = useState(false)
   const [overflowing, setOverflowing] = useState(false)
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null)
   const lastTap = useRef(0)
+  const singleTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const textRef = useRef<HTMLDivElement>(null)
   const articleRef = useRef<HTMLElement>(null)
   const commentInputRef = useRef<HTMLInputElement>(null)
+  const isPhone = useSyncExternalStore(subscribePhone, readPhone, () => false)
 
+  const media = post.media ?? []
   // Show the server count until real comments are loaded.
   const commentCount = commentsLoaded ? comments.length : initialCommentCount ?? comments.length
 
@@ -196,6 +232,13 @@ export function PortfolioPost({
     if (!el || expanded) return
     setOverflowing(el.scrollHeight > COLLAPSED_HEIGHT + 4)
   }, [post.statement, post.paragraphs, expanded])
+
+  useEffect(
+    () => () => {
+      if (singleTapTimer.current) clearTimeout(singleTapTimer.current)
+    },
+    [],
+  )
 
   const loadComments = async () => {
     if (commentsLoaded || !onLoadComments) return
@@ -236,29 +279,45 @@ export function PortfolioPost({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [commentsLoaded, onLoadComments, initialCommentCount, post.topComment])
 
+  /** Like or unlike straight away; if saving fails, put it back and say so. */
   const toggleLike = () => {
     const next = !liked
     setLiked(next)
     setLikeCount((current) => current + (next ? 1 : -1))
-    onLikeChange?.(next)
+    if (next) {
+      haptic("tap")
+      playSound("tap")
+    }
+    const saving = onLikeChange?.(next)
+    if (saving && typeof (saving as Promise<unknown>).catch === "function") {
+      ;(saving as Promise<unknown>).catch(() => {
+        setLiked(!next)
+        setLikeCount((current) => current + (next ? -1 : 1))
+        toast.error(next ? "Couldn't save your like. Try again." : "Couldn't remove your like. Try again.")
+      })
+    }
   }
 
   /**
-   * Double-tap a photo to like it, the way every social app has taught people to.
+   * A tap on a photo. Two quick taps like it, the way every social app has taught people
+   * to; one tap, once it is clear no second is coming, opens the post full-screen.
    *
-   * Measured by hand from click timing rather than onDoubleClick, which mobile browsers do
-   * not fire reliably for a double tap. A double tap only ever likes — it never un-likes,
-   * so tapping a photo twice to look closer cannot quietly take a like back.
+   * Measured by hand rather than with onDoubleClick, which mobile browsers do not fire
+   * reliably. A double tap only ever likes — it never un-likes, so tapping twice to look
+   * closer cannot quietly take a like back.
    */
-  const handleMediaTap = () => {
+  const handleMediaTap = (index: number) => {
     const now = Date.now()
-    if (now - lastTap.current < 320) {
+    if (now - lastTap.current < DOUBLE_TAP_MS) {
       lastTap.current = 0
+      if (singleTapTimer.current) clearTimeout(singleTapTimer.current)
       setHeartBurst(now)
       if (!liked) toggleLike()
       return
     }
     lastTap.current = now
+    if (singleTapTimer.current) clearTimeout(singleTapTimer.current)
+    singleTapTimer.current = setTimeout(() => setViewerIndex(index), DOUBLE_TAP_MS)
   }
 
   const openComments = async () => {
@@ -268,26 +327,12 @@ export function PortfolioPost({
     requestAnimationFrame(() => commentInputRef.current?.focus())
   }
 
-  const toggleRepost = async () => {
-    if (repostBusy) return
-    const next = !reposted
-
-    // Moved first so the button answers the tap, then put back if the server disagrees.
-    setReposted(next)
-    setRepostCount((current) => Math.max(0, current + (next ? 1 : -1)))
-    setRepostBusy(true)
-
-    try {
-      await onRepostChange?.(next)
-      if (next) toast.success(repostedBy ? "Reposted" : "Reposted to your profile")
-    } catch {
-      setReposted(!next)
-      setRepostCount((current) => Math.max(0, current + (next ? -1 : 1)))
-      toast.error(next ? "Could not repost that" : "Could not undo the repost")
-    } finally {
-      setRepostBusy(false)
-    }
-  }
+  // REPOST PAUSED
+  // const toggleRepost = () => {
+  //   setReposted((current) => !current)
+  //   setRepostCount((current) => current + (reposted ? -1 : 1))
+  //   if (!reposted) toast.success("Reposted to your profile")
+  // }
 
   const copyLink = async () => {
     if (!shareUrl) return
@@ -308,12 +353,32 @@ export function PortfolioPost({
     }
   }
 
+  /** Show the comment at once; if saving fails, take it back off and keep the text to retry. */
   const submitComment = () => {
     const text = commentText.trim()
     if (!text) return
-    setComments((current) => [...current, { id: `${Date.now()}`, author: "You", text }])
+    const id = `pending-${Date.now()}`
+    setComments((current) => [...current, { id, author: "You", text }])
+    setPendingComments((current) => new Set(current).add(id))
     setCommentText("")
-    onSubmitComment?.(text)
+    playSound("pop")
+    const settle = () =>
+      setPendingComments((current) => {
+        const next = new Set(current)
+        next.delete(id)
+        return next
+      })
+    const saving = onSubmitComment?.(text)
+    if (saving && typeof (saving as Promise<unknown>).then === "function") {
+      ;(saving as Promise<unknown>).then(settle, () => {
+        settle()
+        setComments((current) => current.filter((comment) => comment.id !== id))
+        setCommentText((current) => current || text)
+        toast.error("Couldn't post your comment. It's back in the box to try again.")
+      })
+    } else {
+      settle()
+    }
   }
 
   const posted = toDate(createdAt ?? null)
@@ -332,6 +397,33 @@ export function PortfolioPost({
         )}
       </p>
     </div>
+  )
+
+  const avatar = (
+    <Avatar className={avatarClassName} initials={initials} src={authorPhoto} alt={authorName} />
+  )
+  const header = (
+    <div className="flex items-center min-w-0 gap-3">
+      {authorHref ? (
+        <Link to={authorHref} className="shrink-0">
+          {avatar}
+        </Link>
+      ) : (
+        avatar
+      )}
+      {authorHref ? <Link to={authorHref} className="min-w-0">{authorBlock}</Link> : authorBlock}
+    </div>
+  )
+
+  const textBlocks = (
+    <>
+      {post.statement && (
+        <PostText text={post.statement} tagHref={tagHref} profileHref={profileHref} />
+      )}
+      {post.paragraphs.map((paragraph, index) => (
+        <PostText key={index} text={paragraph} tagHref={tagHref} profileHref={profileHref} />
+      ))}
+    </>
   )
 
   const collapsed = overflowing && !expanded
@@ -353,6 +445,136 @@ export function PortfolioPost({
 
   const actionButton =
     "group flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold text-[#565f6d] transition-all duration-150 hover:bg-[#f2f6f8] active:scale-95"
+
+  const likeButton = (
+    <button
+      type="button"
+      onClick={toggleLike}
+      aria-pressed={liked}
+      className={actionButton}
+      style={liked ? { color: LIKE_RED } : undefined}
+    >
+      <Heart
+        key={liked ? "on" : "off"}
+        className={cn("size-[18px] transition-transform group-hover:scale-110", liked && "animate-heart-pop")}
+        fill={liked ? LIKE_RED : "none"}
+        aria-hidden="true"
+      />
+      {liked ? "Liked" : "Like"}
+    </button>
+  )
+
+  const countsLine = hasCounts && (
+    <div className="flex items-center justify-between gap-3 text-xs text-[#657080]">
+      <span className="flex items-center gap-1.5">
+        {likeCount > 0 && (
+          <>
+            <span
+              className="flex size-[18px] items-center justify-center rounded-full"
+              style={{ backgroundColor: LIKE_RED }}
+              aria-hidden="true"
+            >
+              <Heart className="size-2.5 fill-white text-white" />
+            </span>
+            <span key={likeCount} className="animate-fadeIn tabular-nums">
+              {likeCount}
+            </span>
+          </>
+        )}
+      </span>
+      <span className="flex items-center gap-2">
+        {commentCount > 0 && (
+          <button
+            type="button"
+            onClick={() => (showComments ? setShowComments(false) : void openComments())}
+            className="hover:text-[#00898c] hover:underline"
+          >
+            {commentCount} comment{commentCount === 1 ? "" : "s"}
+          </button>
+        )}
+        {commentCount > 0 && repostCount > 0 && <span aria-hidden="true">·</span>}
+        {repostCount > 0 && (
+          <span>
+            {repostCount} repost{repostCount === 1 ? "" : "s"}
+          </span>
+        )}
+        {giftCount > 0 && (commentCount > 0 || repostCount > 0) && <span aria-hidden="true">·</span>}
+        {giftCount > 0 && (
+          /*
+           * The icons carry this, not the number: a row of gifts says what a post attracted
+           * at a glance, where "9 gifts" only says that some arrived. The count follows for
+           * anyone who wants it.
+           */
+          <span className="flex items-center gap-1">
+            <span className="flex items-center -space-x-1">
+              {topGifts.map((gift) => (
+                <GiftIcon key={gift.giftId} gift={{ id: gift.giftId }} size={16} />
+              ))}
+            </span>
+            <span className="tabular-nums">{giftCount}</span>
+            <span className="sr-only">
+              gift{giftCount === 1 ? "" : "s"}
+              {topGifts.length > 0 && `, mostly ${topGifts[0].giftId.replace(/_/g, " ")}`}
+            </span>
+          </span>
+        )}
+      </span>
+    </div>
+  )
+
+  const commentBox = (
+    <div className="flex items-center gap-2">
+      <div className="relative flex-1">
+        <Input
+          ref={commentInputRef}
+          value={commentText}
+          onChange={(event) => setCommentText(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault()
+              submitComment()
+            }
+          }}
+          placeholder="Add a comment..."
+          className="w-full pr-10"
+        />
+        <EmojiPicker
+          className="absolute right-1 top-1/2 -translate-y-1/2"
+          onPick={(emoji) => {
+            setCommentText((current) => current + emoji)
+            commentInputRef.current?.focus()
+          }}
+        />
+      </div>
+      <Button type="button" size="sm" onClick={submitComment}>
+        Post
+      </Button>
+    </div>
+  )
+
+  const commentsList = (
+    <div className="space-y-3">
+      {comments.map((comment) => (
+        <CommentBubble key={comment.id} comment={comment} pending={pendingComments.has(comment.id)} />
+      ))}
+      {commentBox}
+    </div>
+  )
+
+  /** A small button over a tile that opens the viewer — the only way in for a video. */
+  const expandButton = (index: number) => (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation()
+        setViewerIndex(index)
+      }}
+      aria-label="Open full screen"
+      className="absolute right-2 top-2 z-10 flex size-8 items-center justify-center rounded-full bg-black/45 text-white opacity-100 backdrop-blur transition hover:bg-black/65 sm:opacity-0 sm:group-hover/media:opacity-100 sm:focus-visible:opacity-100"
+    >
+      <Maximize2 className="size-4" aria-hidden="true" />
+    </button>
+  )
 
   return (
     <article
@@ -383,16 +605,7 @@ export function PortfolioPost({
       )}
 
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center min-w-0 gap-3">
-          {authorHref ? (
-            <Link to={authorHref} className="shrink-0">
-              <Avatar className={avatarClassName} initials={initials} src={authorPhoto} alt={authorName} />
-            </Link>
-          ) : (
-            <Avatar className={avatarClassName} initials={initials} src={authorPhoto} alt={authorName} />
-          )}
-          {authorHref ? <Link to={authorHref} className="min-w-0">{authorBlock}</Link> : authorBlock}
-        </div>
+        {header}
 
         {editable ? (
           <DropdownMenu>
@@ -405,12 +618,11 @@ export function PortfolioPost({
                 <MoreHorizontal className="size-5" />
               </button>
             </DropdownMenuTrigger>
+            {/* "View engagements" used to sit here with nothing behind it; it returns
+                when there is an engagements view for it to open. */}
             <DropdownMenuContent align="end" className="w-52 rounded-xl border-[#dce2e6] bg-white p-1 shadow-lg">
               <DropdownMenuItem onSelect={onEdit} className="px-3 py-2 text-sm rounded-lg">
                 Edit post
-              </DropdownMenuItem>
-              <DropdownMenuItem className="px-3 py-2 text-sm rounded-lg">
-                View engagements
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={onRemove} variant="destructive" className="px-3 py-2 text-sm rounded-lg">
                 Remove post
@@ -433,10 +645,7 @@ export function PortfolioPost({
               : undefined
           }
         >
-          {post.statement && <p className="whitespace-pre-line">{post.statement}</p>}
-          {post.paragraphs.map((paragraph, index) => (
-            <p key={index} className="whitespace-pre-line">{paragraph}</p>
-          ))}
+          {textBlocks}
         </div>
         {overflowing && (
           <button
@@ -450,14 +659,16 @@ export function PortfolioPost({
         )}
       </div>
 
-      {post.hashtags && <p className="mt-2 text-sm font-bold text-[#0e44c2]">{post.hashtags}</p>}
+      {post.hashtags && (
+        <PostText text={post.hashtags} tagHref={tagHref} profileHref={profileHref} className="mt-2 text-sm" />
+      )}
 
-      {post.media && post.media.length > 0 && (
-        <div className={cn("relative mt-3 grid gap-2", post.media.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+      {media.length > 0 && (
+        <div className="relative mt-3">
           {heartBurst > 0 && (
             <span
               key={heartBurst}
-              className="animate-heart-burst pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
+              className="animate-heart-burst pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
               aria-hidden="true"
               onAnimationEnd={() => setHeartBurst(0)}
             >
@@ -465,93 +676,33 @@ export function PortfolioPost({
               <Heart className="size-24 fill-[#ff1f3d] text-[#ff1f3d] drop-shadow-[0_0_14px_rgba(255,255,255,0.85)]" />
             </span>
           )}
-          {post.media.map((item, index) =>
-            item.type === "video" ? (
-              <PostVideo key={index} src={item.url} compact={(post.media?.length ?? 0) > 1} />
-            ) : (
-              <PostImage
-                key={index}
-                src={item.url}
-                tiled={(post.media?.length ?? 0) > 1}
-                onTap={handleMediaTap}
-              />
-            ),
+
+          {/* Several photos swipe one at a time on a phone; wider screens tile them. */}
+          {media.length > 1 && isPhone ? (
+            <MediaCarousel media={media} onTap={handleMediaTap} />
+          ) : (
+            <div className={cn("grid gap-2", media.length > 1 ? "grid-cols-2" : "grid-cols-1")}>
+              {media.map((item, index) => (
+                <div key={index} className="group/media relative">
+                  {item.type === "video" ? (
+                    <PostVideo src={item.url} compact={media.length > 1} />
+                  ) : (
+                    <PostImage src={item.url} tiled={media.length > 1} onTap={() => handleMediaTap(index)} />
+                  )}
+                  {expandButton(index)}
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
 
       {/* The counts, quietly, above the buttons — what the post has earned so far. */}
-      {hasCounts && (
-        <div className="mt-3 flex items-center justify-between gap-3 text-xs text-[#657080]">
-          <span className="flex items-center gap-1.5">
-            {likeCount > 0 && (
-              <>
-                <span
-                  className="flex size-[18px] items-center justify-center rounded-full"
-                  style={{ backgroundColor: LIKE_RED }}
-                  aria-hidden="true"
-                >
-                  <Heart className="size-2.5 fill-white text-white" />
-                </span>
-                <span key={likeCount} className="animate-fadeIn tabular-nums">
-                  {likeCount}
-                </span>
-              </>
-            )}
-          </span>
-          <span className="flex items-center gap-2">
-            {commentCount > 0 && (
-              <button type="button" onClick={() => (showComments ? setShowComments(false) : void openComments())} className="hover:text-[#00898c] hover:underline">
-                {commentCount} comment{commentCount === 1 ? "" : "s"}
-              </button>
-            )}
-            {commentCount > 0 && repostCount > 0 && <span aria-hidden="true">·</span>}
-            {repostCount > 0 && (
-              <span>
-                {repostCount} repost{repostCount === 1 ? "" : "s"}
-              </span>
-            )}
-            {giftCount > 0 && (commentCount > 0 || repostCount > 0) && <span aria-hidden="true">·</span>}
-            {giftCount > 0 && (
-              /*
-               * The icons carry this, not the number: a row of gifts says what a post
-               * attracted at a glance, where "9 gifts" only says that some arrived. The
-               * count follows for anyone who wants it.
-               */
-              <span className="flex items-center gap-1">
-                <span className="flex items-center -space-x-1">
-                  {topGifts.map((gift) => (
-                    <GiftIcon key={gift.giftId} gift={{ id: gift.giftId }} size={16} />
-                  ))}
-                </span>
-                <span className="tabular-nums">{giftCount}</span>
-                <span className="sr-only">
-                  gift{giftCount === 1 ? "" : "s"}
-                  {topGifts.length > 0 && `, mostly ${topGifts[0].giftId.replace(/_/g, " ")}`}
-                </span>
-              </span>
-            )}
-          </span>
-        </div>
-      )}
+      {countsLine && <div className="mt-3">{countsLine}</div>}
 
       {/* Evenly spaced actions: like, comment, gift, share. */}
       <div className="mt-2 flex items-center gap-1 border-t border-[#eef1f3] pt-1.5">
-        <button
-          type="button"
-          onClick={toggleLike}
-          aria-pressed={liked}
-          className={actionButton}
-          style={liked ? { color: LIKE_RED } : undefined}
-        >
-          <Heart
-            key={liked ? "on" : "off"}
-            className={cn("size-[18px] transition-transform group-hover:scale-110", liked && "animate-heart-pop")}
-            fill={liked ? LIKE_RED : "none"}
-            aria-hidden="true"
-          />
-          {liked ? "Liked" : "Like"}
-        </button>
+        {likeButton}
 
         <button
           type="button"
@@ -578,6 +729,7 @@ export function PortfolioPost({
           </div>
         )}
 
+        {(shareUrl || canNativeShare) && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button type="button" className={cn(actionButton, reposted && "text-[#0f8a4d]")}>
@@ -586,18 +738,12 @@ export function PortfolioPost({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52 rounded-xl border-[#dce2e6] bg-white p-1 shadow-lg">
-            {/* Shown only where it is actually wired. A repost button that reports success
-                without reposting anything is worse than no button. */}
-            {canRepost && onRepostChange && (
-              <DropdownMenuItem
-                onSelect={() => void toggleRepost()}
-                disabled={repostBusy}
-                className="gap-2 rounded-lg px-3 py-2 text-sm"
-              >
-                <Repeat2 className="size-4" aria-hidden="true" />
-                {reposted ? "Undo repost" : "Repost"}
-              </DropdownMenuItem>
-            )}
+            {/* REPOST PAUSED
+            <DropdownMenuItem onSelect={toggleRepost} className="gap-2 rounded-lg px-3 py-2 text-sm">
+              <Repeat2 className="size-4" aria-hidden="true" />
+              {reposted ? "Undo repost" : "Repost"}
+            </DropdownMenuItem>
+            */}
             {shareUrl && (
               <DropdownMenuItem onSelect={() => void copyLink()} className="gap-2 rounded-lg px-3 py-2 text-sm">
                 <Link2 className="size-4" aria-hidden="true" />
@@ -612,12 +758,13 @@ export function PortfolioPost({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+        )}
       </div>
 
       {/* One comment, as an invitation into the conversation. */}
       {preview && (
         <div className="animate-fade-in-up space-y-2 border-t border-[#eef1f3] pb-2 pt-3">
-          <CommentBubble comment={preview} />
+          <CommentBubble comment={preview} pending={pendingComments.has(preview.id)} />
           {commentCount > 1 && (
             <button
               type="button"
@@ -630,31 +777,36 @@ export function PortfolioPost({
         </div>
       )}
 
-      {showComments && (
-        <div className="space-y-3 border-t border-[#eef1f3] pb-3 pt-4">
-          {comments.map((comment) => (
-            <CommentBubble key={comment.id} comment={comment} />
-          ))}
+      {showComments && <div className="border-t border-[#eef1f3] pb-3 pt-4">{commentsList}</div>}
 
-          <div className="flex items-center gap-2">
-            <Input
-              ref={commentInputRef}
-              value={commentText}
-              onChange={(event) => setCommentText(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault()
-                  submitComment()
-                }
-              }}
-              placeholder="Add a comment..."
-              className="flex-1"
-            />
-            <Button type="button" size="sm" onClick={submitComment}>
-              Post
-            </Button>
-          </div>
-        </div>
+      {viewerIndex !== null && media.length > 0 && (
+        <PostViewer
+          media={media}
+          index={Math.min(viewerIndex, media.length - 1)}
+          onIndexChange={setViewerIndex}
+          onClose={() => setViewerIndex(null)}
+          side={
+            <div className="flex min-h-full flex-col gap-4 p-5">
+              {header}
+              <div className="space-y-2 text-sm leading-6 text-[#20242c]">{textBlocks}</div>
+              {countsLine}
+              <div className="flex items-center gap-1 border-y border-[#eef1f3] py-1.5">{likeButton}</div>
+              <div className="flex-1">
+                {commentsLoaded || !onLoadComments ? (
+                  commentsList
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void loadComments()}
+                    className="text-sm font-semibold text-[#00898c] hover:underline"
+                  >
+                    Show comments
+                  </button>
+                )}
+              </div>
+            </div>
+          }
+        />
       )}
     </article>
   )

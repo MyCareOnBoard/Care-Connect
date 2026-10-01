@@ -578,6 +578,21 @@ export async function listGifts(
   return data.data
 }
 
+/**
+ * One of the biggest gifts sent recently.
+ *
+ * Kept as a name because the homepage ticker reads in these terms, but it is the same row
+ * the endpoint returns — not a separate shape. It was written against a proposed endpoint
+ * that was expected to answer with an array; the one that shipped answers with an object
+ * carrying the rows plus what window they came from, so there is one client for it below
+ * and this is an alias rather than a second contract to keep in step.
+ *
+ * `giftIcon` stays optional and is not sent today: a gift record copies its label, set and
+ * cost but not the catalogue's icon override, so the ticker matches an icon from the gift's
+ * words like everywhere else.
+ */
+export type CowryTopGift = CowryPublicGift & { giftIcon?: string | null }
+
 /** What a creator has received, what is held, and when each held amount frees up. */
 export async function getCreatorEarnings(): Promise<CowryCreatorEarnings> {
   const { data } = await axiosClient.get("/careconnectCowry/creator/earnings")

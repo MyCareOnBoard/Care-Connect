@@ -50,6 +50,20 @@ export default defineConfig(({ mode }) => {
       outDir: "dist",
       rollupOptions: {
         input: "./index.html",
+        output: {
+          // Libraries change far less often than the app, so each gets its own file: a
+          // release that only touches app code leaves these cached in the browser.
+          manualChunks(id) {
+            if (!id.includes("node_modules")) return undefined
+            if (id.includes("@firebase/firestore") || id.includes("firebase/firestore")) return "vendor-firestore"
+            if (id.includes("firebase")) return "vendor-firebase"
+            if (/node_modules\/(react|react-dom|scheduler|react-router|react-router-dom)\//.test(id)) return "vendor-react"
+            if (id.includes("@radix-ui")) return "vendor-radix"
+            if (/node_modules\/(@reduxjs|redux|react-redux|redux-persist|immer|reselect)\//.test(id)) return "vendor-redux"
+            if (id.includes("lucide-react")) return "vendor-icons"
+            return undefined
+          },
+        },
       },
     },
     define: {
