@@ -226,6 +226,7 @@ export function GlobalSearch({ flow }: { flow: CareFlow }) {
           onClick={() => setOpen(true)}
           aria-label="Search"
           aria-expanded={open}
+          data-tour="search"
           className="group flex size-9 shrink-0 items-center justify-center rounded-full border-[3px] border-[#e8edef] bg-white text-[#151922] transition hover:border-[#00b4b8]/40 active:scale-90 sm:size-10"
         >
           <Search className="size-[18px] transition-transform group-hover:scale-110" aria-hidden="true" />

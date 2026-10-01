@@ -164,7 +164,7 @@ export function WelcomeStrip({
         to={profileHref}
         delay={next()}
         // The side column carries the full card on wide screens; this is its phone twin.
-        className="group bg-white ring-[#e8edf0] xl:hidden"
+        className="group bg-white ring-[#e8edf0] lg:hidden"
       >
         <span className="flex items-center gap-3">
           <StrengthRing percent={strength.percent} size={48} stroke={5} />

@@ -219,7 +219,9 @@ export default function CowryBuyPage() {
         }
         actions={
           <>
-            <Button onClick={() => navigate(Routes.app.user.cowryWallet)}>Back to wallet</Button>
+            <Button className="bg-[#00898c]" onClick={() => navigate(Routes.app.user.cowryWallet)}>
+              Back to wallet
+            </Button>
             {!credited && !stillPending && (
               <Button
                 variant="outline"

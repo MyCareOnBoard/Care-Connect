@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link, useSearchParams } from "react-router"
-import { Briefcase, PenLine, Users } from "lucide-react"
+import { Briefcase, CloudOff, Hash, PenLine, RefreshCw, Users, X } from "lucide-react"
 import { PortfolioPost, type PostComment } from "@/components/profile/PortfolioPost"
 import { feedSource, toPortfolioData } from "@/components/profile/postMapping"
 import { RemovedPost } from "@/components/profile/RemovedPost"
@@ -10,6 +10,8 @@ import { avatarColor } from "@/components/app/avatarColor"
 import { openComposer } from "@/components/app/composeEvent"
 import { GiftTray } from "@/components/cowry/GiftTray"
 import { PullToRefresh } from "@/components/app/PullToRefresh"
+import { hashtagsIn } from "@/components/profile/mentions"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCareFlow, type CareFlow } from "@/components/app/useCareFlow"
 import { Routes } from "@/routes/constants"
@@ -207,7 +209,18 @@ export function DashboardFeed() {
   // Accepted connections and subscriptions only; drives the row of faces.
   const [network, setNetwork] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
+  // Set when the feed could not be loaded — kept apart from "there are no posts", which is
+  // a different thing to tell someone.
+  const [failed, setFailed] = useState(false)
+  // Who the gift tray is for, and whether it is open. Kept apart so the tray can close
+  // itself properly (and animate out) before the recipient is forgotten.
   const [giftTarget, setGiftTarget] = useState<GiftTarget | null>(null)
+  const [giftOpen, setGiftOpen] = useState(false)
+
+  const openGift = (target: GiftTarget) => {
+    setGiftTarget(target)
+    setGiftOpen(true)
+  }
 
   // Gifts are a member feature and only exist while some Cowry page is switched on.
   const canGift = flow !== "agency" && isAnyCowryPageEnabled()
@@ -217,6 +230,10 @@ export function DashboardFeed() {
   // `?post=<id>` — a shared link — scrolls to that post once the feed has loaded.
   const [searchParams] = useSearchParams()
   const linkedPostId = searchParams.get("post")
+  // `?tag=<name>` — a tapped hashtag — narrows the feed to posts carrying it.
+  const activeTag = searchParams.get("tag")?.toLowerCase() ?? null
+  const tagHref = useCallback((tag: string) => `${homePath}?tag=${encodeURIComponent(tag.toLowerCase())}`, [homePath])
+  const profileHref = useCallback((uid: string) => viewProfile(uid), [viewProfile])
   const revealed = useRef(false)
 
   const mounted = useRef(true)
@@ -233,10 +250,12 @@ export function DashboardFeed() {
       const [feed, connections] = await Promise.all([listFeed(), listConnections().catch(() => [])])
       if (!mounted.current) return
       setPosts(feed)
+      setFailed(false)
       setFollowed(new Set(connections.map((connection) => connection.targetId)))
       setNetwork(new Set(connections.filter(isEstablished).map((connection) => connection.targetId)))
     } catch {
-      // feed is non-critical; leave what is showing on failure
+      // Keep whatever is already showing; only an empty screen gets the error state.
+      if (mounted.current) setFailed(true)
     } finally {
       if (mounted.current) setLoading(false)
     }
@@ -267,13 +286,73 @@ export function DashboardFeed() {
 
   if (loading) return <FeedSkeleton />
 
+  // A failed load is not an empty feed: say so, and offer to try again.
+  if (failed && posts.length === 0) {
+    return (
+      <div className="animate-fade-in-up rounded-2xl bg-white/85 p-8 text-center shadow-[0_4px_20px_rgba(16,20,26,0.05)] ring-1 ring-white/60">
+        <CloudOff className="mx-auto size-10 text-[#9aa4b2]" aria-hidden="true" />
+        <h2 className="mt-3 text-lg font-bold text-[#151922]">Couldn&apos;t load posts</h2>
+        <p className="mx-auto mt-1 max-w-sm text-sm text-[#657080]">
+          Check your connection and try again. Nothing you&apos;ve posted is lost.
+        </p>
+        <Button
+          variant="outline"
+          className="mt-5"
+          onClick={() => {
+            setLoading(true)
+            void refresh()
+          }}
+        >
+          <RefreshCw className="size-4" aria-hidden="true" />
+          Try again
+        </Button>
+      </div>
+    )
+  }
+
   if (posts.length === 0) return <EmptyFeed flow={flow} />
+
+  // Filtered on the client for now: the tag is looked for in the posts already loaded.
+  // A backend hashtag filter would search every post.
+  const visiblePosts = activeTag
+    ? posts.filter((post) =>
+        hashtagsIn([post.statement, ...(post.paragraphs ?? []), post.hashtags ?? ""].join(" ")).includes(activeTag),
+      )
+    : posts
 
   return (
     <div className="space-y-6">
       <PullToRefresh onRefresh={refresh} />
-      <FeedFaces posts={posts} myUid={myUid} network={network} />
+      {!activeTag && <FeedFaces posts={posts} myUid={myUid} network={network} />}
 
+      {activeTag && (
+        <div className="animate-fade-in-up flex items-center justify-between gap-3 rounded-2xl bg-white/85 px-4 py-3 shadow-[0_4px_20px_rgba(16,20,26,0.05)] ring-1 ring-white/60">
+          <p className="flex items-center gap-2 text-sm text-[#383d45]">
+            <span className="flex size-8 items-center justify-center rounded-full bg-[#e0ecff] text-[#0e5fc2]">
+              <Hash className="size-4" aria-hidden="true" />
+            </span>
+            <span>
+              Posts tagged <span className="font-bold text-[#0e5fc2]">#{activeTag}</span>
+              <span className="text-[#8a94a3]"> · {visiblePosts.length} in your feed</span>
+            </span>
+          </p>
+          <Link
+            to={homePath}
+            aria-label="Clear the tag filter"
+            className="flex size-8 items-center justify-center rounded-full text-[#657080] transition hover:bg-[#f2f6f8]"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </Link>
+        </div>
+      )}
+
+      {activeTag && visiblePosts.length === 0 && (
+        <p className="rounded-2xl border border-dashed border-[#d7dde3] p-8 text-center text-sm text-[#657080]">
+          No posts in your feed use #{activeTag} yet. Be the first — add it to your next post.
+        </p>
+      )}
+
+      {visiblePosts.map((post, index) => {
       {posts.map((row, index) => {
         /*
          * A repost is a row about someone else's post. Everything the card shows and every
@@ -324,6 +403,11 @@ export function DashboardFeed() {
               repostedBy={reposter}
               initialLiked={post.likedByMe}
               initialCommentCount={post.commentsCount ?? 0}
+              // Returned, so the post can undo a like or comment that fails to save.
+              onLikeChange={(next) => (next ? likePost : unlikePost)(post.id)}
+              onSubmitComment={(text) => addComment(post.id, text)}
+              tagHref={tagHref}
+              profileHref={profileHref}
               initialReposted={row.repostedByMe ?? post.repostedByMe ?? false}
               // Reposting your own post is refused, so it is not offered.
               canRepost={!mine}
@@ -363,7 +447,7 @@ export function DashboardFeed() {
               onGift={
                 canGift && !mine
                   ? () =>
-                      setGiftTarget({
+                      openGift({
                         postId: post.id,
                         authorId: post.authorId,
                         authorName: post.authorName || "this member",
@@ -378,8 +462,8 @@ export function DashboardFeed() {
 
       {canGift && giftTarget && (
         <GiftTray
-          open
-          onOpenChange={(open) => !open && setGiftTarget(null)}
+          open={giftOpen}
+          onOpenChange={setGiftOpen}
           recipientId={giftTarget.authorId}
           recipientName={giftTarget.authorName}
           targetType="post"

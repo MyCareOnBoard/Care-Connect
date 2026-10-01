@@ -4,6 +4,7 @@ import { ArrowRight, Clock, Gift, ShoppingCart, Sparkles, X, type LucideIcon } f
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { CowryIcon } from "@/components/cowry/CowryIcon"
+import { playSound } from "@/lib/sound"
 import { CowryRain, RAIN_MS } from "@/components/cowry/CowryRain"
 import { AnimatedCowries } from "@/components/cowry/CowryUI"
 import { celebrateCowries } from "@/components/cowry/celebrate"
@@ -108,6 +109,7 @@ export function CowryBalanceChip() {
   function openPopup() {
     setOpen(true)
     setRain(Date.now())
+    playSound("coins")
     void refresh(true)
     // A beat after the dialog lands, so the burst comes out of the shell rather than
     // before it is on screen.
@@ -119,6 +121,7 @@ export function CowryBalanceChip() {
       <button
         type="button"
         onClick={openPopup}
+        data-tour="cowry"
         aria-label={`${formatCowries(spendable)} Cowries. Open your Cowry balance`}
         aria-haspopup="dialog"
         className="cowry-hover cowry-press group flex h-9 shrink-0 items-center gap-1 rounded-full border-2 border-[#f3e6c8] bg-[linear-gradient(135deg,#fffaf0,#fbeed2)] pl-1 pr-2.5 sm:h-10 sm:gap-1.5 sm:border-[3px] sm:pl-1.5 sm:pr-3 shadow-[0_4px_14px_-6px_rgba(200,150,62,0.6)] transition hover:border-[#e8d1a0] hover:shadow-[0_6px_18px_-6px_rgba(200,150,62,0.8)]"

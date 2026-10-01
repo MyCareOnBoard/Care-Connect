@@ -578,6 +578,36 @@ export async function listGifts(
   return data.data
 }
 
+/** One of the biggest gifts sent recently, for the homepage ticker. */
+export interface CowryTopGift {
+  id: string
+  giftId: string
+  giftLabel: string
+  giftIcon?: string | null
+  giftSet: CowryGiftSet
+  /** Cowries the sender spent. What the ranking is by. */
+  cost: number
+  senderId: string
+  senderName?: string | null
+  recipientId: string
+  recipientName?: string | null
+  createdAt?: Timestampish
+}
+
+/**
+ * The biggest gifts sent recently, across everyone — the homepage ticker.
+ *
+ * PROPOSED ENDPOINT. Expected: `GET /careconnectCowry/gifts/top?limit=5&window=7d`, ranked by
+ * cost, and only gifts that were sent publicly (`visible`) — a private gift must never turn
+ * up in a list every member sees. Until it exists this rejects, and the ticker stays hidden.
+ */
+export async function listTopGifts(params: { limit?: number; window?: string } = {}): Promise<CowryTopGift[]> {
+  const { data } = await axiosClient.get("/careconnectCowry/gifts/top", {
+    params: { limit: params.limit ?? 5, window: params.window ?? "7d" },
+  })
+  return Array.isArray(data?.data) ? data.data : []
+}
+
 /** What a creator has received, what is held, and when each held amount frees up. */
 export async function getCreatorEarnings(): Promise<CowryCreatorEarnings> {
   const { data } = await axiosClient.get("/careconnectCowry/creator/earnings")

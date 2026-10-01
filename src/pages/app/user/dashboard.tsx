@@ -15,6 +15,7 @@ import { FocusRail, type RailItem } from "@/components/home/FocusRail"
 import { profileStrength } from "@/components/home/profileStrength"
 import { useFeedFocus } from "@/components/home/feedFocus"
 import { FeedFocusToggle } from "@/components/home/FeedFocusToggle"
+import { FeatureTour } from "@/components/app/FeatureTour"
 import { Routes } from "@/routes/constants"
 import { cn, getInitials } from "@/lib/utils"
 import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
@@ -144,8 +145,8 @@ function JobCard({
 
 function DashboardSkeleton() {
   return (
-    <div className="grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-4 pb-10 pt-4 sm:px-8 xl:grid-cols-[332px_minmax(560px,680px)_326px] w-full">
-      <aside className="order-2 space-y-10 xl:order-0">
+    <div className="grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-4 pb-10 pt-4 sm:px-8 lg:grid-cols-[clamp(248px,24vw,332px)_minmax(0,1fr)_clamp(248px,24vw,326px)] w-full">
+      <aside className="order-2 space-y-10 lg:order-0">
         <Skeleton className="h-56 rounded-2xl" />
         <div className="space-y-3">
           <Skeleton className="w-24 h-4" />
@@ -155,7 +156,7 @@ function DashboardSkeleton() {
         </div>
       </aside>
 
-      <main className="order-1 space-y-6 xl:order-0">
+      <main className="order-1 space-y-6 lg:order-0">
         <div className="space-y-2">
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-4 w-80 max-w-full" />
@@ -169,7 +170,7 @@ function DashboardSkeleton() {
         <Skeleton className="h-96 rounded-2xl" />
       </main>
 
-      <aside className="order-3 space-y-10 xl:order-0">
+      <aside className="order-3 space-y-10 lg:order-0">
         <div className="space-y-4">
           <Skeleton className="w-32 h-4" />
           {Array.from({ length: 4 }).map((_, index) => (
@@ -429,7 +430,7 @@ export default function DashboardPage() {
   const left = focus.aside("left")
   const right = focus.aside("right")
   const asideClass =
-    "space-y-10 xl:sticky xl:top-22 xl:row-start-1 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide"
+    "space-y-10 lg:sticky lg:top-22 lg:row-start-1 lg:max-h-[calc(100vh-104px)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1 scrollbar-hide"
 
   return (
     <div
@@ -447,15 +448,16 @@ export default function DashboardPage() {
 
       {/* Every column is placed explicitly on wide screens: the focus strips share the side
           cells, and automatic placement would otherwise shuffle the columns around them. */}
-      <aside inert={left.inert} className={cn("order-2 xl:order-0 xl:col-start-1", asideClass, left.className)}>
+      <aside inert={left.inert} className={cn("order-2 lg:order-0 lg:col-start-1", asideClass, left.className)}>
         {profileSection}
         {jobsSection}
         {marketplaceSection}
       </aside>
       <FocusRail side="left" items={leftRail} active={focus.active} />
 
-      <main className="order-1 min-w-0 space-y-6 xl:order-0 xl:col-start-2 xl:row-start-1">
+      <main className="order-1 min-w-0 space-y-6 lg:order-0 lg:col-start-2 lg:row-start-1">
         <FeedFocusToggle focus={focus} />
+        <FeatureTour />
         <WelcomeStrip
           firstName={firstName}
           streak={earn?.streak ?? null}
@@ -477,7 +479,7 @@ export default function DashboardPage() {
         <DashboardFeed />
       </main>
 
-      <aside inert={right.inert} className={cn("order-3 xl:order-0 xl:col-start-3", asideClass, right.className)}>
+      <aside inert={right.inert} className={cn("order-3 lg:order-0 lg:col-start-3", asideClass, right.className)}>
         {providersSection}
         {peopleSection}
       </aside>

@@ -11,7 +11,10 @@ import { RemovedPost } from "@/components/profile/RemovedPost"
 import { useCareFlow } from "@/components/app/useCareFlow"
 import { Routes } from "@/routes/constants"
 import { toast } from "sonner"
-import { getInitials } from "@/lib/utils"
+import { cn, getInitials } from "@/lib/utils"
+import { avatarColor } from "@/components/app/avatarColor"
+import { StrengthRing } from "@/components/home/ProfileStrengthCard"
+import { profileStrength } from "@/components/home/profileStrength"
 import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
 import { updateUserProfile, updateCareConnectProfile } from "@/utils/auth/services/authService"
 import { useAccountSettings } from "@/hooks/useAccountSettings"
@@ -415,51 +418,81 @@ export default function ProfilePage() {
     void persistCareConnect({ organizationInterests: next })
   }
 
+  const strength = !isAgency && me ? profileStrength(me) : null
+  const contacts = [
+    { icon: MapPin, value: summary.location },
+    { icon: Mail, value: summary.email },
+    { icon: Phone, value: summary.phone },
+  ].filter((item) => Boolean(item.value))
+
   return (
-    <div className="px-7.5 pb-10 pt-4">
+    <div className="px-4 pb-10 pt-4 sm:px-8">
       <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
       <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverChange} />
 
-      <section className="relative mx-auto max-w-250">
-        <div className="overflow-hidden rounded-[28px] border border-[#d6d6d6] bg-white shadow-sm">
+      <section className="animate-fade-in-up relative mx-auto max-w-250">
+        <div className="overflow-hidden rounded-[28px] bg-white shadow-[0_12px_40px_-24px_rgba(16,20,26,0.35)] ring-1 ring-[#e2e6ea]">
+          {/* Cover: a photo when there is one, the brand gradient when not. */}
           <div
-            className="relative h-56 bg-linear-to-r from-[#02e0e4] via-[#00b4b8] to-[#006668] bg-cover bg-center"
+            className="relative h-40 bg-[linear-gradient(120deg,#0c2a33_0%,#0b5f68_50%,#00b4b8_100%)] bg-cover bg-center sm:h-56"
             style={coverSrc ? { backgroundImage: `url(${coverSrc})` } : undefined}
           >
-            <div className="absolute z-10 right-6 top-6">
-              <button
-                type="button"
-                onClick={() => coverInputRef.current?.click()}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white transition bg-[#ffffff31] border rounded-full shadow-sm border-white/80 hover:bg-[#03362f] cursor-pointer"
-              >
-                <Camera className="size-5" />
-                Change cover
-              </button>
-            </div>
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-linear-to-t from-black/25 to-transparent" aria-hidden="true" />
+            <button
+              type="button"
+              onClick={() => coverInputRef.current?.click()}
+              aria-label="Change cover photo"
+              className="absolute right-4 top-4 z-10 inline-flex items-center gap-2 rounded-full bg-black/35 px-3 py-2 text-sm font-semibold text-white backdrop-blur-md transition hover:bg-black/55 active:scale-95 sm:right-6 sm:top-6 sm:px-4"
+            >
+              <Camera className="size-4" />
+              <span className="hidden sm:inline">Change cover</span>
+            </button>
           </div>
 
-          <div className="relative px-6 pt-6 pb-6 sm:px-8">
-            <div className="absolute -top-16 left-6">
-              <div className="relative h-28 w-28 rounded-[30px] border-4 border-white bg-white p-2 shadow-xl">
-                <div className="h-full w-full overflow-hidden rounded-full flex items-center justify-center bg-[#00b4b8]">
-                  {avatarSrc ? (
-                    <img src={avatarSrc} alt="Profile" className="object-cover w-full h-full" />
-                  ) : (
-                    <UserRound className="size-30 text-[#ffffff]" />
-                  )}
+          <div className="relative px-5 pb-6 sm:px-8">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              {/* The avatar overlaps the cover, round, with a lift of shadow. */}
+              <div className="relative -mt-14 sm:-mt-16">
+                <div className="size-28 overflow-hidden rounded-full bg-white p-1 shadow-[0_12px_28px_-10px_rgba(16,20,26,0.5)] sm:size-32">
+                  <div className={cn("flex size-full items-center justify-center overflow-hidden rounded-full", avatarSrc ? "bg-[#eef1f3]" : avatarColor(user?.uid))}>
+                    {avatarSrc ? (
+                      <img src={avatarSrc} alt="Profile" className="size-full object-cover" />
+                    ) : (
+                      <span className="text-3xl font-bold text-white">{getInitials(summary.name) || <UserRound className="size-14" />}</span>
+                    )}
+                  </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => avatarInputRef.current?.click()}
                   aria-label="Change profile photo"
-                  className="absolute -bottom-1 -right-1 flex size-9 items-center justify-center rounded-full border-2 border-white bg-[#00b4b8] text-white shadow-md transition hover:bg-[#00595a] cursor-pointer"
+                  className="absolute bottom-1 right-1 flex size-9 items-center justify-center rounded-full border-2 border-white bg-[#00b4b8] text-white shadow-md transition hover:bg-[#00898c] active:scale-90"
                 >
-                  <Pencil className="size-4" />
+                  <Camera className="size-4" />
                 </button>
               </div>
+
+              {/* How complete the profile is, with a nudge — members only. */}
+              {strength && !identityLoading && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("About")}
+                  className="group flex items-center gap-3 rounded-2xl bg-[#f7fafb] py-2 pl-2 pr-4 text-left ring-1 ring-[#e8edef] transition hover:ring-[#00b4b8]/40"
+                >
+                  <StrengthRing percent={strength.percent} size={48} stroke={5} />
+                  <span>
+                    <span className="block text-sm font-bold text-[#151922]">
+                      {strength.percent >= 100 ? "Profile complete" : "Profile strength"}
+                    </span>
+                    <span className="block text-xs text-[#657080]">
+                      {strength.next ? strength.next.label : "Easy to find, easy to trust"}
+                    </span>
+                  </span>
+                </button>
+              )}
             </div>
 
-            <div className="mt-10">
+            <div className="mt-4">
               {identityLoading ? (
                 <div className="space-y-3">
                   <Skeleton className="h-8 w-56" />
@@ -472,57 +505,55 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <div>
-                  <h1 className="text-3xl font-semibold tracking-tight text-[#151922]">{summary.name}</h1>
-                  <p className="mt-2 text-sm leading-6 text-black">{summary.headline}</p>
-                  <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-[#656f80]">
-                    <span className="inline-flex items-center gap-2">
-                      <MapPin className="text-black size-4" />
-                      {summary.location}
-                    </span>
-                    <span className="inline-flex items-center gap-2">
-                      <Mail className="text-black size-4" />
-                      {summary.email}
-                    </span>
-                    <span className="inline-flex items-center gap-2">
-                      <Phone className="text-black size-4" />
-                      {summary.phone}
-                    </span>
-                  </div>
+                  <h1 className="text-2xl font-bold tracking-tight text-[#151922] sm:text-3xl">{summary.name}</h1>
+                  {summary.headline && <p className="mt-1.5 max-w-2xl text-sm leading-6 text-[#383d45]">{summary.headline}</p>}
+                  {contacts.length > 0 && (
+                    <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-[#4a5260]">
+                      {contacts.map(({ icon: Icon, value }) => (
+                        <span key={String(value)} className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-[#f3f6f8] px-3 py-1.5">
+                          <Icon className="size-4 shrink-0 text-[#00898c]" />
+                          <span className="truncate">{value}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
-              <div className="mt-6 overflow-hidden rounded-3xl border-t-2 border-[#e5ecf5] pt-2">
-                <div className="grid grid-cols-2 text-center sm:grid-cols-4">
-                  {summary.metrics.map((metric, index) => (
-                    <div key={metric.label} className={`${index > 0 ? "border-l border-[#e6eaf0]" : ""} px-4 py-5`}>
-                      {identityLoading ? (
-                        <Skeleton className="mx-auto mt-3 h-8 w-10" />
-                      ) : (
-                        <p className="mt-3 text-3xl font-semibold text-[#151922]">{metric.value}</p>
-                      )}
-                      <p className="text-sm text-black">{metric.label}</p>
-                    </div>
-                  ))}
-                </div>
+              <div className="cowry-stagger mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {summary.metrics.map((metric) => (
+                  <div key={metric.label} className="rounded-2xl bg-[#f7fafb] px-4 py-3 ring-1 ring-[#eef1f3]">
+                    {identityLoading ? (
+                      <Skeleton className="h-8 w-10" />
+                    ) : (
+                      <p className="text-2xl font-bold tabular-nums text-[#151922]">{metric.value}</p>
+                    )}
+                    <p className="mt-0.5 text-xs font-medium text-[#657080]">{metric.label}</p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="mt-6 overflow-hidden rounded-[28px] border border-[#d6d6d6] bg-white shadow-sm max-w-250 mx-auto">
-        <div className="border-b border-[#e7ecf1] bg-[#f8fbff] px-6 py-4 sm:px-8">
-          <div className="flex flex-wrap items-center gap-2">
+      <section className="mx-auto mt-6 max-w-250 overflow-hidden rounded-[28px] bg-white shadow-[0_12px_40px_-24px_rgba(16,20,26,0.35)] ring-1 ring-[#e2e6ea]">
+        {/* Tabs as pills that scroll sideways on a phone. */}
+        <div className="border-b border-[#eef1f3] px-4 py-3 sm:px-8">
+          <div className="scrollbar-hide -mx-1 flex items-center gap-1.5 overflow-x-auto px-1" role="tablist" aria-label="Profile sections">
             {tabs.map((tab) => (
               <button
                 key={tab}
                 type="button"
+                role="tab"
+                aria-selected={activeTab === tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 text-sm font-medium transition cursor-pointer ${
+                className={cn(
+                  "shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200 active:scale-95",
                   activeTab === tab
-                    ? "bg-white text-[#00b4b8] border-b-4 hover:border-[#00b4b8]"
-                    : "text-[#6b7280] hover:bg-white/80"
-                }`}
+                    ? "bg-[#00b4b8] text-white shadow-[0_6px_16px_-6px_rgba(0,180,184,0.7)]"
+                    : "text-[#4a5260] hover:bg-[#f2f6f8]",
+                )}
               >
                 {tab}
               </button>
@@ -844,6 +875,30 @@ export default function ProfilePage() {
                   </p>
                 </div>
               ) : (
+                portfolio.map((post) => (
+                  <PortfolioPost
+                    key={post.id}
+                    authorName={summary.name}
+                    authorRole={summary.headline || (isAgency ? "Healthcare Agency" : "Care Connect member")}
+                    avatarClassName={avatarColor(user?.uid)}
+                    authorPhoto={avatarSrc}
+                    createdAt={post.createdAt}
+                    profileHref={isAgency ? Routes.app.agency.viewProfile : Routes.app.user.viewProfile}
+                    initials={getInitials(summary.name)}
+                    post={toPortfolioData(post)}
+                    editable
+                    initialLiked={post.likedByMe}
+                    initialCommentCount={post.commentsCount ?? 0}
+                    onRemove={() => handleRemovePost(post.id)}
+                    // Returned, so a like or comment that fails to save is undone on screen.
+                    onLikeChange={(next) => (next ? likePost : unlikePost)(post.id)}
+                    onSubmitComment={(text) => addComment(post.id, text)}
+                    onLoadComments={async (): Promise<PostComment[]> => {
+                      const comments = await listComments(post.id)
+                      return comments.map((c) => ({ id: c.id, author: c.author, text: c.text }))
+                    }}
+                  />
+                ))
                 portfolio.map((row) => {
                   /*
                    * This list is "posts by this person", and a repost is in it — but its

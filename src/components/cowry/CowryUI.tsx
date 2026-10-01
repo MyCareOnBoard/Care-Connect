@@ -9,6 +9,7 @@ import { formatCowries } from "@/utils/careconnect/cowry"
 import { CowryIcon } from "@/components/cowry/CowryIcon"
 import { celebrateCowries, originOf, type CelebrationSize } from "@/components/cowry/celebrate"
 import { useCountUp } from "@/components/cowry/useCountUp"
+import { playSound } from "@/lib/sound"
 
 /**
  * Shared pieces for the Cowry screens.
@@ -273,7 +274,10 @@ export function CowryResultCard({
 
   useEffect(() => {
     if (tone !== "success") return
-    const timer = setTimeout(() => celebrateCowries(celebration, originOf(iconRef.current)), 250)
+    const timer = setTimeout(() => {
+      celebrateCowries(celebration, originOf(iconRef.current))
+      playSound("coins")
+    }, 250)
     return () => clearTimeout(timer)
   }, [tone, celebration])
 

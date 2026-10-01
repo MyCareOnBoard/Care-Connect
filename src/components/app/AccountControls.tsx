@@ -20,6 +20,8 @@ import { AvailabilityModal } from "@/components/professional/AvailabilityModal"
 import { useProfessionalMembership } from "@/utils/professional/useProfessionalMembership"
 import type { CareFlow } from "./useCareFlow"
 import { ThemeMenuRow } from "./ThemeToggle"
+import { SoundMenuRow } from "./SoundToggle"
+import { setSoundEnabled, useSoundEnabled } from "@/lib/sound"
 import { toggleTheme } from "@/lib/theme"
 
 type AccountControlsProps = {
@@ -41,6 +43,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
     (isCompany ? "Company" : "Professional")
 
   const { isProfessional } = useProfessionalMembership()
+  const soundOn = useSoundEnabled()
 
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
@@ -280,6 +283,16 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
             className="mx-2 rounded-lg px-3 py-2 text-sm hover:bg-[#edf3f5] cursor-pointer"
           >
             <ThemeMenuRow />
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={(event) => {
+              // Stay open, so the switch can be seen flipping.
+              event.preventDefault()
+              setSoundEnabled(!soundOn)
+            }}
+            className="mx-2 rounded-lg px-3 py-2 text-sm hover:bg-[#edf3f5] cursor-pointer"
+          >
+            <SoundMenuRow />
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={handleLogout} variant="destructive" className="rounded-lg mx-2 hover:bg-[#ff313157] mb-2">

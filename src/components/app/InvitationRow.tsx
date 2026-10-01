@@ -9,7 +9,7 @@ export function InvitationRow({
   onDecline,
   style,
 }: {
-  person: { name: string; role: string; avatarBg: string }
+  person: { name: string; role: string; avatarBg: string; photo?: string | null }
   onAccept: () => void
   onDecline: () => void
   style?: CSSProperties
@@ -17,10 +17,10 @@ export function InvitationRow({
   return (
     <div
       style={style}
-      className="animate-fade-in-up flex flex-col gap-3 rounded-xl border border-[#eef1f3] bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#00b4b8]/30 hover:shadow-[0_8px_20px_rgba(16,20,26,0.08)] sm:flex-row sm:items-center sm:gap-4"
+      className="animate-fade-in-up flex flex-col gap-3 rounded-2xl border border-[#cdeff0] bg-[linear-gradient(90deg,#f1fbfb,#ffffff_45%)] p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#00b4b8]/30 hover:shadow-[0_8px_20px_rgba(16,20,26,0.08)] sm:flex-row sm:items-center sm:gap-4"
     >
       <div className="flex min-w-0 items-center gap-4">
-        <Avatar className={person.avatarBg} initials={getInitials(person.name)} />
+        <Avatar className={person.avatarBg} initials={getInitials(person.name)} src={person.photo} alt={person.name} />
         <div className="min-w-0 flex-1">
           <p className="truncate font-bold text-[#151922]">{person.name}</p>
           <p className="mt-1 truncate text-sm text-[#657080]">{person.role}</p>

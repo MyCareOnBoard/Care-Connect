@@ -111,7 +111,7 @@ export function ScrollToTop() {
           aria-label="Back to top"
           aria-hidden={!visible}
           tabIndex={visible ? 0 : -1}
-          className="group relative flex size-12 items-center justify-center rounded-full bg-white/90 text-[#00898c] shadow-[0_10px_28px_-10px_rgba(0,137,140,0.55)] ring-1 ring-[#d7eef0] backdrop-blur-md transition-all duration-200 hover:-translate-y-1 hover:bg-[#00b4b8] hover:text-white hover:shadow-[0_16px_34px_-10px_rgba(0,180,184,0.75)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00b4b8] focus-visible:ring-offset-2 active:translate-y-0 active:scale-90"
+          className="group relative flex size-12 items-center justify-center rounded-full cursor-pointer bg-white/90 text-[#00898c] shadow-[0_10px_28px_-10px_rgba(0,137,140,0.55)] ring-1 ring-[#d7eef0] backdrop-blur-md transition-all duration-200 hover:-translate-y-1 hover:bg-[#00b4b8] hover:text-white hover:shadow-[0_16px_34px_-10px_rgba(0,180,184,0.75)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00b4b8] focus-visible:ring-offset-2 active:translate-y-0 active:scale-90"
         >
           {/* Reading progress, drawn as a ring that fills clockwise from the top. */}
           <svg className="absolute inset-0 -rotate-90" viewBox="0 0 48 48" aria-hidden="true">
@@ -137,7 +137,7 @@ export function ScrollToTop() {
           />
 
           {/* Clipped, so the arrow can shoot out of the top and come back in from below. */}
-          <span className="relative flex size-6 items-center justify-center overflow-hidden">
+          <span className="relative flex items-center justify-center overflow-hidden size-6">
             <ArrowUp
               className={cn(
                 "size-5 transition-transform duration-200 group-hover:-translate-y-0.5",
