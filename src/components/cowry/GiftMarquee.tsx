@@ -70,7 +70,10 @@ export function GiftMarquee({ flow }: { flow: CareFlow }) {
     const load = () =>
       listTopGifts({ limit: 5 })
         .then((top) => {
-          if (active) setGifts([...top].sort((a, b) => b.cost - a.cost).slice(0, 5))
+          // Already ranked by cost and already capped by the endpoint, so taken as given
+          // rather than re-sorted — the server also breaks ties on recency, which a sort
+          // here would undo.
+          if (active) setGifts(top.gifts)
         })
         .catch(() => {
           // No endpoint yet, or it failed: stay hidden rather than show anything invented.

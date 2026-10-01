@@ -352,8 +352,8 @@ export function DashboardFeed() {
         </p>
       )}
 
-      {visiblePosts.map((post, index) => {
-      {posts.map((row, index) => {
+      {/* visiblePosts, not posts: the hashtag filter above narrows what is shown. */}
+      {visiblePosts.map((row, index) => {
         /*
          * A repost is a row about someone else's post. Everything the card shows and every
          * action it offers belongs to that post, so the card is built from it; the reposter
@@ -422,13 +422,6 @@ export function DashboardFeed() {
                     item.id === row.id ? { ...item, repostedByMe: next } : item,
                   ),
                 )
-              }}
-              onLikeChange={(next) => {
-                const call = next ? likePost : unlikePost
-                call(post.id).catch(() => undefined)
-              }}
-              onSubmitComment={(text) => {
-                addComment(post.id, text).catch(() => undefined)
               }}
               onLoadComments={async (): Promise<PostComment[]> => {
                 const comments = await listComments(post.id)
