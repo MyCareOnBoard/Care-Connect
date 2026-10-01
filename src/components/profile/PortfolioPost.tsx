@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
 import { Link } from "react-router"
 // REPOST PAUSED: add Repeat2 back to this import when reposting returns.
-import { Gift, Heart, Link2, Maximize2, MessageSquare, MoreHorizontal, Share2, Upload } from "lucide-react"
+import { Gift, Heart, Link2, Maximize2, MessageSquare, MoreHorizontal, Repeat2, Share2, Upload } from "lucide-react"
 import { toast } from "sonner"
 import { Avatar } from "@/components/app/DashboardAvatar"
 import { EmojiPicker } from "@/components/app/EmojiPicker"
@@ -89,6 +89,19 @@ type PortfolioPostProps = {
   tagHref?: (tag: string) => string
   /** Where a tapped @mention leads. */
   profileHref?: (uid: string) => string
+  /**
+   * Who reposted this, when the card is showing up in the feed because they did.
+   *
+   * A repost has no content of its own, so this card is still the post's card: the author
+   * shown, the text, the counts and every action all belong to the post. This is only the
+   * line above it saying how the reader came to see it.
+   */
+  repostedBy?: {
+    name: string
+    href?: string
+    /** A quote-repost's own words. */
+    note?: string | null
+  }
   /** Real-data wiring (optional — omitted surfaces stay local-only mock). */
   initialLiked?: boolean
   initialCommentCount?: number
@@ -96,7 +109,21 @@ type PortfolioPostProps = {
    * Save a like or unlike. Return the request's promise: if it fails, the like is undone
    * on screen and the person is told, rather than being left believing it saved.
    */
-  onLikeChange?: (nextLiked: boolean) => void | Promise<unknown>
+  onLikeChange?: (nextLiked: boolean) => void
+  initialReposted?: boolean
+  /**
+   * Called with the state being moved to. Rejecting reverts the button, because the server
+   * can refuse — reposting your own post, or one that has since been removed — and a button
+   * that stays switched on after a refusal is a lie about what happened.
+   */
+  onRepostChange?: (nextReposted: boolean) => Promise<void> | void
+  /**
+   * Hides the repost action. Reposting your own post is refused, so it is not offered.
+   *
+   * The action also hides itself where `onRepostChange` is absent, so a surface that has
+   * not been wired up shows no button rather than one that reports a repost it did not make.
+   */
+  canRepost?: boolean | Promise<unknown>
   /** Save a comment. As with likes, a failed save takes the comment back off the post. */
   onSubmitComment?: (text: string) => void | Promise<unknown>
   onLoadComments?: () => Promise<PostComment[]>
@@ -122,13 +149,6 @@ const readPhone = () => typeof window !== "undefined" && window.matchMedia(PHONE
 function CommentBubble({ comment, pending }: { comment: PostComment; pending?: boolean }) {
   return (
     <div className={cn("flex items-start gap-2 transition-opacity", pending && "opacity-60")}>
-      <span
-        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#e8f1f7] text-[11px] font-bold text-[#383d45]"
-        aria-hidden="true"
-      >
-        {comment.author.slice(0, 2).toUpperCase()}
-      </span>
-    <div className="flex items-start gap-2">
       {comment.authorPhoto ? (
         <img
           src={comment.authorPhoto}
@@ -478,6 +498,26 @@ export function PortfolioPost({
             {repostCount} repost{repostCount === 1 ? "" : "s"}
           </span>
         )}
+        {giftCount > 0 && (commentCount > 0 || repostCount > 0) && <span aria-hidden="true">·</span>}
+        {giftCount > 0 && (
+          /*
+           * The icons carry this, not the number: a row of gifts says what a post attracted
+           * at a glance, where "9 gifts" only says that some arrived. The count follows for
+           * anyone who wants it.
+           */
+          <span className="flex items-center gap-1">
+            <span className="flex items-center -space-x-1">
+              {topGifts.map((gift) => (
+                <GiftIcon key={gift.giftId} gift={{ id: gift.giftId }} size={16} />
+              ))}
+            </span>
+            <span className="tabular-nums">{giftCount}</span>
+            <span className="sr-only">
+              gift{giftCount === 1 ? "" : "s"}
+              {topGifts.length > 0 && `, mostly ${topGifts[0].giftId.replace(/_/g, " ")}`}
+            </span>
+          </span>
+        )}
       </span>
     </div>
   )
@@ -659,59 +699,6 @@ export function PortfolioPost({
 
       {/* The counts, quietly, above the buttons — what the post has earned so far. */}
       {countsLine && <div className="mt-3">{countsLine}</div>}
-      {hasCounts && (
-        <div className="mt-3 flex items-center justify-between gap-3 text-xs text-[#657080]">
-          <span className="flex items-center gap-1.5">
-            {likeCount > 0 && (
-              <>
-                <span
-                  className="flex size-[18px] items-center justify-center rounded-full"
-                  style={{ backgroundColor: LIKE_RED }}
-                  aria-hidden="true"
-                >
-                  <Heart className="size-2.5 fill-white text-white" />
-                </span>
-                <span key={likeCount} className="animate-fadeIn tabular-nums">
-                  {likeCount}
-                </span>
-              </>
-            )}
-          </span>
-          <span className="flex items-center gap-2">
-            {commentCount > 0 && (
-              <button type="button" onClick={() => (showComments ? setShowComments(false) : void openComments())} className="hover:text-[#00898c] hover:underline">
-                {commentCount} comment{commentCount === 1 ? "" : "s"}
-              </button>
-            )}
-            {commentCount > 0 && repostCount > 0 && <span aria-hidden="true">·</span>}
-            {repostCount > 0 && (
-              <span>
-                {repostCount} repost{repostCount === 1 ? "" : "s"}
-              </span>
-            )}
-            {giftCount > 0 && (commentCount > 0 || repostCount > 0) && <span aria-hidden="true">·</span>}
-            {giftCount > 0 && (
-              /*
-               * The icons carry this, not the number: a row of gifts says what a post
-               * attracted at a glance, where "9 gifts" only says that some arrived. The
-               * count follows for anyone who wants it.
-               */
-              <span className="flex items-center gap-1">
-                <span className="flex items-center -space-x-1">
-                  {topGifts.map((gift) => (
-                    <GiftIcon key={gift.giftId} gift={{ id: gift.giftId }} size={16} />
-                  ))}
-                </span>
-                <span className="tabular-nums">{giftCount}</span>
-                <span className="sr-only">
-                  gift{giftCount === 1 ? "" : "s"}
-                  {topGifts.length > 0 && `, mostly ${topGifts[0].giftId.replace(/_/g, " ")}`}
-                </span>
-              </span>
-            )}
-          </span>
-        </div>
-      )}
 
       {/* Evenly spaced actions: like, comment, gift, share. */}
       <div className="mt-2 flex items-center gap-1 border-t border-[#eef1f3] pt-1.5">

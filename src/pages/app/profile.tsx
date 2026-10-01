@@ -875,30 +875,6 @@ export default function ProfilePage() {
                   </p>
                 </div>
               ) : (
-                portfolio.map((post) => (
-                  <PortfolioPost
-                    key={post.id}
-                    authorName={summary.name}
-                    authorRole={summary.headline || (isAgency ? "Healthcare Agency" : "Care Connect member")}
-                    avatarClassName={avatarColor(user?.uid)}
-                    authorPhoto={avatarSrc}
-                    createdAt={post.createdAt}
-                    profileHref={isAgency ? Routes.app.agency.viewProfile : Routes.app.user.viewProfile}
-                    initials={getInitials(summary.name)}
-                    post={toPortfolioData(post)}
-                    editable
-                    initialLiked={post.likedByMe}
-                    initialCommentCount={post.commentsCount ?? 0}
-                    onRemove={() => handleRemovePost(post.id)}
-                    // Returned, so a like or comment that fails to save is undone on screen.
-                    onLikeChange={(next) => (next ? likePost : unlikePost)(post.id)}
-                    onSubmitComment={(text) => addComment(post.id, text)}
-                    onLoadComments={async (): Promise<PostComment[]> => {
-                      const comments = await listComments(post.id)
-                      return comments.map((c) => ({ id: c.id, author: c.author, text: c.text }))
-                    }}
-                  />
-                ))
                 portfolio.map((row) => {
                   /*
                    * This list is "posts by this person", and a repost is in it — but its
@@ -931,9 +907,13 @@ export default function ProfilePage() {
                           : summary.headline ||
                             (isAgency ? "Healthcare Agency" : "Care Connect member")
                       }
-                      avatarClassName="bg-[#6b9cca]"
+                      avatarClassName={avatarColor(user?.uid)}
                       initials={getInitials(shownName)}
-                      authorPhoto={reposted ? post.authorPhoto : undefined}
+                      // A repost shows the real author's face; this profile's own posts
+                      // show the picture the page already loaded for them.
+                      authorPhoto={reposted ? post.authorPhoto : avatarSrc}
+                      createdAt={post.createdAt}
+                      profileHref={isAgency ? Routes.app.agency.viewProfile : Routes.app.user.viewProfile}
                       post={toPortfolioData(post)}
                       repostedBy={reposted ? { name: summary.name, note: row.note } : undefined}
                       editable
@@ -943,13 +923,10 @@ export default function ProfilePage() {
                       // that is what a delete on a repost does. Passing the post's id would
                       // be asking to delete someone else's post, which is refused.
                       onRemove={() => handleRemovePost(row.id)}
-                      onLikeChange={(next) => {
-                        const call = next ? likePost : unlikePost
-                        call(post.id).catch(() => undefined)
-                      }}
-                      onSubmitComment={(text) => {
-                        addComment(post.id, text).catch(() => undefined)
-                      }}
+                      // Returned, not caught: the card awaits these and undoes a like or
+                      // comment that fails to save, which swallowing the error would prevent.
+                      onLikeChange={(next) => (next ? likePost : unlikePost)(post.id)}
+                      onSubmitComment={(text) => addComment(post.id, text)}
                       onLoadComments={async (): Promise<PostComment[]> => {
                         const comments = await listComments(post.id)
                         return comments.map((c) => ({
