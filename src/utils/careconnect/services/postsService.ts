@@ -41,11 +41,16 @@ export interface CreatePostInput {
   media?: Array<File | null | undefined>
 }
 
+/** Told how far the media upload has got, 0–1 across all files together. */
+export type UploadProgress = (fraction: number) => void
+
 /** Upload a single media file (image or video), returning its public URL (two-step create). */
-export async function uploadPostMedia(file: File): Promise<string> {
+export async function uploadPostMedia(file: File, onProgress?: (loadedBytes: number) => void): Promise<string> {
   const formData = new FormData()
   formData.append("file", file)
-  const { data } = await rootClient.post("/uploads/careconnect-post-media", formData)
+  const { data } = await rootClient.post("/uploads/careconnect-post-media", formData, {
+    onUploadProgress: onProgress ? (event) => onProgress(event.loaded) : undefined,
+  })
   return data.data.url
 }
 
@@ -65,9 +70,23 @@ export async function deletePost(id: string): Promise<void> {
   await axiosClient.delete(`/careconnectPosts/${id}`)
 }
 
-export async function createPost(input: CreatePostInput): Promise<FeedPost> {
+export async function createPost(input: CreatePostInput, onProgress?: UploadProgress): Promise<FeedPost> {
   const files = (input.media ?? []).filter((file): file is File => Boolean(file))
-  const mediaUrls = await Promise.all(files.map((file) => uploadPostMedia(file)))
+  // Progress is counted in bytes across every file, so a big video and a small photo
+  // together move the bar by how much is actually left to send.
+  const total = files.reduce((sum, file) => sum + file.size, 0)
+  const loaded = files.map(() => 0)
+  const report = () => {
+    if (onProgress && total > 0) onProgress(Math.min(1, loaded.reduce((a, b) => a + b, 0) / total))
+  }
+  const mediaUrls = await Promise.all(
+    files.map((file, index) =>
+      uploadPostMedia(file, (bytes) => {
+        loaded[index] = Math.min(bytes, file.size)
+        report()
+      }),
+    ),
+  )
   const { data } = await axiosClient.post("/careconnectPosts", {
     statement: input.statement,
     paragraphs: input.paragraphs ?? [],

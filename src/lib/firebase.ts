@@ -7,7 +7,6 @@
 
 import { initializeApp, getApps, getApp } from "firebase/app"
 import { getAuth, connectAuthEmulator } from "firebase/auth"
-import { getFirestore, connectFirestoreEmulator } from "firebase/firestore"
 
 export const isFirebaseConfigured = Boolean(
   import.meta.env.VITE_FIREBASE_API_KEY &&
@@ -41,24 +40,7 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()
 // Export auth instance for use in authentication
 export const auth = getAuth(app)
 
-// Keep Firestore reads aligned with API writes (getDb uses x-environment / VITE_API_ENVIRONMENT).
-// Explicit VITE_FIREBASE_DATABASE_ID overrides auto-selection.
-export const apiEnvironment = import.meta.env.VITE_API_ENVIRONMENT || "staging"
-
-const explicitDatabaseId = import.meta.env.VITE_FIREBASE_DATABASE_ID
-
-const resolvedDatabaseId =
-  explicitDatabaseId !== undefined && explicitDatabaseId !== ""
-    ? explicitDatabaseId
-    : apiEnvironment === "staging"
-      ? "staging"
-      : undefined
-
-export const firestoreDatabaseId = resolvedDatabaseId
-
-export const db = resolvedDatabaseId
-  ? getFirestore(app, resolvedDatabaseId)
-  : getFirestore(app)
+// Firestore is set up in firestore.ts, so it stays out of the bundle every page loads first.
 
 // Connect to Firebase Emulators in development mode
 if (isFirebaseConfigured && import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') {
@@ -67,8 +49,6 @@ if (isFirebaseConfigured && import.meta.env.DEV && import.meta.env.VITE_USE_FIRE
     connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
     console.log('✅ Connected to Auth Emulator on port 9099')
 
-    connectFirestoreEmulator(db, '127.0.0.1', 8080)
-    console.log('✅ Connected to Firestore Emulator on port 8080')
   } catch {
     console.warn('⚠️ Emulator connection may already be established')
   }

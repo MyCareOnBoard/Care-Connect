@@ -8,6 +8,7 @@ export function NetworkConnectionRow({
   subtitle,
   initials,
   avatarClassName,
+  photo,
   profileHref,
   dateLabel,
   messageHref,
@@ -20,8 +21,10 @@ export function NetworkConnectionRow({
   subtitle: string
   initials: string
   avatarClassName: string
+  photo?: string | null
   profileHref?: string
-  dateLabel: string
+  /** Only when there is a real date to show — never a placeholder. */
+  dateLabel?: string
   messageHref: string
   /** "Remove" (connections) or "Unsubscribe" (agencies). */
   removeLabel: string
@@ -34,20 +37,20 @@ export function NetworkConnectionRow({
   return (
     <div
       style={style}
-      className="animate-fade-in-up flex flex-col gap-3 rounded-xl border border-[#eef1f3] bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#00b4b8]/30 hover:shadow-[0_8px_20px_rgba(16,20,26,0.08)] sm:flex-row sm:items-center sm:gap-4"
+      className="animate-fade-in-up flex flex-col gap-3 rounded-2xl border border-[#eef1f3] bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#00b4b8]/30 hover:shadow-[0_8px_20px_rgba(16,20,26,0.08)] sm:flex-row sm:items-center sm:gap-4"
     >
       <div className="flex min-w-0 items-center gap-4">
         {profileHref ? (
           <Link to={profileHref} className="shrink-0">
-            <Avatar className={avatarClassName} initials={initials} />
+            <Avatar className={avatarClassName} initials={initials} src={photo} alt={name} />
           </Link>
         ) : (
-          <Avatar className={avatarClassName} initials={initials} />
+          <Avatar className={avatarClassName} initials={initials} src={photo} alt={name} />
         )}
         <div className="min-w-0 flex-1">
           {profileHref ? <Link to={profileHref}>{nameBlock}</Link> : nameBlock}
           <p className="mt-1 truncate text-sm text-[#657080]">{subtitle}</p>
-          <p className="mt-1 text-xs text-[#8a8f98]">{dateLabel}</p>
+          {dateLabel && <p className="mt-1 text-xs text-[#8a8f98]">{dateLabel}</p>}
         </div>
       </div>
       <div className="flex items-center gap-2 sm:ml-auto sm:shrink-0">

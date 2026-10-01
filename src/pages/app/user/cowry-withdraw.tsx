@@ -57,8 +57,8 @@ const QUOTE_DEBOUNCE_MS = 400
 
 function WithdrawSkeleton() {
   return (
-    <div className="space-y-6 p-5 sm:p-8">
-      <Skeleton className="h-8 w-40" />
+    <div className="p-5 space-y-6 sm:p-8">
+      <Skeleton className="w-40 h-8" />
       <Skeleton className="h-56 rounded-3xl" />
       <Skeleton className="h-52 rounded-2xl" />
     </div>
@@ -185,7 +185,7 @@ export default function CowryWithdrawPage() {
   /* ── not available yet ────────────────────────────────────────────────── */
   if (!initial || !initial.rateSet) {
     return (
-      <div className="animate-fade-in-up space-y-6 p-5 sm:p-8">
+      <div className="p-5 space-y-6 animate-fade-in-up sm:p-8">
         <CowryPageHeader title="Cash out" />
         <div className="max-w-lg rounded-3xl bg-white p-6 ring-1 ring-[#e2e6ea]">
           <div className="flex items-start gap-4">
@@ -206,7 +206,7 @@ export default function CowryWithdrawPage() {
             </div>
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-3 mt-5">
             {isCowryPathEnabled(Routes.app.user.cowryRedeem) && (
               <Button asChild>
                 <Link to={Routes.app.user.cowryRedeem}>Redeem for data</Link>
@@ -287,7 +287,7 @@ export default function CowryWithdrawPage() {
   if (step === "confirm" && quote) {
     const bank = NIGERIAN_BANKS.find((b) => b.code === bankCode)
     return (
-      <div className="animate-fade-in-up space-y-6 p-5 sm:p-8">
+      <div className="p-5 space-y-6 animate-fade-in-up sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <button
             type="button"
@@ -303,8 +303,8 @@ export default function CowryWithdrawPage() {
         <div className="mx-auto max-w-lg overflow-hidden rounded-3xl bg-white shadow-[0_24px_60px_-30px_rgba(16,20,26,0.35)] ring-1 ring-[#e2e6ea]">
           <div className="cowry-shine bg-[linear-gradient(135deg,#10141a_0%,#2a3442_100%)] p-6 text-white">
             <div className="relative">
-              <p className="text-xs uppercase tracking-wide text-white/60">You receive</p>
-              <p key={fx.currency} className="animate-fadeIn mt-1 text-4xl font-bold tabular-nums">
+              <p className="text-xs tracking-wide uppercase text-white/60">You receive</p>
+              <p key={fx.currency} className="mt-1 text-4xl font-bold animate-fadeIn tabular-nums">
                 {money(quote.netNaira)}
               </p>
               {nairaNote(quote.netNaira) && (
@@ -317,7 +317,7 @@ export default function CowryWithdrawPage() {
                   <RateNote currency={fx.currency} status={fx.status} table={fx.table} onRetry={fx.retry} tone="dark" />
                 </div>
               )}
-              <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-white/80">
+              <p className="flex flex-wrap items-center mt-3 text-sm gap-x-2 gap-y-1 text-white/80">
                 <Landmark className="size-4" aria-hidden="true" />
                 {accountName} · <span className="tabular-nums">{accountNumber}</span> · {bank?.name}
               </p>
@@ -348,7 +348,7 @@ export default function CowryWithdrawPage() {
               )}
             </dl>
 
-            <Button className="cowry-press mt-6 h-12 w-full text-base" onClick={submit} disabled={submitting}>
+            <Button className="w-full h-12 mt-6 text-base cowry-press" onClick={submit} disabled={submitting}>
               {submitting ? (
                 <>
                   <Loader2 className="size-4 animate-spin" aria-hidden="true" />
@@ -389,7 +389,7 @@ export default function CowryWithdrawPage() {
           : null
 
   return (
-    <div className="animate-fade-in-up space-y-7 p-5 sm:p-8">
+    <div className="p-5 animate-fade-in-up space-y-7 sm:p-8">
       <CowryPageHeader
         title="Cash out"
         subtitle="Bought Cowries only. Cowries you earned are for mobile data rather than cash."
@@ -408,14 +408,14 @@ export default function CowryWithdrawPage() {
           </div>
 
           <div className="relative">
-            <CowryIcon size={22} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" />
+            <CowryIcon size={22} className="absolute -translate-y-1/2 pointer-events-none left-3 top-1/2" />
             <Input
               id="withdraw-amount"
               type="number"
               inputMode="numeric"
               min={initial.minimumCowries}
               max={initial.available}
-              className="h-14 pl-11 text-2xl font-bold tabular-nums"
+              className="text-2xl font-bold h-14 pl-11 tabular-nums"
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
               aria-invalid={(amount !== "" && (!affordable || !aboveMinimum)) || undefined}
@@ -453,7 +453,7 @@ export default function CowryWithdrawPage() {
 
           {/* The net is the largest figure; nobody should have to subtract to learn it. */}
           <div className="rounded-2xl bg-[#f7f9fb] p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-3 mb-3">
               <span className="text-xs font-semibold uppercase tracking-wide text-[#8a94a3]">Your quote</span>
               <span className="flex items-center gap-2 text-xs text-[#657080]">
                 Currency
@@ -569,7 +569,7 @@ export default function CowryWithdrawPage() {
             </>
           )}
         </p>
-        <Button className="cowry-press px-8" disabled={Boolean(blocker)} onClick={() => setStep("confirm")}>
+        <Button className="px-8 cowry-press" disabled={Boolean(blocker)} onClick={() => setStep("confirm")}>
           Continue
         </Button>
       </div>

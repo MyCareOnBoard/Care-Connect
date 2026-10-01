@@ -118,8 +118,10 @@ export default function SignUpPage() {
                 {[0, 1, 2].map((bar) => (
                   <span
                     key={bar}
-                    className="h-2 w-5 rounded-full transition-colors duration-200"
-                    style={{ backgroundColor: passwordStrength.score > bar ? passwordStrength.color : "#e2e2e2" }}
+                    // The empty bars as a class, so dark mode can restyle them; the filled
+                    // colour stays inline because it is the strength score's own colour.
+                    className={`h-2 w-5 rounded-full transition-colors duration-200 ${passwordStrength.score > bar ? "" : "bg-[#e2e2e2]"}`}
+                    style={passwordStrength.score > bar ? { backgroundColor: passwordStrength.color } : undefined}
                   />
                 ))}
               </div>

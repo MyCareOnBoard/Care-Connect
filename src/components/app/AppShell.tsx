@@ -5,11 +5,13 @@ import { collection, onSnapshot, query, where } from "firebase/firestore"
 import { CareConnectLogo } from "@/components/auth/CareConnectLogo"
 import { Routes } from "@/routes/constants"
 import { cn } from "@/lib/utils"
-import { db } from "@/lib/firebase"
+import { db } from "@/lib/firestore"
 import { useAuthUser } from "@/utils/auth"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { isCowryPathEnabled } from "@/utils/careconnect/cowryPages"
 import { CowryBalanceChip } from "@/components/cowry/CowryBalanceChip"
+import { GiftMarquee } from "@/components/cowry/GiftMarquee"
+import { isAnyCowryPageEnabled } from "@/utils/careconnect/cowryPages"
 import { ThemeToggle } from "./ThemeToggle"
 import { useCareFlow } from "./useCareFlow"
 import { AccountControls } from "./AccountControls"
@@ -140,6 +142,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <main className="min-h-screen bg-[#f5f8fa] text-[#11151d]">
       <RouteProgressBar />
+      {/* The biggest gifts of the week, across the very top of both homepages. */}
+      {location.pathname === homeHref && isAnyCowryPageEnabled() && <GiftMarquee flow={flow} />}
       <header className="sticky top-0 z-20 flex min-h-16 items-center gap-2 border-b border-white/40 bg-white/70 px-4 py-3 shadow-[0_1px_0_rgba(16,20,26,0.06)] backdrop-blur-xl supports-backdrop-filter:bg-white/60 sm:min-h-18 sm:gap-5 sm:px-6 xl:px-8">
         <button
           type="button"

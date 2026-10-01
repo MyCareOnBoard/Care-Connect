@@ -50,6 +50,7 @@ export function FeedFocusToggle({ focus }: { focus: FeedFocus }) {
         type="button"
         onClick={toggleFeedFocus}
         aria-pressed={active}
+        data-tour="focus"
         title={`${label} (F)`}
         className={cn(
           "group absolute -top-1 right-0 flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold shadow-[0_6px_20px_-8px_rgba(16,20,26,0.35)] backdrop-blur-md transition-all duration-200 active:scale-95",

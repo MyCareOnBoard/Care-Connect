@@ -3,6 +3,7 @@ import { Link } from "react-router"
 import { toast } from "sonner"
 import { Routes } from "@/routes/constants"
 import { CowryIcon } from "@/components/cowry/CowryIcon"
+import { playSound } from "@/lib/sound"
 import { CowryRain, RAIN_MS } from "@/components/cowry/CowryRain"
 import {
   COWRY_REFUSAL_MESSAGES,
@@ -55,6 +56,7 @@ export function CowryEarnedLayer() {
 
       const id = (nextId += 1)
       setLandings((current) => [...current, { id, amount }])
+      playSound("coins")
 
       // A post is something someone chose to make, so it earns the full shower. Comments
       // and visits keep to the pill: they happen too often to rain every time.

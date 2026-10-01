@@ -12,6 +12,7 @@ import { Routes } from "@/routes/constants"
 import { cn, getInitials } from "@/lib/utils"
 import { useFeedFocus } from "@/components/home/feedFocus"
 import { FeedFocusToggle } from "@/components/home/FeedFocusToggle"
+import { FeatureTour } from "@/components/app/FeatureTour"
 import { FocusRail, type RailItem } from "@/components/home/FocusRail"
 import { AgencyWelcome } from "@/components/home/AgencyWelcome"
 import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
@@ -63,8 +64,8 @@ function JobOverviewCard({ job, style }: { job: Job; style?: CSSProperties }) {
 
 function AgencyDashboardSkeleton() {
   return (
-    <div className="grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-7.5 pb-10 pt-4 xl:grid-cols-[332px_minmax(560px,680px)_326px]">
-      <aside className="order-2 space-y-10 xl:order-0">
+    <div className="grid grid-cols-1 min-h-[calc(100vh-72px)] items-start gap-5 px-7.5 pb-10 pt-4 lg:grid-cols-[clamp(248px,24vw,332px)_minmax(0,1fr)_clamp(248px,24vw,326px)]">
+      <aside className="order-2 space-y-10 lg:order-0">
         <Skeleton className="h-20 rounded-lg" />
         <div className="space-y-3">
           <Skeleton className="w-24 h-4" />
@@ -75,7 +76,7 @@ function AgencyDashboardSkeleton() {
         <Skeleton className="h-48 rounded-lg" />
       </aside>
 
-      <main className="order-1 space-y-8 xl:order-0">
+      <main className="order-1 space-y-8 lg:order-0">
         <Skeleton className="h-32 rounded-[30px]" />
         <div className="space-y-4">
           <div className="flex items-start gap-3">
@@ -90,7 +91,7 @@ function AgencyDashboardSkeleton() {
         </div>
       </main>
 
-      <aside className="order-3 space-y-10 xl:order-0">
+      <aside className="order-3 space-y-10 lg:order-0">
         <div className="space-y-4">
           <Skeleton className="w-32 h-4" />
           {Array.from({ length: 4 }).map((_, index) => (
@@ -264,7 +265,7 @@ export default function AgencyDashboardPage() {
   const left = focus.aside("left")
   const right = focus.aside("right")
   const asideClass =
-    "space-y-10 xl:sticky xl:top-22 xl:row-start-1 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 scrollbar-hide"
+    "space-y-10 lg:sticky lg:top-22 lg:row-start-1 lg:max-h-[calc(100vh-104px)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1 scrollbar-hide"
 
   return (
     <div
@@ -282,15 +283,16 @@ export default function AgencyDashboardPage() {
 
       {/* Every column is placed explicitly on wide screens: the focus strips share the side
           cells, and automatic placement would otherwise shuffle the columns around them. */}
-      <aside inert={left.inert} className={cn("order-2 xl:order-0 xl:col-start-1", asideClass, left.className)}>
+      <aside inert={left.inert} className={cn("order-2 lg:order-0 lg:col-start-1", asideClass, left.className)}>
         {statsSection}
         {jobsSection}
         {marketplaceSection}
       </aside>
       <FocusRail side="left" items={leftRail} active={focus.active} />
 
-      <main className="order-1 min-w-0 space-y-6 xl:order-0 xl:col-start-2 xl:row-start-1">
+      <main className="order-1 min-w-0 space-y-6 lg:order-0 lg:col-start-2 lg:row-start-1">
         <FeedFocusToggle focus={focus} />
+        <FeatureTour />
         <AgencyWelcome
           name={(user?.fullName || "there").trim().split(" ")[0]}
           postings={postings}
@@ -300,7 +302,7 @@ export default function AgencyDashboardPage() {
         <DashboardFeed />
       </main>
 
-      <aside inert={right.inert} className={cn("order-3 xl:order-0 xl:col-start-3", asideClass, right.className)}>
+      <aside inert={right.inert} className={cn("order-3 lg:order-0 lg:col-start-3", asideClass, right.className)}>
         {providersSection}
         {peopleSection}
       </aside>

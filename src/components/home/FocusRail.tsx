@@ -49,8 +49,8 @@ export function FocusRail({ side, items, active }: FocusRailProps) {
       aria-label={side === "left" ? "Your profile and jobs" : "Suggestions"}
       inert={!active || undefined}
       className={cn(
-        "hidden self-start xl:sticky xl:top-22 xl:row-start-1 xl:flex",
-        side === "left" ? "xl:col-start-1 xl:justify-self-end" : "xl:col-start-3 xl:justify-self-start",
+        "hidden self-start lg:sticky lg:top-22 lg:row-start-1 lg:flex",
+        side === "left" ? "lg:col-start-1 lg:justify-self-end" : "lg:col-start-3 lg:justify-self-start",
         // Arrives a beat after the columns have moved, from the side it came from.
         "transition-[opacity,translate,visibility] duration-500 ease-in-out motion-reduce:transition-none",
         active

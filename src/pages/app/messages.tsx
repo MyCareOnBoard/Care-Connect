@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ChatThread, type ChatMessage } from "@/components/app/ChatThread"
-import { db } from "@/lib/firebase"
+import { db } from "@/lib/firestore"
 import { cn, getInitials } from "@/lib/utils"
 import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
 import { toDate } from "@/utils/careconnect/types"
@@ -107,6 +107,7 @@ export default function MessagesPage() {
       from: m.senderId === myUid ? "me" : "them",
       text: m.content || "",
       time: formatTime(m.createdAt),
+      sentAt: toDate(m.createdAt as never),
       attachments: m.attachments,
     }),
     [myUid],

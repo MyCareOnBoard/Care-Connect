@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Link } from "react-router"
 import { toast } from "sonner"
-import { Gift, Loader2 } from "lucide-react"
+import { Crown, Gift, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -10,6 +10,9 @@ import { CowryAmount } from "@/components/cowry/CowryIcon"
 import { GiftIcon } from "@/components/cowry/GiftIcon"
 import { giftColor } from "@/components/cowry/giftIcons"
 import { playGiftSplash } from "@/components/cowry/giftPreview"
+import { missingFromCatalogue, traySelection } from "@/components/cowry/giftTraySelection"
+import { cn } from "@/lib/utils"
+import { haptic } from "@/lib/haptics"
 import { Routes } from "@/routes/constants"
 import { getAuthErrorMessage } from "@/utils/auth"
 import {
@@ -107,14 +110,31 @@ export function GiftTray({
     [],
   )
 
+  // Each tab's gifts: the whole set for most tabs, the curated list for Legendary (giftTraySelection.ts).
   const bySet = useMemo(() => {
     const groups = new Map<CowryGiftSet, CowryGiftCatalogItem[]>()
-    for (const gift of catalog?.gifts ?? []) {
-      const list = groups.get(gift.set) ?? []
-      list.push(gift)
-      groups.set(gift.set, list)
+    const all = catalog?.gifts ?? []
+    for (const set of SET_ORDER) {
+      const list = traySelection(set, all)
+      if (list.length) groups.set(set, list)
     }
     return groups
+  }, [catalog])
+
+  // The Legendary tab's gifts, by id — styled gold whatever set the backend filed them in.
+  const legendaryIds = useMemo(() => new Set((bySet.get("legendary") ?? []).map((gift) => gift.id)), [bySet])
+  const isLegendary = (gift: CowryGiftCatalogItem) => legendaryIds.has(gift.id)
+
+  // While developing, say plainly which chosen gifts the catalogue does not have.
+  useEffect(() => {
+    if (!import.meta.env.DEV || !catalog) return
+    const missing = missingFromCatalogue(catalog.gifts)
+    if (missing.length) {
+      console.warn(
+        "Gift tray: these chosen gifts are not in the catalogue, so they are not shown. Add them to the backend catalogue, or match their spelling in giftTraySelection.ts:",
+        missing.map((item) => `${item.set}: ${item.name}`),
+      )
+    }
   }, [catalog])
 
   const balance = catalog?.purchasedAvailable ?? 0
@@ -140,6 +160,7 @@ export function GiftTray({
 
       // Only now. The server has taken the Cowries.
       setSent(selected)
+      haptic("success")
       // The gift's own icon rains down for the sender too — the same moment the receiver
       // gets, so both sides see what was given.
       playGiftSplash({
@@ -169,9 +190,9 @@ export function GiftTray({
         {sent ? (
           <DialogBody className="py-10 text-center">
             {/* The celebration, shown only once the spend is confirmed. */}
-            <div className="relative mx-auto flex size-20 items-center justify-center">
+            <div className="relative flex items-center justify-center mx-auto size-20">
               <span
-                className="animate-check-ring absolute size-16 rounded-full"
+                className="absolute rounded-full animate-check-ring size-16"
                 style={{ backgroundColor: giftColor(sent) }}
               />
               <span className="animate-cowry-pop relative flex size-16 items-center justify-center rounded-full bg-white shadow-[0_8px_20px_-8px_rgba(16,20,26,0.45)]">
@@ -182,6 +203,9 @@ export function GiftTray({
             <p className="mt-1 text-sm text-[#657080]">
               {recipientName ? `${recipientName} will see it on their profile.` : "It's on its way."}
             </p>
+            <Button type="button" variant="outline" className="mt-6 rounded-full px-8" onClick={() => onOpenChange(false)}>
+              Done
+            </Button>
           </DialogBody>
         ) : (
           <>
@@ -210,27 +234,77 @@ export function GiftTray({
               {!loading && catalog && (
                 <>
                   <div className="flex flex-wrap gap-2">
-                    {SET_ORDER.filter((set) => bySet.has(set)).map((set) => (
-                      <button
-                        key={set}
-                        type="button"
-                        onClick={() => setActiveSet(set)}
-                        aria-pressed={activeSet === set}
-                        className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                          activeSet === set
-                            ? "bg-[#10141a] text-white"
-                            : "bg-[#eef1f3] text-[#565656] hover:bg-[#e2e6ea]"
-                        }`}
-                      >
-                        {GIFT_SET_LABELS[set] ?? set}
-                      </button>
-                    ))}
+                    {SET_ORDER.filter((set) => bySet.has(set)).map((set) =>
+                      set === "legendary" ? (
+                        // The top tier gets the most presence: gold, a crown, a moving shine.
+                        <button
+                          key={set}
+                          type="button"
+                          onClick={() => setActiveSet(set)}
+                          aria-pressed={activeSet === set}
+                          className={cn(
+                            "legendary-shine relative inline-flex items-center gap-1.5 overflow-hidden rounded-full px-3.5 py-1.5 text-xs font-bold transition",
+                            activeSet === set
+                              ? "bg-[linear-gradient(135deg,#7a5310,#c8963e_45%,#f3c969)] text-white shadow-[0_6px_16px_-6px_rgba(200,150,62,0.9)]"
+                              : "bg-[linear-gradient(135deg,#fff4df,#fbe3a0)] text-[#7a5310] ring-1 ring-[#e8d1a0] hover:ring-[#c8963e]",
+                          )}
+                        >
+                          <Crown className="size-3.5" aria-hidden="true" />
+                          {GIFT_SET_LABELS[set] ?? set}
+                        </button>
+                      ) : (
+                        <button
+                          key={set}
+                          type="button"
+                          onClick={() => setActiveSet(set)}
+                          aria-pressed={activeSet === set}
+                          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                            activeSet === set
+                              ? "bg-[#10141a] text-white"
+                              : "bg-[#eef1f3] text-[#565656] hover:bg-[#e2e6ea]"
+                          }`}
+                        >
+                          {GIFT_SET_LABELS[set] ?? set}
+                        </button>
+                      ),
+                    )}
                   </div>
 
-                  <div className="grid max-h-64 grid-cols-3 gap-2 overflow-y-auto pr-1">
+                  {activeSet === "legendary" && (
+                    <p className="animate-fadeIn flex items-center gap-2 rounded-xl bg-[linear-gradient(90deg,#fff4df,#fffaf0)] px-3 py-2 text-xs text-[#7a5310] ring-1 ring-[#f0dcae]">
+                      <Crown className="size-4 shrink-0 text-[#c8963e]" aria-hidden="true" />
+                      The rarest gifts on Care Connect — they arrive in style on the receiver&apos;s screen.
+                    </p>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-2 pr-1 overflow-y-auto max-h-72">
                     {(bySet.get(activeSet) ?? []).map((gift) => {
                       const affordable = balance >= gift.cost
                       const active = selected?.id === gift.id
+                      if (isLegendary(gift)) {
+                        return (
+                          <button
+                            key={gift.id}
+                            type="button"
+                            onClick={() => setSelected(gift)}
+                            aria-pressed={active}
+                            className={cn(
+                              "cowry-press cowry-hover legendary-shine relative overflow-hidden rounded-2xl border-2 p-3 text-center transition",
+                              "bg-[radial-gradient(circle_at_50%_0%,#fff8e6,#fbeed2_60%,#f1d9a4)]",
+                              active
+                                ? "border-[#c8963e] shadow-[0_10px_24px_-10px_rgba(200,150,62,0.9)]"
+                                : "border-[#e8d1a0] hover:border-[#c8963e]",
+                              !affordable && "opacity-60",
+                            )}
+                          >
+                            <span className="mx-auto mb-1.5 flex size-11 items-center justify-center">
+                              <GiftIcon gift={gift} size={36} />
+                            </span>
+                            <span className="block truncate text-xs font-bold text-[#5a3b0c]">{gift.label}</span>
+                            <CowryAmount amount={gift.cost} size={12} className="mt-1 text-xs font-bold text-[#7a5310]" />
+                          </button>
+                        )
+                      }
                       return (
                         <button
                           key={gift.id}
@@ -246,7 +320,7 @@ export function GiftTray({
                           } ${affordable ? "" : "opacity-55"}`}
                         >
                           {/* Each gift wears its own icon — see giftIcons.ts. */}
-                          <span className="cowry-wobble mx-auto mb-1 flex size-8 items-center justify-center">
+                          <span className="flex items-center justify-center mx-auto mb-1 cowry-wobble size-8">
                             <GiftIcon gift={gift} size={26} />
                           </span>
                           <span className="block truncate text-xs font-medium text-[#141922]">
@@ -259,10 +333,18 @@ export function GiftTray({
                   </div>
 
                   {selected && (
-                    <div key={selected.id} className="animate-fade-in-up space-y-3 rounded-xl border border-[#e2e6ea] p-4">
+                    <div
+                      key={selected.id}
+                      className={cn(
+                        "animate-fade-in-up space-y-3 rounded-xl border p-4",
+                        isLegendary(selected)
+                          ? "border-[#e8d1a0] bg-[linear-gradient(180deg,#fffaf0,#ffffff)]"
+                          : "border-[#e2e6ea]",
+                      )}
+                    >
                       <div className="flex items-center justify-between gap-3">
                         <span className="flex items-center gap-2 font-semibold">
-                          <GiftIcon gift={selected} size={22} />
+                          <GiftIcon gift={selected} size={isLegendary(selected) ? 28 : 22} />
                           {selected.label}
                         </span>
                         <CowryAmount amount={selected.cost} size={16} className="text-[#565656]" />
@@ -282,7 +364,16 @@ export function GiftTray({
                       </p>
 
                       {balance >= selected.cost ? (
-                        <Button className="w-full" onClick={confirmSend} disabled={sending}>
+                        <Button
+                          className={cn(
+                            "w-full",
+                            isLegendary(selected)
+                              ? "bg-[linear-gradient(135deg,#7a5310,#c8963e_50%,#e0b04e)] shadow-[0_8px_20px_-8px_rgba(200,150,62,0.9)]"
+                              : "bg-[#00898c]",
+                          )}
+                          onClick={confirmSend}
+                          disabled={sending}
+                        >
                           {sending ? (
                             <>
                               <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />

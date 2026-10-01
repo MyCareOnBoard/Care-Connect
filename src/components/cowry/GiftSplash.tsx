@@ -1,10 +1,25 @@
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Link } from "react-router"
 import { X } from "lucide-react"
 import { GiftIcon } from "@/components/cowry/GiftIcon"
+import { EagleFlight } from "@/components/cowry/EagleFlight"
 import { giftColor, type GiftLike } from "@/components/cowry/giftIcons"
 import { IconRain, RAIN_MS } from "@/components/cowry/CowryRain"
+import { AncestralMark } from "@/components/cowry/moments/AncestralMark"
+import { CityOfLights } from "@/components/cowry/moments/CityOfLights"
+import { CowryThrone } from "@/components/cowry/moments/CowryThrone"
+import { EternalFlame } from "@/components/cowry/moments/EternalFlame"
+import { LionStorm } from "@/components/cowry/moments/LionStorm"
+import { HarvestRain } from "@/components/cowry/moments/HarvestRain"
+import { OceanPearl } from "@/components/cowry/moments/OceanPearl"
+import { PhoenixRise } from "@/components/cowry/moments/PhoenixRise"
+import { RisingSun } from "@/components/cowry/moments/RisingSun"
+import { RoseBloom } from "@/components/cowry/moments/RoseBloom"
+import { ThunderStrike } from "@/components/cowry/moments/ThunderStrike"
+import { playSound } from "@/lib/sound"
+import { congratulationsFor, MomentCaptionContext } from "@/components/cowry/moments/captionContext"
+import { giftArrivalFor } from "@/components/cowry/giftAnimations"
 import { CowryIcon } from "@/components/cowry/CowryIcon"
 import { cn } from "@/lib/utils"
 import { Routes } from "@/routes/constants"
@@ -60,14 +75,20 @@ export function GiftSplash({ data, onDone }: { data: GiftSplashData; onDone: () 
   const color = giftColor(data.gift)
   const label = data.gift.label || "a gift"
 
+  // Top-tier gifts arrive with a full-screen moment of their own (the Golden Eagle's
+  // flight); the card follows once it is over. Everything else rains and shows the card.
+  const arrival = giftArrivalFor(data.gift, data.direction)
+  const [phase, setPhase] = useState<"moment" | "card">(arrival === "rain" ? "card" : "moment")
+  const showCard = useCallback(() => setPhase("card"), [])
+
   // Leave after a while, unless someone is reading or pointing at the card.
   useEffect(() => {
-    if (held) return
+    if (held || phase !== "card") return
     timer.current = setTimeout(() => setLeaving(true), CARD_MS)
     return () => {
       if (timer.current) clearTimeout(timer.current)
     }
-  }, [held])
+  }, [held, phase])
 
   useEffect(() => {
     if (!leaving) return
@@ -76,15 +97,20 @@ export function GiftSplash({ data, onDone }: { data: GiftSplashData; onDone: () 
   }, [leaving, onDone])
 
   useEffect(() => {
+    if (phase !== "card") return
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setLeaving(true)
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [])
+  }, [phase])
 
-  // The rain runs once per gift, whatever the card does.
-  const [raining, setRaining] = useState(true)
+  // The rain runs once per gift, whatever the card does — for gifts that rain at all.
+  const [raining, setRaining] = useState(arrival === "rain")
+  // The gift chime, for gifts that rain. The full-screen ones bring their own sound.
+  useEffect(() => {
+    if (arrival === "rain") playSound("gift")
+  }, [arrival])
   const [seed] = useState(() => Date.now())
   useEffect(() => {
     const stop = setTimeout(() => setRaining(false), RAIN_MS + 400)
@@ -92,6 +118,28 @@ export function GiftSplash({ data, onDone }: { data: GiftSplashData; onDone: () 
   }, [])
 
   const creatorPage = isCowryPathEnabled(Routes.app.user.cowryCreator) ? Routes.app.user.cowryCreator : null
+
+  if (phase === "moment") {
+    const scene = (() => {
+      if (arrival === "eagle-flight") return <EagleFlight onDone={showCard} />
+      if (arrival === "lion-storm") return <LionStorm onDone={showCard} />
+      if (arrival === "earth-harvest") return <HarvestRain onDone={showCard} />
+      if (arrival === "rose-bloom") return <RoseBloom onDone={showCard} />
+      if (arrival === "thunder-strike") return <ThunderStrike onDone={showCard} />
+      if (arrival === "eternal-flame") return <EternalFlame onDone={showCard} />
+      if (arrival === "rising-sun") return <RisingSun onDone={showCard} />
+      if (arrival === "ancestral-mark") return <AncestralMark onDone={showCard} />
+      if (arrival === "city-of-lights") return <CityOfLights onDone={showCard} />
+      if (arrival === "phoenix-rise") return <PhoenixRise onDone={showCard} />
+      if (arrival === "ocean-pearl") return <OceanPearl onDone={showCard} />
+      if (arrival === "cowry-throne") return <CowryThrone onDone={showCard} />
+      return null
+    })()
+    // Every full-screen arrival carries "Congratulations on the 100,000 Gift" (MomentCaption).
+    if (scene) {
+      return <MomentCaptionContext.Provider value={congratulationsFor(data.cost, label)}>{scene}</MomentCaptionContext.Provider>
+    }
+  }
 
   return (
     <>
@@ -113,7 +161,10 @@ export function GiftSplash({ data, onDone }: { data: GiftSplashData; onDone: () 
           onFocus={() => setHeld(true)}
           onBlur={() => setHeld(false)}
           className={cn(
-            "fixed inset-x-4 bottom-[calc(var(--app-bottom-inset,0px)+1.5rem)] z-70 mx-auto max-w-sm overflow-hidden rounded-3xl bg-white p-5 shadow-[0_24px_60px_-18px_rgba(16,20,26,0.45)] ring-1 ring-[#e2e6ea] transition-all duration-300 sm:bottom-[calc(var(--app-bottom-inset,0px)+2rem)]",
+            // pointer-events-auto: the gift tray (a modal dialog) is often still open when this
+            // appears, and a modal turns clicks off for everything outside it — including this
+            // card's close button, which is how the card came to be impossible to dismiss.
+            "pointer-events-auto fixed inset-x-4 bottom-[calc(var(--app-bottom-inset,0px)+1.5rem)] z-70 mx-auto max-w-sm overflow-hidden rounded-3xl bg-white p-5 shadow-[0_24px_60px_-18px_rgba(16,20,26,0.45)] ring-1 ring-[#e2e6ea] transition-all duration-300 sm:bottom-[calc(var(--app-bottom-inset,0px)+2rem)]",
             leaving ? "translate-y-6 opacity-0" : "animate-fade-in-up",
           )}
         >

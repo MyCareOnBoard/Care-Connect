@@ -3,6 +3,7 @@ import { Check } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { playSound } from "@/lib/sound"
 import { getAuthErrorMessage } from "@/utils/auth"
 import { follow, unfollow, type ConnectionRelation } from "@/utils/careconnect/services/connectionsService"
 
@@ -49,6 +50,7 @@ export function FollowButton({
     }
     const next = !active
     setActive(next)
+    if (next) playSound("tap")
     setBusy(true)
     try {
       if (next) await follow(targetId, relation, targetType)

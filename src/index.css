@@ -6,6 +6,15 @@
    setting only decides the default before anyone has chosen — see src/lib/theme.ts. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* The UI kit's menus and selects ask for `bg-popover`, which was never defined — so any menu
+   that did not pass its own background was see-through. Defined here, light and dark. The
+   kit's other token colours (background, accent, input) are still undefined on purpose:
+   defining them changes how outline buttons look everywhere, which wants a visual review. */
+@theme inline {
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+}
+
 * {
   font-family: "Urbanist", system-ui, sans-serif;
 }
@@ -56,6 +65,9 @@
     --info: var(--blue);
     --info-foreground: var(--white);
 
+    --popover: #ffffff;
+    --popover-foreground: #10141a;
+
     /* Border Radius */
     --radius-lg: 24px;
     --radius-md: 16px;
@@ -98,6 +110,9 @@ html.dark {
     --muted-foreground: #9aa4b2;
     --accent: rgba(255, 255, 255, 0.06);
     --accent-foreground: #e6edf3;
+
+    --popover: #161b22;
+    --popover-foreground: #e6edf3;
 }
 
 /* Hand-written dark exceptions the generator deliberately leaves alone. */
@@ -360,6 +375,801 @@ html.dark .skeleton-shimmer::after {
     .skeleton-shimmer::after {
         animation: none;
         display: none;
+    }
+}
+
+/* ── Golden Eagle flight ─────────────────────────────────────────────────────
+   The eagle (and its trail of sparks, a beat behind) sweeps in low from the left,
+   rises and grows as it crosses — as if passing close — and leaves high on the right. */
+
+@keyframes eagleFly {
+    0%   { transform: translate(-40vw, 62vh) scale(0.55) rotate(-6deg); }
+    30%  { transform: translate(12vw, 34vh) scale(0.95) rotate(-10deg); }
+    55%  { transform: translate(42vw, 30vh) scale(1.2) rotate(-4deg); }
+    80%  { transform: translate(78vw, 16vh) scale(1) rotate(-14deg); }
+    100% { transform: translate(130vw, -20vh) scale(0.7) rotate(-18deg); }
+}
+
+.eagle-flight {
+    animation: eagleFly 4.2s cubic-bezier(0.45, 0.05, 0.4, 1) both;
+    will-change: transform;
+}
+
+/* A gentle rise and fall between wingbeats. */
+@keyframes eagleBob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-14px); }
+}
+
+.eagle-bob {
+    animation: eagleBob 0.9s ease-in-out infinite;
+}
+
+/* Wings pivot at the shoulder: a strong downstroke, a lighter recovery. */
+@keyframes eagleWingNear {
+    0%, 100% { transform: rotate(14deg); }
+    45% { transform: rotate(-38deg) scaleY(0.72); }
+}
+
+@keyframes eagleWingFar {
+    0%, 100% { transform: rotate(10deg); }
+    45% { transform: rotate(-26deg) scaleY(0.8); }
+}
+
+.eagle-wing-near,
+.eagle-wing-far {
+    transform-box: view-box;
+    transform-origin: 104px 60px;
+}
+
+.eagle-wing-near {
+    animation: eagleWingNear 0.9s ease-in-out infinite;
+}
+
+.eagle-wing-far {
+    animation: eagleWingFar 0.9s ease-in-out 0.08s infinite;
+}
+
+@keyframes eagleRays {
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.eagle-rays {
+    animation: eagleRays 24s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .eagle-flight,
+    .eagle-bob,
+    .eagle-wing-near,
+    .eagle-wing-far,
+    .eagle-rays {
+        animation: none;
+    }
+}
+
+/* ── Legendary arrivals: Blooming Rose ─────────────────────────────────────── */
+
+@keyframes roseStem {
+    from { stroke-dashoffset: 1; }
+    to { stroke-dashoffset: 0; }
+}
+.rose-stem {
+    stroke-dasharray: 1;
+    animation: roseStem 0.9s ease-out both;
+}
+
+@keyframes roseLeaf {
+    from { transform: scale(0); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+.rose-leaf {
+    transform-box: fill-box;
+    transform-origin: 0% 100%;
+    animation: roseLeaf 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.55s both;
+}
+.rose-leaf-late {
+    transform-origin: 100% 100%;
+    animation-delay: 0.8s;
+}
+
+/* Each petal unfolds from the heart of the rose to its ring's size. */
+@keyframes rosePetal {
+    0% { transform: scale(0.08) rotate(-50deg); opacity: 0; }
+    60% { opacity: 1; }
+    100% { transform: scale(var(--rose-scale, 1)) rotate(0deg); opacity: 1; }
+}
+.rose-petal {
+    transform-box: view-box;
+    transform-origin: 100px 100px;
+    animation: rosePetal 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes roseHeart {
+    0% { transform: scale(0); }
+    70% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+}
+.rose-heart {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: roseHeart 0.6s ease-out 2s both;
+}
+
+@keyframes roseGlow {
+    0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.9); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+}
+.rose-glow {
+    animation: roseGlow 2.4s ease-in-out infinite;
+}
+
+@keyframes roseDrift {
+    0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+    10% { opacity: 1; }
+    50% { transform: translate(calc(var(--rose-dx, 0vw) * 0.5 + 4vw), 55vh) rotate(260deg); }
+    100% { transform: translate(var(--rose-dx, 0vw), 115vh) rotate(540deg); opacity: 0.8; }
+}
+.rose-drift {
+    animation: roseDrift 4s ease-in both;
+}
+
+/* ── Legendary arrivals: Thunder Staff ─────────────────────────────────────── */
+
+@keyframes thunderClouds {
+    from { transform: translateX(0); }
+    to { transform: translateX(8vw); }
+}
+.thunder-clouds {
+    animation: thunderClouds 4.6s linear both;
+}
+
+@keyframes thunderRain {
+    from { background-position: 0 0; }
+    to { background-position: -120px 600px; }
+}
+.thunder-rain {
+    background-image: repeating-linear-gradient(105deg, transparent 0 18px, rgba(190, 210, 255, 0.35) 18px 19px, transparent 19px 38px);
+    background-size: 120px 600px;
+    animation: thunderRain 0.45s linear infinite;
+}
+
+@keyframes thunderBolt {
+    0% { opacity: 0; }
+    3% { opacity: 1; }
+    9% { opacity: 0.15; }
+    13% { opacity: 1; }
+    26% { opacity: 0; }
+    100% { opacity: 0; }
+}
+.thunder-bolt {
+    opacity: 0;
+    animation: thunderBolt 2.8s linear both;
+}
+
+@keyframes thunderFlash {
+    0%, 1% { opacity: 0; }
+    2.5% { opacity: 0.85; }
+    5% { opacity: 0.1; }
+    6.5% { opacity: 0.6; }
+    10% { opacity: 0; }
+    32% { opacity: 0; }
+    34% { opacity: 0.9; }
+    38% { opacity: 0; }
+    100% { opacity: 0; }
+}
+.thunder-flash {
+    animation: thunderFlash 4.6s linear both;
+}
+
+@keyframes thunderStaffRise {
+    from { transform: translateY(70%); }
+    to { transform: translateY(0); }
+}
+.thunder-staff-rise {
+    animation: thunderStaffRise 1.3s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both;
+}
+
+@keyframes thunderOrb {
+    0%, 100% { opacity: 0.7; transform: scale(0.92); }
+    50% { opacity: 1; transform: scale(1.12); }
+}
+.thunder-orb-glow {
+    animation: thunderOrb 0.5s ease-in-out infinite;
+}
+
+@keyframes thunderArcs {
+    0%, 30%, 60%, 100% { opacity: 0; }
+    10%, 45%, 75% { opacity: 1; }
+}
+.thunder-arcs {
+    animation: thunderArcs 0.9s steps(1) infinite;
+}
+
+/* ── Legendary arrivals: Eternal Flame ─────────────────────────────────────── */
+
+/* The whole wall rises to fill the screen, holds, then settles low. */
+@keyframes flameWall {
+    0% { transform: translateY(70%) scaleY(0.4); opacity: 0; }
+    12% { opacity: 1; }
+    35% { transform: translateY(0) scaleY(1.3); }
+    65% { transform: translateY(0) scaleY(1.15); opacity: 1; }
+    100% { transform: translateY(45%) scaleY(0.5); opacity: 0.35; }
+}
+.flame-wall {
+    transform-origin: 50% 100%;
+    animation: flameWall 4.8s cubic-bezier(0.4, 0, 0.3, 1) both;
+}
+
+@keyframes flameFlicker {
+    0% { transform: scaleY(1) scaleX(1) skewX(0deg); }
+    33% { transform: scaleY(1.12) scaleX(0.94) skewX(-3deg); }
+    66% { transform: scaleY(0.93) scaleX(1.05) skewX(2deg); }
+    100% { transform: scaleY(1.06) scaleX(0.97) skewX(-1deg); }
+}
+.flame-flicker {
+    transform-origin: 50% 100%;
+    animation: flameFlicker 0.7s ease-in-out infinite alternate;
+}
+
+/* The flame that stays arrives as the wall falls, and keeps flickering. */
+@keyframes flameEternalIn {
+    0%, 55% { opacity: 0; }
+    80%, 100% { opacity: 1; }
+}
+.flame-eternal.flame-flicker {
+    animation: flameEternalIn 4.8s ease-out both, flameFlicker 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes flameEmber {
+    0% { transform: translate(0, 0); opacity: 0; }
+    15% { opacity: 1; }
+    100% { transform: translate(var(--ember-dx, 0vw), -105vh); opacity: 0; }
+}
+.flame-ember {
+    animation: flameEmber 2.4s ease-out both;
+}
+
+@keyframes flameHeat {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+}
+.flame-heat {
+    animation: flameHeat 0.9s ease-in-out infinite;
+}
+
+/* ── Legendary arrivals: Rising Sun ────────────────────────────────────────── */
+
+@keyframes sunSkyDawn {
+    0% { opacity: 0; }
+    45%, 100% { opacity: 1; }
+}
+.sun-sky-dawn {
+    animation: sunSkyDawn 5.2s ease-in-out both;
+}
+
+@keyframes sunSkyDay {
+    0%, 50% { opacity: 0; }
+    100% { opacity: 0.85; }
+}
+.sun-sky-day {
+    animation: sunSkyDay 5.2s ease-in-out both;
+}
+
+@keyframes sunRise {
+    from { transform: translate(-50%, 42vh); }
+    to { transform: translate(-50%, -50%); }
+}
+.sun-rise {
+    animation: sunRise 3.6s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+}
+
+@keyframes sunRays {
+    0% { transform: translate(-50%, -50%) rotate(0deg) scale(0.4); opacity: 0; }
+    40% { opacity: 0.2; }
+    100% { transform: translate(-50%, -50%) rotate(45deg) scale(1.05); opacity: 0.6; }
+}
+.sun-rays {
+    animation: sunRays 5.2s ease-out both;
+}
+
+@keyframes sunHalo {
+    0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(0.95); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+}
+.sun-halo {
+    animation: sunHalo 2.6s ease-in-out infinite;
+}
+
+@keyframes sunBloom {
+    0%, 55% { opacity: 0; }
+    85% { opacity: 0.9; }
+    100% { opacity: 0.6; }
+}
+.sun-bloom {
+    animation: sunBloom 5.2s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rose-stem, .rose-leaf, .rose-petal, .rose-heart, .rose-glow, .rose-drift,
+    .thunder-clouds, .thunder-rain, .thunder-bolt, .thunder-flash, .thunder-staff-rise, .thunder-orb-glow, .thunder-arcs,
+    .flame-wall, .flame-flicker, .flame-ember, .flame-heat,
+    .sun-sky-dawn, .sun-sky-day, .sun-rise, .sun-rays, .sun-halo, .sun-bloom {
+        animation: none !important;
+    }
+}
+
+/* ── Legendary arrivals: Ancestral Mark ───────────────────────────────────── */
+
+@keyframes ancestralDraw {
+    from { stroke-dasharray: 1; stroke-dashoffset: 1; }
+    to { stroke-dasharray: 1; stroke-dashoffset: 0; }
+}
+.ancestral-draw {
+    animation: ancestralDraw 1.3s cubic-bezier(0.5, 0, 0.3, 1) both;
+}
+
+@keyframes ancestralRing {
+    0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0.9; }
+    100% { transform: translate(-50%, -50%) scale(2.6); opacity: 0; }
+}
+.ancestral-ring {
+    animation: ancestralRing 1.8s ease-out infinite both;
+}
+
+@keyframes ancestralDust {
+    0% { transform: translateY(0); opacity: 0; }
+    20% { opacity: 0.9; }
+    100% { transform: translateY(-70vh); opacity: 0; }
+}
+.ancestral-dust {
+    animation: ancestralDust 4s ease-out both;
+}
+
+/* ── Legendary arrivals: City of Lights ────────────────────────────────────── */
+
+@keyframes cityWindow {
+    0% { opacity: 0; }
+    40% { opacity: 1; }
+    55% { opacity: 0.4; }
+    100% { opacity: 1; }
+}
+.city-window {
+    animation: cityWindow 0.6s ease-out both;
+}
+
+@keyframes cityBeam {
+    0% { transform: rotate(-28deg); opacity: 0; }
+    15% { opacity: 1; }
+    50% { transform: rotate(24deg); }
+    100% { transform: rotate(-20deg); opacity: 1; }
+}
+.city-beam {
+    animation: cityBeam 3.6s ease-in-out both;
+}
+
+@keyframes cityBokeh {
+    0% { transform: translateY(20px) scale(0.6); opacity: 0; }
+    30% { opacity: 0.85; }
+    60% { opacity: 0.45; }
+    100% { transform: translateY(-40px) scale(1); opacity: 0.8; }
+}
+.city-bokeh {
+    animation: cityBokeh 2.2s ease-in-out both;
+}
+
+/* ── Legendary arrivals: Phoenix Rise ──────────────────────────────────────── */
+
+@keyframes phoenixSky {
+    0%, 20% { opacity: 0; }
+    100% { opacity: 0.85; }
+}
+.phoenix-sky {
+    animation: phoenixSky 4.8s ease-in both;
+}
+
+@keyframes phoenixEmbers {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+}
+.phoenix-embers {
+    animation: phoenixEmbers 0.8s ease-in-out infinite;
+}
+
+@keyframes phoenixRise {
+    0% { transform: translateY(75vh) scale(0.5); opacity: 0; }
+    15% { opacity: 1; }
+    70% { transform: translateY(0) scale(1); }
+    85% { transform: translateY(-2vh) scale(1.02); }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.phoenix-rise {
+    animation: phoenixRise 4.2s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+}
+
+/* The wings pivot at the body (the SVG's origin). The left wing is the right one mirrored,
+   so its keyframes carry the mirror too — a CSS transform replaces the SVG attribute. */
+@keyframes phoenixWingRight {
+    0%, 20% { transform: rotate(60deg) scale(0.35); }
+    60% { transform: rotate(-8deg) scale(1.04); }
+    75% { transform: rotate(6deg) scale(1); }
+    90% { transform: rotate(-4deg) scale(1); }
+    100% { transform: rotate(0deg) scale(1); }
+}
+@keyframes phoenixWingLeft {
+    0%, 20% { transform: scale(-1, 1) rotate(60deg) scale(0.35); }
+    60% { transform: scale(-1, 1) rotate(-8deg) scale(1.04); }
+    75% { transform: scale(-1, 1) rotate(6deg) scale(1); }
+    90% { transform: scale(-1, 1) rotate(-4deg) scale(1); }
+    100% { transform: scale(-1, 1) rotate(0deg) scale(1); }
+}
+.phoenix-wing-right,
+.phoenix-wing-left {
+    transform-origin: 0px 0px;
+}
+.phoenix-wing-right {
+    animation: phoenixWingRight 4.4s ease-out both;
+}
+.phoenix-wing-left {
+    animation: phoenixWingLeft 4.4s ease-out both;
+}
+
+@keyframes phoenixTail {
+    0%, 100% { transform: skewX(0deg); }
+    50% { transform: skewX(6deg); }
+}
+.phoenix-tail {
+    transform-box: fill-box;
+    transform-origin: 50% 0%;
+    animation: phoenixTail 0.9s ease-in-out infinite;
+}
+
+/* ── Legendary arrivals: Ocean Pearl ───────────────────────────────────────── */
+
+@keyframes pearlCaustics {
+    0%, 100% { transform: translateX(-3%); }
+    50% { transform: translateX(3%); }
+}
+.pearl-caustics {
+    animation: pearlCaustics 3.2s ease-in-out infinite;
+}
+
+@keyframes pearlBubble {
+    0% { transform: translate(0, 0); opacity: 0; }
+    15% { opacity: 0.9; }
+    50% { transform: translate(12px, -50vh); }
+    100% { transform: translate(-8px, -105vh); opacity: 0; }
+}
+.pearl-bubble {
+    animation: pearlBubble 3s ease-in both;
+}
+
+/* The lid lifts from closed (flattened over the hinge) to wide open. */
+@keyframes pearlLid {
+    0%, 20% { transform: translateY(0) scaleY(0.45); }
+    70%, 100% { transform: translateY(-36px) scaleY(1.05); }
+}
+.pearl-lid {
+    transform-origin: 0px 0px;
+    animation: pearlLid 5s cubic-bezier(0.5, 0, 0.2, 1) both;
+}
+
+@keyframes pearlReveal {
+    0%, 35% { transform: scale(0.3); opacity: 0; }
+    70% { transform: scale(1.08); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+.pearl-reveal {
+    transform-box: fill-box;
+    transform-origin: 50% 50%;
+    animation: pearlReveal 5s ease-out both;
+}
+
+@keyframes pearlGlow {
+    0%, 40% { opacity: 0; transform: scale(0.4); }
+    75% { opacity: 1; transform: scale(1.15); }
+    100% { opacity: 0.85; transform: scale(1); }
+}
+.pearl-glow {
+    transform-box: fill-box;
+    transform-origin: 50% 50%;
+    animation: pearlGlow 5s ease-out both;
+}
+
+@keyframes pearlLustre {
+    0% { filter: hue-rotate(0deg) brightness(1); }
+    50% { filter: hue-rotate(40deg) brightness(1.15); }
+    100% { filter: hue-rotate(0deg) brightness(1); }
+}
+.pearl-lustre {
+    animation: pearlLustre 2s ease-in-out infinite;
+}
+
+/* ── Legendary arrivals: Cowry Throne ──────────────────────────────────────── */
+
+@keyframes throneRise {
+    0% { transform: translateY(70vh); opacity: 0; }
+    10% { opacity: 1; }
+    40%, 100% { transform: translateY(0); opacity: 1; }
+}
+.throne-rise {
+    display: inline-block;
+    animation: throneRise 5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes throneCrown {
+    0%, 22% { transform: translateY(-80vh) rotate(-8deg); }
+    44% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-3vh) rotate(0deg); }
+    56%, 100% { transform: translateY(0) rotate(0deg); }
+}
+.throne-crown {
+    display: inline-block;
+    animation: throneCrown 5s cubic-bezier(0.5, 0, 0.3, 1) both;
+}
+
+@keyframes throneFlash {
+    0%, 42% { opacity: 0; }
+    46% { opacity: 1; }
+    70%, 100% { opacity: 0; }
+}
+.throne-flash {
+    animation: throneFlash 5s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ancestral-draw, .ancestral-ring, .ancestral-dust,
+    .city-window, .city-beam, .city-bokeh,
+    .phoenix-sky, .phoenix-embers, .phoenix-rise, .phoenix-wing-right, .phoenix-wing-left, .phoenix-tail,
+    .pearl-caustics, .pearl-bubble, .pearl-lid, .pearl-reveal, .pearl-glow, .pearl-lustre,
+    .throne-rise, .throne-crown, .throne-flash {
+        animation: none !important;
+    }
+}
+
+/* ── Legendary arrivals: Golden Lion King ──────────────────────────────────
+   Timed on the scene's 5.2s: it gallops in, slows through the middle while it roars
+   (about 1.6s to 3s), and runs off the right. */
+
+@keyframes lionRun {
+    0%, 6% { transform: translateX(-100%); }
+    30% { transform: translateX(calc(50vw - 78%)); }
+    58% { transform: translateX(calc(50vw - 22%)); }
+    92%, 100% { transform: translateX(100vw); }
+}
+.lion-run {
+    animation: lionRun 5.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) both;
+}
+
+/* The bound of each stride, and the legs swinging from shoulder and hip. */
+@keyframes lionGallop {
+    from { transform: translateY(0) rotate(-1.5deg); }
+    to { transform: translateY(-8%) rotate(1.5deg); }
+}
+.lion-gallop {
+    animation: lionGallop 0.24s ease-in-out infinite alternate;
+}
+
+@keyframes lionLeg {
+    from { transform: rotate(-32deg); }
+    to { transform: rotate(30deg); }
+}
+.lion-leg {
+    transform-box: view-box;
+    animation: lionLeg 0.24s ease-in-out infinite alternate;
+}
+
+@keyframes lionTail {
+    from { transform: rotate(-10deg); }
+    to { transform: rotate(14deg); }
+}
+.lion-tail {
+    transform-box: view-box;
+    animation: lionTail 0.36s ease-in-out infinite alternate;
+}
+
+@keyframes lionRain {
+    from { background-position: 0 0; }
+    to { background-position: -200px 900px; }
+}
+.lion-rain {
+    background-image: repeating-linear-gradient(100deg, transparent 0 26px, rgba(210, 225, 255, 0.45) 26px 28px, transparent 28px 52px);
+    background-size: 200px 900px;
+    animation: lionRain 0.32s linear infinite;
+}
+
+@keyframes lionMouth {
+    0%, 30% { transform: scaleY(0.12); }
+    35%, 58% { transform: scaleY(1); }
+    68%, 100% { transform: scaleY(0.12); }
+}
+.lion-mouth {
+    transform-box: fill-box;
+    transform-origin: 50% 0%;
+    animation: lionMouth 5.2s ease-out both;
+}
+
+@keyframes lionShake {
+    0%, 31% { transform: translate(0, 0); }
+    33% { transform: translate(-10px, 6px); }
+    35% { transform: translate(9px, -7px); }
+    37% { transform: translate(-8px, -5px); }
+    39% { transform: translate(7px, 6px); }
+    42% { transform: translate(-5px, 3px); }
+    46% { transform: translate(4px, -3px); }
+    50% { transform: translate(-2px, 2px); }
+    55%, 100% { transform: translate(0, 0); }
+}
+.lion-shake {
+    animation: lionShake 5.2s linear both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lion-rain, .lion-run, .lion-gallop, .lion-leg, .lion-tail, .lion-mouth, .lion-shake,
+    .moment-caption {
+        animation: none !important;
+    }
+}
+
+/* The "Congratulations on the 100,000 Gift" caption over every legendary arrival. */
+@keyframes momentCaption {
+    0% { transform: translateY(-24px) scale(0.85); opacity: 0; }
+    60% { transform: translateY(4px) scale(1.04); opacity: 1; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.moment-caption {
+    animation: momentCaption 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both;
+}
+
+/* ── Legendary arrivals: Harvest Rain ──────────────────────────────────────
+   Timed on the scene's 5.6s: rain from about 0.3s to 3.6s, the soil soaking as it falls,
+   shoots rising from about 1.9s, and the sun breaking through from about 3.4s. */
+
+@keyframes harvestRainfall {
+    0%, 5% { opacity: 0; }
+    12%, 55% { opacity: 1; }
+    68%, 100% { opacity: 0; }
+}
+.harvest-rainfall {
+    animation: harvestRainfall 5.6s linear both;
+}
+
+@keyframes harvestClouds {
+    0% { opacity: 0; transform: translateX(0); }
+    10%, 55% { opacity: 0.9; }
+    80%, 100% { opacity: 0; transform: translateX(10vw); }
+}
+.harvest-clouds {
+    animation: harvestClouds 5.6s ease-in-out both;
+}
+
+@keyframes harvestSky {
+    0%, 55% { opacity: 0; }
+    85%, 100% { opacity: 0.85; }
+}
+.harvest-sky {
+    animation: harvestSky 5.6s ease-in-out both;
+}
+
+@keyframes harvestSun {
+    0%, 58% { opacity: 0; }
+    88%, 100% { opacity: 1; }
+}
+.harvest-sun {
+    animation: harvestSun 5.6s ease-out both;
+}
+
+@keyframes harvestWet {
+    0%, 12% { opacity: 0; }
+    45%, 100% { opacity: 1; }
+}
+.harvest-wet {
+    animation: harvestWet 5.6s ease-in both;
+}
+
+@keyframes harvestSplash {
+    0% { transform: scale(0.2); opacity: 0.9; }
+    100% { transform: scale(1.6); opacity: 0; }
+}
+.harvest-splash {
+    opacity: 0;
+    animation: harvestSplash 0.55s ease-out 5 both;
+}
+
+@keyframes harvestStem {
+    from { stroke-dasharray: 1; stroke-dashoffset: 1; }
+    to { stroke-dasharray: 1; stroke-dashoffset: 0; }
+}
+.harvest-stem {
+    animation: harvestStem 1.1s cubic-bezier(0.3, 0.7, 0.4, 1) both;
+}
+
+/* Leaves unfurl from where they meet the stem (x = 30 in the plant's drawing). */
+@keyframes harvestLeaf {
+    0% { transform: scale(0) rotate(-25deg); opacity: 0; }
+    60% { transform: scale(1.12) rotate(4deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+.harvest-leaf {
+    transform-box: fill-box;
+    animation: harvestLeaf 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.harvest-leaf-left {
+    transform-origin: 100% 100%;
+}
+.harvest-leaf-right {
+    transform-origin: 0% 100%;
+}
+
+@keyframes harvestBloom {
+    0% { transform: scale(0); opacity: 0; }
+    70% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+.harvest-bloom {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation: harvestBloom 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .harvest-rainfall, .harvest-clouds, .harvest-sky, .harvest-sun, .harvest-wet, .harvest-splash,
+    .harvest-stem, .harvest-leaf, .harvest-bloom {
+        animation: none !important;
+    }
+}
+
+/* ── Legendary gifts ─────────────────────────────────────────────────────────
+   A warm breathing glow behind the icon, and a band of light sweeping its coin. */
+
+@keyframes legendaryAura {
+    0%, 100% { opacity: 0.55; transform: scale(0.96); }
+    50% { opacity: 0.95; transform: scale(1.06); }
+}
+
+.legendary-aura {
+    background: radial-gradient(circle, rgba(255, 206, 102, 0.75) 0%, rgba(255, 176, 60, 0.25) 45%, transparent 70%);
+    animation: legendaryAura 2.6s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes legendaryShine {
+    0%, 55% { transform: translateX(-160%) skewX(-18deg); }
+    100% { transform: translateX(260%) skewX(-18deg); }
+}
+
+.legendary-shine::after {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 40%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+    animation: legendaryShine 3.2s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .legendary-aura,
+    .legendary-shine::after {
+        animation: none;
+    }
+}
+
+/* ── Top gifts ticker ──────────────────────────────────────────────────────
+   The track holds the list twice; sliding by half its width loops seamlessly. */
+
+@keyframes giftMarquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+
+.gift-marquee-track {
+    animation: giftMarquee 30s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gift-marquee-track {
+        animation: none;
     }
 }
 

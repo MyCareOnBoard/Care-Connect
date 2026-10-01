@@ -125,6 +125,7 @@ export function BottomTabBar({ flow, unreadMessages }: { flow: CareFlow; unreadM
             type="button"
             onClick={post}
             aria-label="Create a post"
+            data-tour="tabbar-post"
             className="group -mt-5 flex size-14 items-center justify-center rounded-full bg-linear-to-br from-[#00c7cb] to-[#0096a0] text-white shadow-[0_10px_24px_-8px_rgba(0,150,160,0.8)] ring-4 ring-white transition-transform duration-200 active:scale-90"
           >
             <Plus className="size-7 transition-transform duration-300 group-active:rotate-90" strokeWidth={2.5} aria-hidden="true" />

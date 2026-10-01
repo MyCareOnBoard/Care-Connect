@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from "react"
 import { useSearchParams } from "react-router"
 import { toast } from "sonner"
-import { Search, Heart, Bookmark } from "lucide-react"
+import { Search, Heart, Bookmark, Briefcase, CheckCircle2, Eye, Link2, MapPin, SlidersHorizontal, Users, Wallet, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SidePanel } from "@/components/app/SidePanel"
 import { getAuthErrorMessage } from "@/utils/auth"
+import { avatarColor } from "@/components/app/avatarColor"
+import { haptic } from "@/lib/haptics"
+import { playSound } from "@/lib/sound"
+import { cn, getInitials } from "@/lib/utils"
 import {
   getJob,
   listJobs,
@@ -21,7 +25,11 @@ import {
 } from "@/utils/careconnect/services/applicationsService"
 import {
   AVAILABILITY_FROM_LABEL,
+  EMPLOYMENT_TYPE_LABELS,
+  formatRelative,
   formatSalary,
+  toDate,
+  type EmploymentType,
   type Job,
   type Screening,
   type ScreeningAnswer,
@@ -215,6 +223,11 @@ export default function UserJobsPage() {
   const [likedJobIds, setLikedJobIds] = useState<Set<string>>(new Set())
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set())
   const [isApplyOpen, setIsApplyOpen] = useState(false)
+  // Filters. All on the client: the list is already loaded in full.
+  const [typeFilter, setTypeFilter] = useState<EmploymentType | "all">("all")
+  const [paidOnly, setPaidOnly] = useState(false)
+  const [newOnly, setNewOnly] = useState(false)
+  const [savedOnly, setSavedOnly] = useState(false)
 
   // `?job=<id>` opens that job — how the homepage's "Jobs for you" cards link here. The
   // param follows the selection, so the address can be copied and shared as it stands.
@@ -299,13 +312,27 @@ export default function UserJobsPage() {
 
   if (loading) return <JobsSkeleton />
 
-  const visibleJobs = search
-    ? jobs.filter(
-        (job) =>
-          job.title.toLowerCase().includes(search.toLowerCase()) ||
-          job.company.toLowerCase().includes(search.toLowerCase()),
-      )
-    : jobs
+  const NEW_DAYS = 7
+  const isNew = (job: Job) => {
+    const posted = toDate(job.createdAt ?? null)
+    return posted ? Date.now() - posted.getTime() < NEW_DAYS * 86_400_000 : false
+  }
+
+  const term = search.trim().toLowerCase()
+  const visibleJobs = jobs.filter(
+    (job) =>
+      (!term ||
+        job.title.toLowerCase().includes(term) ||
+        job.company.toLowerCase().includes(term) ||
+        (job.location ?? "").toLowerCase().includes(term)) &&
+      (typeFilter === "all" || job.employmentType === typeFilter) &&
+      (!paidOnly || Boolean(formatSalary(job))) &&
+      (!newOnly || isNew(job)) &&
+      (!savedOnly || savedJobIds.has(job.id)),
+  )
+  const filtersOn = typeFilter !== "all" || paidOnly || newOnly || savedOnly
+  // Only the job types that appear in the list are offered as filters.
+  const typesPresent = [...new Set(jobs.map((job) => job.employmentType).filter(Boolean))] as EmploymentType[]
 
   const selectedJob =
     visibleJobs.find((job) => job.id === selectedJobId) ?? visibleJobs[0] ?? null
@@ -348,152 +375,331 @@ export default function UserJobsPage() {
     if (!selectedJob) return
     try {
       await applyToJob({ jobId: selectedJob.id, screening, screeningAnswers })
-      toast.success("Application submitted!")
+      haptic("success")
+      playSound("success")
+      toast.success("Application sent — good luck!")
       setAppliedJobIds((current) => new Set(current).add(selectedJob.id))
     } catch (error) {
       toast.error(getAuthErrorMessage(error))
     }
   }
 
+  const chipClass = (on: boolean) =>
+    cn(
+      "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition active:scale-95",
+      on ? "bg-[#10141a] text-white shadow-sm" : "bg-white text-[#4a5260] ring-1 ring-[#e2e6ea] hover:ring-[#c8cdd4]",
+    )
+
+  const copyJobLink = async (id: string) => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?job=${encodeURIComponent(id)}`)
+      toast.success("Link copied")
+    } catch {
+      toast.error("Couldn't copy the link.")
+    }
+  }
+
+  const applied = selectedJob ? appliedJobIds.has(selectedJob.id) : false
+
   return (
-    <div className="animate-fade-in-up grid grid-cols-1 gap-5 p-5 sm:p-8 xl:grid-cols-[380px_minmax(0,1fr)]">
+    <div className="animate-fade-in-up grid grid-cols-1 gap-5 p-5 sm:p-8 xl:grid-cols-[400px_minmax(0,1fr)]">
       <aside className="space-y-3">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
+          <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
           <Input
-            placeholder="Enter Job Title to Search.."
-            className="pl-9"
+            placeholder="Search jobs, companies or places"
+            className="h-11 rounded-full pl-10"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
         </div>
 
+        {/* Quick filters, as chips: one tap each, and obvious when they are on. */}
+        <div className="scrollbar-hide -mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1">
+          <SlidersHorizontal className="size-4 shrink-0 text-[#8a94a3]" aria-hidden="true" />
+          <button type="button" aria-pressed={newOnly} onClick={() => setNewOnly((on) => !on)} className={chipClass(newOnly)}>
+            New this week
+          </button>
+          <button type="button" aria-pressed={paidOnly} onClick={() => setPaidOnly((on) => !on)} className={chipClass(paidOnly)}>
+            <Wallet className="size-3.5" aria-hidden="true" />
+            Shows pay
+          </button>
+          <button type="button" aria-pressed={savedOnly} onClick={() => setSavedOnly((on) => !on)} className={chipClass(savedOnly)}>
+            <Bookmark className="size-3.5" aria-hidden="true" />
+            Saved
+          </button>
+          {typesPresent.map((type) => (
+            <button
+              key={type}
+              type="button"
+              aria-pressed={typeFilter === type}
+              onClick={() => setTypeFilter((current) => (current === type ? "all" : type))}
+              className={chipClass(typeFilter === type)}
+            >
+              {EMPLOYMENT_TYPE_LABELS[type] ?? type}
+            </button>
+          ))}
+          {filtersOn && (
+            <button
+              type="button"
+              onClick={() => {
+                setTypeFilter("all")
+                setPaidOnly(false)
+                setNewOnly(false)
+                setSavedOnly(false)
+              }}
+              className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-2 text-xs font-semibold text-[#00868a] hover:underline"
+            >
+              <X className="size-3.5" aria-hidden="true" />
+              Clear
+            </button>
+          )}
+        </div>
+
+        <p className="px-1 text-xs text-[#8a94a3]">
+          {visibleJobs.length} job{visibleJobs.length === 1 ? "" : "s"}
+          {filtersOn || term ? " match" : " open"}
+        </p>
+
         {visibleJobs.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-[#e2e2e2] p-6 text-center text-sm text-[#657080]">
-            No jobs found.
-          </p>
+          <div className="rounded-2xl border border-dashed border-[#d7dde3] bg-white/60 p-8 text-center">
+            <Briefcase className="mx-auto size-8 text-[#9aa4b2]" aria-hidden="true" />
+            <p className="mt-3 text-sm font-semibold text-[#151922]">No jobs match</p>
+            <p className="mt-1 text-sm text-[#657080]">Try fewer filters or a different search.</p>
+          </div>
         ) : (
-          <div className="space-y-3">
-            {visibleJobs.map((job) => (
-              <article
-                key={job.id}
-                id={`job-${job.id}`}
-                role="button"
-                tabIndex={0}
-                onClick={() => selectJob(job.id)}
-                onKeyDown={(event) => event.key === "Enter" && selectJob(job.id)}
-                className={`cursor-pointer rounded-xl border p-4 transition-colors ${
-                  job.id === selectedJob?.id ? "border-[#00b4b8] bg-[#eaf4ff]" : "border-[#e2e2e2] bg-white hover:border-[#00b4b8]/40"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="font-bold leading-snug">{job.title}</h3>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {/* Same likedJobIds state as the detail panel's heart, so liking
-                        from either the sidebar or the opened job stays in sync. */}
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        toggleLiked(job.id)
-                      }}
-                      aria-label={likedJobIds.has(job.id) ? "Unlike job" : "Like job"}
+          <div className="cowry-stagger space-y-3">
+            {visibleJobs.map((job) => {
+              const selected = job.id === selectedJob?.id
+              const salary = formatSalary(job)
+              return (
+                <article
+                  key={job.id}
+                  id={`job-${job.id}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-current={selected || undefined}
+                  onClick={() => selectJob(job.id)}
+                  onKeyDown={(event) => event.key === "Enter" && selectJob(job.id)}
+                  className={cn(
+                    "group cursor-pointer rounded-2xl bg-white p-4 transition-all duration-200",
+                    selected
+                      ? "shadow-[0_12px_28px_-14px_rgba(0,180,184,0.6)] ring-2 ring-[#00b4b8]"
+                      : "ring-1 ring-[#e2e6ea] hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-16px_rgba(16,20,26,0.3)] hover:ring-[#c8cdd4]",
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white shadow-sm", avatarColor(job.company))}
+                      aria-hidden="true"
                     >
-                      <Heart className={`size-5 transition-colors ${likedJobIds.has(job.id) ? "fill-[#ff3e66] text-[#ff3e66]" : "text-[#20242c]"}`} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        toggleSaved(job.id)
-                      }}
-                      aria-label={savedJobIds.has(job.id) ? "Unsave job" : "Save job"}
-                    >
-                      {/* Bookmark, not a heart — the heart is the Like action, and using
-                          it for Save here made the two read as swapped. */}
-                      <Bookmark className={`size-5 transition-colors ${savedJobIds.has(job.id) ? "fill-[#00b4b8] text-[#00b4b8]" : "text-[#20242c]"}`} />
-                    </button>
+                      {getInitials(job.company)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="truncate font-bold leading-snug text-[#151922]">{job.title}</h3>
+                        {isNew(job) && (
+                          <span className="shrink-0 rounded-full bg-[#e2f7e8] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#1f9c4c]">
+                            New
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 truncate text-sm text-[#565f6d]">
+                        {job.company}
+                        {job.location && ` · ${job.location}`}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {/* Same likedJobIds state as the detail panel's heart, so liking
+                          from either the sidebar or the opened job stays in sync. */}
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          toggleLiked(job.id)
+                        }}
+                        aria-label={likedJobIds.has(job.id) ? "Unlike job" : "Like job"}
+                        className="flex size-8 items-center justify-center rounded-full transition hover:bg-[#f2f6f8] active:scale-90"
+                      >
+                        <Heart className={cn("size-[18px] transition-colors", likedJobIds.has(job.id) ? "fill-[#ff1f3d] text-[#ff1f3d]" : "text-[#4a5260]")} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          toggleSaved(job.id)
+                        }}
+                        aria-label={savedJobIds.has(job.id) ? "Unsave job" : "Save job"}
+                        className="flex size-8 items-center justify-center rounded-full transition hover:bg-[#f2f6f8] active:scale-90"
+                      >
+                        {/* Bookmark, not a heart — the heart is the Like action, and using
+                            it for Save here made the two read as swapped. */}
+                        <Bookmark className={cn("size-[18px] transition-colors", savedJobIds.has(job.id) ? "fill-[#00b4b8] text-[#00b4b8]" : "text-[#4a5260]")} />
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <p className="mt-2 text-sm text-[#565656]">{job.company}</p>
-                <p className="mt-1 text-sm text-[#565656]">{job.location}</p>
-                {job.tags && job.tags.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {job.tags.map((tag) => (
-                      <span key={tag} className="rounded-full bg-[#dddddd] px-3 py-1 text-xs font-semibold text-[#20242c]">
-                        {tag}
+
+                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
+                    {salary && <span className="text-sm font-bold text-[#00898c]">{salary}</span>}
+                    {job.employmentType && (
+                      <span className="rounded-full bg-[#eef4f6] px-2.5 py-0.5 font-medium text-[#3f4855]">
+                        {EMPLOYMENT_TYPE_LABELS[job.employmentType] ?? job.employmentType}
                       </span>
-                    ))}
+                    )}
+                    {job.applicationsCount > 0 && (
+                      <span className="inline-flex items-center gap-1 text-[#657080]">
+                        <Users className="size-3.5" aria-hidden="true" />
+                        {job.applicationsCount} applied
+                      </span>
+                    )}
+                    {appliedJobIds.has(job.id) && (
+                      <span className="inline-flex items-center gap-1 font-semibold text-[#1f9c4c]">
+                        <CheckCircle2 className="size-3.5" aria-hidden="true" />
+                        You applied
+                      </span>
+                    )}
                   </div>
-                )}
-              </article>
-            ))}
+                  {job.tags && job.tags.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {job.tags.slice(0, 4).map((tag) => (
+                        <span key={tag} className="rounded-full bg-[#f3f6f8] px-2.5 py-0.5 text-xs text-[#565f6d]">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </article>
+              )
+            })}
           </div>
         )}
       </aside>
 
       {selectedJob && (
-        <main id="job-detail" className="scroll-mt-24 space-y-5 rounded-2xl">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold">{selectedJob.title}</h1>
-              <p className="mt-1 flex items-center gap-1 text-sm text-[#565656]">
-                {selectedJob.company}
-                {/* <LinkIcon className="size-3.5" /> */}
-              </p>
-              <p className="mt-1 text-sm text-[#565656]">{selectedJob.location}</p>
-              {formatSalary(selectedJob) && (
-                <p className="mt-1 text-sm font-semibold text-[#00b4b8]">{formatSalary(selectedJob)}</p>
-              )}
-            </div>
-          </div>
+        <main id="job-detail" key={selectedJob.id} className="animate-fade-in-up scroll-mt-24 space-y-5 self-start rounded-3xl xl:sticky xl:top-22">
+          {/* The job at a glance: who, what, where, how much — then what to do about it. */}
+          <section className="overflow-hidden rounded-3xl bg-white ring-1 ring-[#e2e6ea]">
+            <div className="h-20 bg-[linear-gradient(120deg,#0c2a33_0%,#0b5f68_55%,#00a3a7_100%)]" aria-hidden="true" />
+            <div className="px-5 pb-5 sm:px-6">
+              <span
+                className={cn(
+                  "-mt-8 flex size-16 items-center justify-center rounded-2xl text-lg font-bold text-white shadow-[0_10px_24px_-10px_rgba(16,20,26,0.5)] ring-4 ring-white",
+                  avatarColor(selectedJob.company),
+                )}
+                aria-hidden="true"
+              >
+                {getInitials(selectedJob.company)}
+              </span>
+              <h1 className="mt-3 text-2xl font-bold leading-tight text-[#151922]">{selectedJob.title}</h1>
+              <p className="mt-1 text-sm font-medium text-[#383d45]">{selectedJob.company}</p>
 
-          <div className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-full bg-[#ffc95c] text-sm font-bold text-white">
-              {(selectedJob.hirerName ?? selectedJob.company ?? "?")
-                .slice(0, 2)
-                .toUpperCase()}
+              <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium text-[#4a5260]">
+                {selectedJob.location && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#f3f6f8] px-2.5 py-1">
+                    <MapPin className="size-3.5" aria-hidden="true" />
+                    {selectedJob.location}
+                  </span>
+                )}
+                {selectedJob.employmentType && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#f3f6f8] px-2.5 py-1">
+                    <Briefcase className="size-3.5" aria-hidden="true" />
+                    {EMPLOYMENT_TYPE_LABELS[selectedJob.employmentType] ?? selectedJob.employmentType}
+                  </span>
+                )}
+                {formatSalary(selectedJob) && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#e3f8f8] px-2.5 py-1 font-bold text-[#00898c]">
+                    <Wallet className="size-3.5" aria-hidden="true" />
+                    {formatSalary(selectedJob)}
+                  </span>
+                )}
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#f3f6f8] px-2.5 py-1">
+                  <Users className="size-3.5" aria-hidden="true" />
+                  {selectedJob.applicationsCount} applied
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#f3f6f8] px-2.5 py-1">
+                  <Eye className="size-3.5" aria-hidden="true" />
+                  {selectedJob.viewsCount} views
+                </span>
+                {selectedJob.createdAt && (
+                  <span className="rounded-full bg-[#f3f6f8] px-2.5 py-1">Posted {formatRelative(selectedJob.createdAt).toLowerCase()}</span>
+                )}
+              </div>
+
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                {applied ? (
+                  <span className="animate-cowry-pop inline-flex h-11 items-center gap-2 rounded-full bg-[#e2f7e8] px-5 text-sm font-bold text-[#1f9c4c]">
+                    <CheckCircle2 className="size-5" aria-hidden="true" />
+                    Applied — the hiring team has your application
+                  </span>
+                ) : (
+                  <Button
+                    type="button"
+                    className="h-11 rounded-full bg-linear-to-r from-[#00b4b8] to-[#2dd4d8] px-7 text-base shadow-[0_8px_20px_-8px_rgba(0,180,184,0.7)] transition-transform hover:scale-[1.03] active:scale-95"
+                    onClick={() => setIsApplyOpen(true)}
+                  >
+                    Apply now
+                  </Button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => toggleSaved(selectedJob.id)}
+                  aria-label={savedJobIds.has(selectedJob.id) ? "Remove from saved" : "Save job"}
+                  className="inline-flex h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold text-[#383d45] ring-1 ring-[#e2e6ea] transition hover:bg-[#f2f6f8] active:scale-95"
+                >
+                  <Bookmark className={cn("size-4 transition-colors", savedJobIds.has(selectedJob.id) && "fill-[#00b4b8] text-[#00b4b8]")} />
+                  {savedJobIds.has(selectedJob.id) ? "Saved" : "Save"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleLiked(selectedJob.id)}
+                  aria-label={likedJobIds.has(selectedJob.id) ? "Unlike job" : "Like job"}
+                  className="flex size-11 items-center justify-center rounded-full ring-1 ring-[#e2e6ea] transition hover:bg-[#f2f6f8] active:scale-90"
+                >
+                  <Heart className={cn("size-4 transition-colors", likedJobIds.has(selectedJob.id) && "fill-[#ff1f3d] text-[#ff1f3d]")} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void copyJobLink(selectedJob.id)}
+                  aria-label="Copy a link to this job"
+                  className="flex size-11 items-center justify-center rounded-full ring-1 ring-[#e2e6ea] transition hover:bg-[#f2f6f8] active:scale-90"
+                >
+                  <Link2 className="size-4" />
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section className="flex items-center gap-3 rounded-2xl bg-white p-4 ring-1 ring-[#e2e6ea]">
+            <span
+              className={cn("flex size-11 items-center justify-center rounded-full text-sm font-bold text-white", avatarColor(selectedJob.hirerName ?? selectedJob.company))}
+              aria-hidden="true"
+            >
+              {getInitials(selectedJob.hirerName ?? selectedJob.company ?? "?")}
             </span>
-            <div>
-              <p className="text-sm font-bold">{selectedJob.hirerName ?? "Hiring Manager"}</p>
-              <p className="text-sm text-[#657080]">{selectedJob.hirerTitle ?? "Job Hirer"}</p>
+            <div className="min-w-0">
+              <p className="text-xs text-[#8a94a3]">Hiring contact</p>
+              <p className="truncate text-sm font-bold text-[#151922]">{selectedJob.hirerName ?? "Hiring manager"}</p>
+              <p className="truncate text-xs text-[#657080]">{selectedJob.hirerTitle ?? selectedJob.company}</p>
             </div>
-          </div>
+          </section>
 
-          <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              className="bg-[#00b4b8]"
-              disabled={appliedJobIds.has(selectedJob.id)}
-              onClick={() => setIsApplyOpen(true)}
-            >
-              {appliedJobIds.has(selectedJob.id) ? "Applied" : "Apply here"}
-            </Button>
-            <button
-              type="button"
-              onClick={() => toggleLiked(selectedJob.id)}
-              aria-label={likedJobIds.has(selectedJob.id) ? "Unlike job" : "Like job"}
-              className="flex size-11 items-center justify-center rounded-full border border-[#e2e2e2] transition hover:bg-[#f2f6f8]"
-            >
-              <Heart className={`size-4 transition-colors ${likedJobIds.has(selectedJob.id) ? "fill-[#ff3e66] text-[#ff3e66]" : ""}`} />
-            </button>
-            <button
-              type="button"
-              onClick={() => toggleSaved(selectedJob.id)}
-              aria-label={savedJobIds.has(selectedJob.id) ? "Remove from saved" : "Save job"}
-              className="flex size-11 items-center justify-center rounded-full border border-[#e2e2e2] transition hover:bg-[#f2f6f8]"
-            >
-              <Bookmark className={`size-4 transition-colors ${savedJobIds.has(selectedJob.id) ? "fill-[#00b4b8] text-[#00b4b8]" : ""}`} />
-            </button>
-          </div>
-
-          <div className="border-t border-[#eef1f3] pt-5">
-            <h2 className="text-lg font-bold">Job details</h2>
-            <p className="mt-1 text-sm text-[#657080]">Here&apos;s how the job details align with your profile.</p>
-            <div className="mt-4 whitespace-pre-line rounded-xl bg-[#f7f9fa] p-5 text-sm leading-6 text-[#20242c]">
-              {selectedJob.description}
-            </div>
-          </div>
+          <section className="rounded-2xl bg-white p-5 ring-1 ring-[#e2e6ea] sm:p-6">
+            <h2 className="text-lg font-bold text-[#151922]">About the role</h2>
+            <div className="mt-3 whitespace-pre-line text-sm leading-7 text-[#20242c]">{selectedJob.description}</div>
+            {selectedJob.benefits && selectedJob.benefits.length > 0 && (
+              <>
+                <h3 className="mt-6 text-sm font-bold text-[#151922]">Benefits</h3>
+                <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {selectedJob.benefits.map((benefit) => (
+                    <li key={benefit} className="flex items-start gap-2 text-sm text-[#383d45]">
+                      <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[#1f9c4c]" aria-hidden="true" />
+                      {benefit}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
         </main>
       )}
 
