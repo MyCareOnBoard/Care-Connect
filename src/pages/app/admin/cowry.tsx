@@ -5,6 +5,7 @@ import {
   Coins,
   Gauge,
   Gift,
+  Receipt,
   History,
   Loader2,
   Package,
@@ -20,6 +21,7 @@ import {
 import { toast } from "sonner"
 import { holdDescription } from "@/utils/careconnect/creatorHold"
 import { GiftCatalogManager } from "@/components/cowry/GiftCatalogManager"
+import { GiftLog } from "@/components/cowry/GiftLog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -61,7 +63,7 @@ import {
  * what it would become before pressing save. Save stays off until something has changed.
  */
 
-type TabKey = "pools" | "rewards" | "pricing" | "packages" | "gifts" | "reconciliation" | "log"
+type TabKey = "pools" | "rewards" | "pricing" | "packages" | "gifts" | "giftLog" | "reconciliation" | "log"
 
 const TABS: Array<{ key: TabKey; label: string; icon: LucideIcon }> = [
   { key: "pools", label: "Budget pools", icon: Gauge },
@@ -69,6 +71,7 @@ const TABS: Array<{ key: TabKey; label: string; icon: LucideIcon }> = [
   { key: "pricing", label: "Pricing & fees", icon: Coins },
   { key: "packages", label: "Data packages", icon: Package },
   { key: "gifts", label: "Gifts", icon: Gift },
+  { key: "giftLog", label: "Gifts sent", icon: Receipt },
   { key: "reconciliation", label: "Reconciliation", icon: Scale },
   { key: "log", label: "Change log", icon: History },
 ]
@@ -793,6 +796,12 @@ export default function AdminCowryPage() {
         </section>
 
         <GiftCatalogManager />
+        </div>
+      )}
+
+      {activeTab === "giftLog" && (
+        <div key="giftLog" className="animate-fade-in-up">
+          <GiftLog />
         </div>
       )}
 
