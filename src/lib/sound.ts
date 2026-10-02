@@ -557,7 +557,7 @@ function playSample(ctx: AudioContext, out: AudioNode, buffer: AudioBuffer, at: 
   src.stop(start + buffer.duration + 0.05)
 }
 
-// Rain pouring onto the earth with a far-off rumble, then rising chimes as the shoots come
+// Rain pouring onto the earth with a far-off rumble, then rising chimes as the garden comes
 // up, a warm chord as the sun breaks through, and birdsong.
 CUES.harvest = (ctx, out) => {
   noise(ctx, out, { at: 0.2, dur: 3.6, filter: "highpass", freq: 2400, gain: 0.16, attack: 0.6 })

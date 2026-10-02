@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
 import { Link } from "react-router"
-// REPOST PAUSED: add Repeat2 back to this import when reposting returns.
-import { Gift, Heart, Link2, Maximize2, MessageSquare, MoreHorizontal, Repeat2, Share2, Upload } from "lucide-react"
+import { Gift, Heart, Link2, Maximize2, MessageSquare, MoreHorizontal, Repeat2, Share2 } from "lucide-react"
 import { toast } from "sonner"
 import { Avatar } from "@/components/app/DashboardAvatar"
 import { EmojiPicker } from "@/components/app/EmojiPicker"
@@ -123,7 +122,7 @@ type PortfolioPostProps = {
    * The action also hides itself where `onRepostChange` is absent, so a surface that has
    * not been wired up shows no button rather than one that reports a repost it did not make.
    */
-  canRepost?: boolean | Promise<unknown>
+  canRepost?: boolean
   /** Save a comment. As with likes, a failed save takes the comment back off the post. */
   onSubmitComment?: (text: string) => void | Promise<unknown>
   onLoadComments?: () => Promise<PostComment[]>
@@ -206,11 +205,9 @@ export function PortfolioPost({
   const [commentsLoaded, setCommentsLoaded] = useState(false)
   const [showComments, setShowComments] = useState(false)
   const [commentText, setCommentText] = useState("")
-  // REPOST PAUSED: it only ever changed the screen — nothing was saved — so it is off until the backend has repost endpoints (backend list item #4). Restore the lines marked REPOST PAUSED.
-  // const [reposted, setReposted] = useState(false)
-  // const [repostCount, setRepostCount] = useState(post.reposts ?? 0)
-  const reposted: boolean = false
-  const repostCount: number = 0
+  const [reposted, setReposted] = useState(initialReposted)
+  const [repostCount, setRepostCount] = useState(post.reposts ?? 0)
+  const [repostBusy, setRepostBusy] = useState(false)
   const [heartBurst, setHeartBurst] = useState(0)
   const [expanded, setExpanded] = useState(false)
   const [overflowing, setOverflowing] = useState(false)
@@ -327,12 +324,29 @@ export function PortfolioPost({
     requestAnimationFrame(() => commentInputRef.current?.focus())
   }
 
-  // REPOST PAUSED
-  // const toggleRepost = () => {
-  //   setReposted((current) => !current)
-  //   setRepostCount((current) => current + (reposted ? -1 : 1))
-  //   if (!reposted) toast.success("Reposted to your profile")
-  // }
+  const toggleRepost = async () => {
+    if (repostBusy) return
+    const next = !reposted
+
+    // Moved first so the button answers the tap, then put back if the server disagrees.
+    setReposted(next)
+    setRepostCount((current) => Math.max(0, current + (next ? 1 : -1)))
+    setRepostBusy(true)
+
+    try {
+      await onRepostChange?.(next)
+      if (next) toast.success(repostedBy ? "Reposted" : "Reposted to your profile")
+    } catch {
+      setReposted(!next)
+      setRepostCount((current) => Math.max(0, current + (next ? -1 : 1)))
+      toast.error(next ? "Could not repost that" : "Could not undo the repost")
+    } finally {
+      setRepostBusy(false)
+    }
+  }
+
+  // Offered only where it is wired to the backend, and never on your own post.
+  const repostable = canRepost && Boolean(onRepostChange)
 
   const copyLink = async () => {
     if (!shareUrl) return
@@ -729,7 +743,7 @@ export function PortfolioPost({
           </div>
         )}
 
-        {(shareUrl || canNativeShare) && (
+        {(repostable || shareUrl || canNativeShare) && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button type="button" className={cn(actionButton, reposted && "text-[#0f8a4d]")}>
@@ -738,12 +752,18 @@ export function PortfolioPost({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52 rounded-xl border-[#dce2e6] bg-white p-1 shadow-lg">
-            {/* REPOST PAUSED
-            <DropdownMenuItem onSelect={toggleRepost} className="gap-2 rounded-lg px-3 py-2 text-sm">
-              <Repeat2 className="size-4" aria-hidden="true" />
-              {reposted ? "Undo repost" : "Repost"}
-            </DropdownMenuItem>
-            */}
+            {/* Shown only where it is actually wired. A repost button that reports success
+                without reposting anything is worse than no button. */}
+            {repostable && (
+              <DropdownMenuItem
+                onSelect={() => void toggleRepost()}
+                disabled={repostBusy}
+                className="gap-2 rounded-lg px-3 py-2 text-sm"
+              >
+                <Repeat2 className="size-4" aria-hidden="true" />
+                {reposted ? "Undo repost" : "Repost"}
+              </DropdownMenuItem>
+            )}
             {shareUrl && (
               <DropdownMenuItem onSelect={() => void copyLink()} className="gap-2 rounded-lg px-3 py-2 text-sm">
                 <Link2 className="size-4" aria-hidden="true" />
@@ -752,7 +772,7 @@ export function PortfolioPost({
             )}
             {canNativeShare && (
               <DropdownMenuItem onSelect={() => void nativeShare()} className="gap-2 rounded-lg px-3 py-2 text-sm">
-                <Upload className="size-4" aria-hidden="true" />
+                <Share2 className="size-4" aria-hidden="true" />
                 Share via…
               </DropdownMenuItem>
             )}

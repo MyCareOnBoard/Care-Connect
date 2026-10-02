@@ -51,25 +51,19 @@ const openShare = async () => {
   await userEvent.click(screen.getByRole("button", { name: /Share/ }))
 }
 
+/** Where Share would hold nothing, the card leaves the button out altogether. */
+const openShareIfShown = async () => {
+  const share = screen.queryByRole("button", { name: /Share/ })
+  if (share) await userEvent.click(share)
+}
+
 /* ── the action only exists where it works ───────────────────────────────── */
 
-/*
- * Parked, not deleted.
- *
- * The repost item in the share menu is commented out on main behind a "REPOST PAUSED"
- * marker — a deliberate decision taken in the gift-animations work, not an accident of the
- * merge. The backend and the card wiring are both live, so re-enabling it is uncommenting
- * one block; these assertions are the ones that should run the moment it is.
- *
- * Skipped rather than rewritten because there is nothing wrong with them: they describe the
- * behaviour the feature is meant to have, and making them pass against a disabled feature
- * would mean asserting that nothing happens, which protects nothing.
- */
-describe.skip("the repost action (paused on main)", () => {
+describe("the repost action", () => {
   it("is absent on a surface that has not wired it up", async () => {
     // It used to be here and to report success without reposting anything.
     renderCard()
-    await openShare()
+    await openShareIfShown()
     expect(screen.queryByText("Repost")).not.toBeInTheDocument()
   })
 
@@ -82,7 +76,7 @@ describe.skip("the repost action (paused on main)", () => {
   it("is not offered on your own post", async () => {
     // The server refuses it, so offering it would only produce an error.
     renderCard({ onRepostChange: vi.fn(), canRepost: false })
-    await openShare()
+    await openShareIfShown()
     expect(screen.queryByText("Repost")).not.toBeInTheDocument()
   })
 
@@ -95,7 +89,7 @@ describe.skip("the repost action (paused on main)", () => {
 
 /* ── what it calls, and what happens when that fails ────────────────────── */
 
-describe.skip("reposting (paused on main)", () => {
+describe("reposting", () => {
   it("asks for the state it is moving to", async () => {
     const onRepostChange = vi.fn().mockResolvedValue(undefined)
     renderCard({ onRepostChange })
