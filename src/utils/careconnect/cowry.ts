@@ -174,6 +174,24 @@ export function isValidNigerianMobile(value: string): boolean {
 }
 
 /**
+ * A mobile number from any country, matching what the backend will accept.
+ *
+ * E.164 for everywhere, plus the Nigerian local form as the one exception that needs no
+ * country code, because it is what our users already type. A bare national number from
+ * anywhere else is refused rather than guessed at: the number is stored as an identity,
+ * and guessing the country would bind the wrong phone.
+ *
+ * Kept in step with normalizePhone in cowry-redemption.schema.js by hand. If one changes,
+ * change the other, or the form accepts numbers the request then rejects.
+ */
+export function isValidMobile(value: string): boolean {
+  const digits = String(value || "").replace(/[\s\-().]/g, "")
+  if (/^0[789]\d{9}$/.test(digits)) return true
+  if (/^234[789]\d{9}$/.test(digits)) return true
+  return /^\+[1-9]\d{7,14}$/.test(digits)
+}
+
+/**
  * What to tell someone whose redemption was refused.
  *
  * Deliberately vague about trust: naming the score, or even implying there is one, tells
