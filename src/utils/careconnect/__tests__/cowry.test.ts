@@ -10,6 +10,7 @@ import {
   GIFT_SET_LABELS,
   formatNaira,
   roundTripValue,
+  isValidMobile,
   isValidNigerianMobile,
   allowanceSummary,
   bucketTotal,
@@ -183,6 +184,40 @@ describe("allowanceSummary", () => {
   it("gets the singular right", () => {
     const w = wallet({ limits: { perDay: 1, perMonth: 1, maxGbPerMonth: 1 } })
     expect(allowanceSummary(w)).toMatch(/1 data reward a month/)
+  })
+})
+
+describe("isValidMobile", () => {
+  it("takes a number from any country in international form", () => {
+    for (const input of ["+233201234567", "+1 212 555 1234", "+44 7700 900123", "+27 82 123 4567"]) {
+      expect(isValidMobile(input)).toBe(true)
+    }
+  })
+
+  it("still takes a Nigerian number written the local way", () => {
+    // The one country that needs no code here, because it is what users already type.
+    for (const input of ["08012345678", "+2348012345678", "2348012345678", "0801 234 5678"]) {
+      expect(isValidMobile(input)).toBe(true)
+    }
+  })
+
+  it("refuses a bare national number from anywhere else", () => {
+    // Guessing the country would bind the wrong phone, and the number is an identity.
+    for (const input of ["8012345678", "201234567", "2125551234"]) {
+      expect(isValidMobile(input)).toBe(false)
+    }
+  })
+
+  it("refuses nonsense and a zero country code", () => {
+    for (const input of ["", "   ", "12345", "+0123456789", "0601234567"]) {
+      expect(isValidMobile(input)).toBe(false)
+    }
+  })
+
+  it("agrees with the form the backend would store", () => {
+    // If these drift, the form accepts numbers the request rejects.
+    expect(isValidMobile("+233201234567")).toBe(true)
+    expect(isValidMobile("233201234567")).toBe(false)
   })
 })
 

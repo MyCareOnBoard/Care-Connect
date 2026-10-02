@@ -55,7 +55,18 @@ function catalog(over: Partial<CowryAdminGiftCatalog> = {}): CowryAdminGiftCatal
   }
 }
 
+/**
+ * No artificial delay between keystrokes.
+ *
+ * Every character typed into the name field re-renders the dialog and recomputes both the
+ * suggested id and the icon preview, so with the default inter-key delay these tests ran
+ * three to five seconds each and tipped over the five-second timeout whenever the whole
+ * suite ran at once. The delay buys nothing here: nothing in this form is debounced.
+ */
+let user: ReturnType<typeof userEvent.setup>
+
 beforeEach(() => {
+  user = userEvent.setup({ delay: null })
   listMock.mockReset()
   saveMock.mockReset()
   deleteMock.mockReset()
@@ -99,7 +110,7 @@ describe("the catalogue", () => {
     expect(await screen.findByText(/could not be loaded/i)).toBeInTheDocument()
 
     listMock.mockResolvedValue(catalog())
-    await userEvent.click(screen.getByRole("button", { name: /Try again/ }))
+    await user.click(screen.getByRole("button", { name: /Try again/ }))
     expect(await screen.findByText("Rose")).toBeInTheDocument()
   })
 })
@@ -131,10 +142,10 @@ describe("adding a gift", () => {
   it("suggests an id from the name", async () => {
     show()
     await screen.findByText("Rose")
-    await userEvent.click(screen.getByRole("button", { name: /Add a gift/ }))
+    await user.click(screen.getByRole("button", { name: /Add a gift/ }))
 
     const name = await screen.findByLabelText("Name")
-    await userEvent.type(name, "Kente Cloth")
+    await user.type(name, "Kente Cloth")
 
     expect(screen.getByLabelText("Id")).toHaveValue("kente_cloth")
   })
@@ -143,8 +154,8 @@ describe("adding a gift", () => {
     // Number("") is 0, so an unfilled cost must not read as a free gift.
     show()
     await screen.findByText("Rose")
-    await userEvent.click(screen.getByRole("button", { name: /Add a gift/ }))
-    await userEvent.type(await screen.findByLabelText("Name"), "Kente Cloth")
+    await user.click(screen.getByRole("button", { name: /Add a gift/ }))
+    await user.type(await screen.findByLabelText("Name"), "Kente Cloth")
 
     expect(await screen.findByText("Give the gift a cost.")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Add gift" })).toBeDisabled()
@@ -153,11 +164,11 @@ describe("adding a gift", () => {
   it("saves once it has a name, an id and a cost", async () => {
     show()
     await screen.findByText("Rose")
-    await userEvent.click(screen.getByRole("button", { name: /Add a gift/ }))
-    await userEvent.type(await screen.findByLabelText("Name"), "Kente Cloth")
-    await userEvent.type(screen.getByLabelText("Cost in Cowries"), "2500")
+    await user.click(screen.getByRole("button", { name: /Add a gift/ }))
+    await user.type(await screen.findByLabelText("Name"), "Kente Cloth")
+    await user.type(screen.getByLabelText("Cost in Cowries"), "2500")
 
-    await userEvent.click(screen.getByRole("button", { name: "Add gift" }))
+    await user.click(screen.getByRole("button", { name: "Add gift" }))
 
     await waitFor(() =>
       expect(saveMock).toHaveBeenCalledWith(
@@ -171,10 +182,10 @@ describe("adding a gift", () => {
     // Blank means "use the platform default", which is not the same as zero.
     show()
     await screen.findByText("Rose")
-    await userEvent.click(screen.getByRole("button", { name: /Add a gift/ }))
-    await userEvent.type(await screen.findByLabelText("Name"), "Kente Cloth")
-    await userEvent.type(screen.getByLabelText("Cost in Cowries"), "2500")
-    await userEvent.click(screen.getByRole("button", { name: "Add gift" }))
+    await user.click(screen.getByRole("button", { name: /Add a gift/ }))
+    await user.type(await screen.findByLabelText("Name"), "Kente Cloth")
+    await user.type(screen.getByLabelText("Cost in Cowries"), "2500")
+    await user.click(screen.getByRole("button", { name: "Add gift" }))
 
     await waitFor(() => expect(saveMock).toHaveBeenCalled())
     const [, body] = saveMock.mock.calls[0]
@@ -187,7 +198,7 @@ describe("editing a gift", () => {
     // The id is the document id: editing it would create a second gift, not rename this one.
     show()
     await screen.findByText("Rose")
-    await userEvent.click(screen.getByRole("button", { name: "Edit Rose" }))
+    await user.click(screen.getByRole("button", { name: "Edit Rose" }))
 
     expect(await screen.findByLabelText("Name")).toHaveValue("Rose")
     expect(screen.getByLabelText("Cost in Cowries")).toHaveValue(50)
@@ -197,11 +208,11 @@ describe("editing a gift", () => {
   it("keeps the id when the name is changed", async () => {
     show()
     await screen.findByText("Rose")
-    await userEvent.click(screen.getByRole("button", { name: "Edit Rose" }))
+    await user.click(screen.getByRole("button", { name: "Edit Rose" }))
 
     const name = await screen.findByLabelText("Name")
-    await userEvent.clear(name)
-    await userEvent.type(name, "Rose Bouquet")
+    await user.clear(name)
+    await user.type(name, "Rose Bouquet")
 
     expect(screen.getByLabelText("Id")).toHaveValue("rose")
   })
@@ -213,7 +224,7 @@ describe("removing a gift", () => {
   it("asks first, and points at deactivating instead", async () => {
     show()
     await screen.findByText("Rose")
-    await userEvent.click(screen.getByRole("button", { name: "Remove Rose" }))
+    await user.click(screen.getByRole("button", { name: "Remove Rose" }))
 
     expect(await screen.findByText("Remove Rose?")).toBeInTheDocument()
     expect(screen.getByText(/Sendable/)).toBeInTheDocument()
@@ -223,8 +234,8 @@ describe("removing a gift", () => {
   it("removes it once confirmed", async () => {
     show()
     await screen.findByText("Rose")
-    await userEvent.click(screen.getByRole("button", { name: "Remove Rose" }))
-    await userEvent.click(await screen.findByRole("button", { name: "Remove" }))
+    await user.click(screen.getByRole("button", { name: "Remove Rose" }))
+    await user.click(await screen.findByRole("button", { name: "Remove" }))
 
     await waitFor(() => expect(deleteMock).toHaveBeenCalledWith("rose"))
   })
@@ -232,8 +243,8 @@ describe("removing a gift", () => {
   it("does nothing when the confirmation is dismissed", async () => {
     show()
     await screen.findByText("Rose")
-    await userEvent.click(screen.getByRole("button", { name: "Remove Rose" }))
-    await userEvent.click(await screen.findByRole("button", { name: "Keep it" }))
+    await user.click(screen.getByRole("button", { name: "Remove Rose" }))
+    await user.click(await screen.findByRole("button", { name: "Keep it" }))
 
     await waitFor(() => expect(screen.queryByText("Remove Rose?")).not.toBeInTheDocument())
     expect(deleteMock).not.toHaveBeenCalled()
@@ -242,7 +253,7 @@ describe("removing a gift", () => {
   it("says the gift history is unaffected, because that is the worry", async () => {
     show()
     await screen.findByText("Rose")
-    await userEvent.click(screen.getByRole("button", { name: "Remove Rose" }))
+    await user.click(screen.getByRole("button", { name: "Remove Rose" }))
 
     expect(await screen.findByText(/Gifts already sent are unaffected/i)).toBeInTheDocument()
   })

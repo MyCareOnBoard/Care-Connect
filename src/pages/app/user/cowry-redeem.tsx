@@ -32,7 +32,7 @@ import {
   REDEEM_REFUSAL_MESSAGES,
   WALLET_LABELS,
   formatCowries,
-  isValidNigerianMobile,
+  isValidMobile,
 } from "@/utils/careconnect/cowry"
 
 /**
@@ -131,7 +131,7 @@ export default function CowryRedeemPage() {
   const price = selected?.pricing?.[walletType]
   const balance = catalog?.wallet?.[walletType]?.available ?? 0
   const affordable = price ? balance >= price.total : false
-  const phoneValid = isValidNigerianMobile(phoneNumber)
+  const phoneValid = isValidMobile(phoneNumber)
 
   async function submit() {
     if (!selected || !price) return
@@ -338,7 +338,7 @@ export default function CowryRedeemPage() {
         : !affordable
           ? `You need ${formatCowries((price?.total ?? 0) - balance)} more ${WALLET_LABELS[walletType]} for this package.`
           : !phoneValid
-            ? "Enter the Nigerian mobile number to send the data to."
+            ? "Enter the mobile number to send the data to."
             : null
 
   return (
@@ -460,7 +460,7 @@ export default function CowryRedeemPage() {
               id="cowry-phone"
               inputMode="tel"
               autoComplete="tel"
-              placeholder="08012345678"
+              placeholder="08012345678 or +233 20 123 4567"
               value={phoneNumber}
               onChange={(event) => setPhoneNumber(event.target.value)}
               onBlur={() => setPhoneTouched(true)}
@@ -474,7 +474,7 @@ export default function CowryRedeemPage() {
             className={cn("mt-1.5 text-xs", showPhoneError ? "text-[#b4372c]" : "text-[#657080]")}
           >
             {showPhoneError
-              ? "That doesn't look like a Nigerian mobile number, e.g. 08012345678."
+              ? "Include the country code, like +233 20 123 4567. Nigerian numbers can be written as 08012345678."
               : "A number can only receive data for one account."}
           </p>
         </div>
