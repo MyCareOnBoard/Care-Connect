@@ -1119,6 +1119,62 @@ html.dark .skeleton-shimmer::after {
     }
 }
 
+/* The garden, once it is up: a breeze through the flowers, grass greening the soil,
+   petals lifting on the air and butterflies passing through. */
+@keyframes harvestSway {
+    from { transform: rotate(-2.5deg); }
+    to { transform: rotate(2.5deg); }
+}
+.harvest-sway {
+    transform-origin: 50% 100%;
+    animation: harvestSway 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes harvestGrass {
+    0%, 30% { transform: scaleY(0); opacity: 0; }
+    55%, 100% { transform: scaleY(1); opacity: 1; }
+}
+.harvest-grass {
+    transform-origin: 50% 100%;
+    animation: harvestGrass 5.6s ease-out both;
+}
+
+@keyframes harvestPetal {
+    0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+    15% { opacity: 1; }
+    100% { transform: translate(var(--petal-dx, 0vw), -45vh) rotate(360deg); opacity: 0; }
+}
+.harvest-petal {
+    opacity: 0;
+    animation: harvestPetal 2.2s ease-out both;
+}
+
+@keyframes harvestButterfly {
+    0% { transform: translate(-12vw, 0); opacity: 0; }
+    8% { opacity: 1; }
+    30% { transform: translate(28vw, -7vh); }
+    60% { transform: translate(62vw, 3vh); }
+    100% { transform: translate(112vw, -6vh); opacity: 1; }
+}
+.harvest-butterfly {
+    opacity: 0;
+    animation: harvestButterfly 2.1s ease-in-out both;
+}
+
+@keyframes harvestWing {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0.25); }
+}
+.harvest-wing {
+    animation: harvestWing 0.14s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .harvest-sway, .harvest-grass, .harvest-petal, .harvest-butterfly, .harvest-wing {
+        animation: none !important;
+    }
+}
+
 /* ── Legendary gifts ─────────────────────────────────────────────────────────
    A warm breathing glow behind the icon, and a band of light sweeping its coin. */
 
