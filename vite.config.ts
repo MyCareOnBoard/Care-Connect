@@ -31,6 +31,17 @@ export default defineConfig(({ mode }) => {
       globals: true,
       environment: 'jsdom',
       setupFiles: './src/setupTests.ts',
+      /*
+       * Raised from the 5s default.
+       *
+       * These are component tests, not unit tests: they mount real Radix dialogs, type
+       * through them and wait for effects, and the heavier ones took three to five seconds
+       * on their own. Vitest runs files in parallel, so under a full-suite run those tipped
+       * over five seconds at random and the suite failed a different three to six tests each
+       * time. Twenty seconds is still short enough to catch a genuinely hung test and long
+       * enough that load variance is not a failure.
+       */
+      testTimeout: 20000,
       coverage: {
         reporter: ['text', 'json', 'html'],
         exclude: [
