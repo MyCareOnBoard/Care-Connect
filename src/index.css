@@ -1529,3 +1529,52 @@ body.auth-layout-active {
 body.auth-layout-active .grecaptcha-badge {
   visibility: hidden !important;
 }
+
+/* ── Admin tables on a phone ───────────────────────────────────────────────
+   Wide operator tables scroll sideways on a phone, which hides the column that matters.
+   Below 640px each row becomes a card instead, every cell labelled with its column name
+   (from the cell's data-label), so nothing is off-screen and nothing loses its meaning. */
+@media (max-width: 639.98px) {
+    .admin-table thead {
+        display: none;
+    }
+    .admin-table,
+    .admin-table tbody,
+    .admin-table tr,
+    .admin-table td {
+        display: block;
+        width: 100%;
+    }
+    .admin-table tr {
+        margin-bottom: 0.75rem;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 1rem;
+        padding: 0.5rem 0.875rem;
+    }
+    .admin-table td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.375rem 0 !important;
+        text-align: right;
+    }
+    .admin-table td[data-label]:not([data-label=""])::before {
+        content: attr(data-label);
+        flex-shrink: 0;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-align: left;
+    }
+    .admin-table td[data-label=""] {
+        justify-content: flex-end;
+    }
+}
+
+html.dark .admin-table tr {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+html.dark .admin-table td[data-label]:not([data-label=""])::before {
+    color: #9aa4b2;
+}
