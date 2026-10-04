@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react"
+import { Crown, Pencil, Play, Plus, RefreshCw, Search, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -26,6 +26,9 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { GiftIcon } from "@/components/cowry/GiftIcon"
 import { CowryIcon } from "@/components/cowry/CowryIcon"
+import { GiftSplash, type GiftSplashData } from "@/components/cowry/GiftSplash"
+import { giftArrivalFor, type GiftArrival } from "@/components/cowry/giftAnimations"
+import { GIFT_ICON_RULES } from "@/components/cowry/giftIcons"
 import { GIFT_SET_LABELS, formatCowries } from "@/utils/careconnect/cowry"
 import { getAuthErrorMessage } from "@/utils/auth"
 import { cn } from "@/lib/utils"
@@ -65,6 +68,22 @@ import {
 
 const SETS: CowryGiftSetId[] = ["everyday", "warm", "bold", "rare", "legendary"]
 
+/** What each full-screen arrival looks like, in a few words, for the legendary badge. */
+const ARRIVAL_LABELS: Partial<Record<GiftArrival, string>> = {
+  "rose-bloom": "Rose blooms",
+  "thunder-strike": "Thunder strike",
+  "eternal-flame": "Wall of flame",
+  "rising-sun": "Sunrise",
+  "city-of-lights": "City lights up",
+  "eagle-flight": "Eagle flight",
+  "lion-storm": "Lion in a storm",
+  "earth-harvest": "Rain and a garden",
+  "ancestral-mark": "Ancestral marks",
+  "phoenix-rise": "Phoenix rises",
+  "ocean-pearl": "Pearl revealed",
+  "cowry-throne": "Cowry throne",
+}
+
 /** Gift sets get their own tint, so a legendary gift looks like one. */
 const SET_TINTS: Record<string, string> = {
   everyday: "bg-[#eef1f3] text-[#565656]",
@@ -78,14 +97,20 @@ function GiftRow({
   gift,
   onEdit,
   onDelete,
+  onPreview,
+  showSet,
   busy,
 }: {
   gift: CowryAdminGift
   onEdit: () => void
   onDelete: () => void
+  onPreview: () => void
+  /** In search results, which set each gift is in. */
+  showSet?: boolean
   busy: boolean
 }) {
   const inactive = gift.active === false
+  const arrival = giftArrivalFor({ id: gift.id, label: gift.label, icon: gift.icon }, "received")
   return (
     <li
       className={cn(
@@ -110,11 +135,40 @@ function GiftRow({
               Not sendable
             </span>
           )}
+          {showSet && (
+            <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", SET_TINTS[gift.set] ?? SET_TINTS.everyday)}>
+              {GIFT_SET_LABELS[gift.set] ?? gift.set}
+            </span>
+          )}
+          {arrival !== "rain" && (
+            /* The legendary tier is defined by this: say which scene the receiver gets. */
+            <span className="inline-flex items-center gap-1 rounded-full bg-[linear-gradient(135deg,#fff1c7,#f3c969)] px-2 py-0.5 text-[11px] font-semibold text-[#7a5310]">
+              <Crown className="size-3" aria-hidden="true" />
+              {ARRIVAL_LABELS[arrival] ?? "Full screen"}
+            </span>
+          )}
+          {arrival === "rain" && gift.set === "legendary" && (
+            /* Legendary in the catalogue but a name the app has no scene for: it would
+               arrive like any other gift, which is worth knowing before members pay for it. */
+            <span
+              className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200"
+              title="The app has no full-screen scene for this name, so it arrives like any other gift"
+            >
+              No full-screen scene
+            </span>
+          )}
         </p>
         <p className="truncate text-xs text-[#8b95a1]">
           {gift.id}
-          {gift.creatorRate !== undefined && gift.creatorRate !== null && (
-            <> · creator gets {Math.round(gift.creatorRate * 100)}%</>
+          {gift.creatorRate !== undefined && gift.creatorRate !== null ? (
+            <>
+              {" "}
+              · creator earns{" "}
+              <span className="font-semibold text-[#1f9c4c]">{formatCowries(Math.floor(gift.cost * gift.creatorRate))}</span>{" "}
+              ({Math.round(gift.creatorRate * 100)}%)
+            </>
+          ) : (
+            <> · creator earns the platform default share</>
           )}
         </p>
       </div>
@@ -125,6 +179,16 @@ function GiftRow({
       </p>
 
       <div className="flex shrink-0 gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onPreview}
+          aria-label={`Preview ${gift.label} as a receiver sees it`}
+          title="Preview as a receiver sees it"
+          className="text-[#00868a] hover:bg-[#e6f8f8]"
+        >
+          <Play className="size-4" aria-hidden="true" />
+        </Button>
         <Button variant="ghost" size="sm" onClick={onEdit} disabled={busy} aria-label={`Edit ${gift.label}`}>
           <Pencil className="size-4" aria-hidden="true" />
         </Button>
@@ -150,6 +214,11 @@ export function GiftCatalogManager() {
   const [draft, setDraft] = useState<GiftDraft | null>(null)
   const [saving, setSaving] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<CowryAdminGift | null>(null)
+  const [activeSet, setActiveSet] = useState<CowryGiftSetId>("everyday")
+  const [query, setQuery] = useState("")
+  const [preview, setPreview] = useState<GiftSplashData | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [iconFilter, setIconFilter] = useState("")
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -209,10 +278,35 @@ export function GiftCatalogManager() {
     }
   }
 
-  const gifts = catalog?.gifts ?? []
+  const gifts = useMemo(() => catalog?.gifts ?? [], [catalog])
+  const counts = useMemo(() => {
+    const next: Record<string, number> = {}
+    for (const gift of gifts) next[gift.set] = (next[gift.set] ?? 0) + 1
+    return next
+  }, [gifts])
+
+  // Searching looks across every set; otherwise the tab's own gifts, cheapest first.
+  const needle = query.trim().toLowerCase()
+  const shown = needle
+    ? gifts.filter((gift) => `${gift.label} ${gift.id}`.toLowerCase().includes(needle))
+    : gifts.filter((gift) => gift.set === activeSet).sort((a, b) => a.cost - b.cost)
+
+  /** Plays the gift exactly as a receiver would get it — full screen for the legendary. */
+  const previewGift = (gift: CowryAdminGift) =>
+    setPreview({
+      key: `admin-preview-${gift.id}-${Date.now()}`,
+      gift: { id: gift.id, label: gift.label, icon: gift.icon },
+      set: gift.set,
+      cost: gift.cost,
+      senderName: "Preview",
+      message: "This is how it arrives.",
+      // Only when the gift sets its own share; the platform default is not known here.
+      creatorAmount: gift.creatorRate != null ? Math.floor(gift.cost * gift.creatorRate) : null,
+      direction: "received",
+    })
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-6">
+    <section className="rounded-2xl border border-gray-200 bg-white p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-[#10141a]">Gift catalogue</h2>
@@ -220,7 +314,7 @@ export function GiftCatalogManager() {
             What members can send, what it costs them, and what the creator earns.
           </p>
         </div>
-        <Button onClick={() => setDraft(emptyGiftDraft())} disabled={loading || saving}>
+        <Button onClick={() => setDraft({ ...emptyGiftDraft(), set: activeSet })} disabled={loading || saving}>
           <Plus className="mr-2 size-4" aria-hidden="true" />
           Add a gift
         </Button>
@@ -270,44 +364,145 @@ export function GiftCatalogManager() {
           </p>
         </div>
       ) : (
-        <div className="mt-5 space-y-5">
-          {SETS.filter((set) => gifts.some((gift) => gift.set === set)).map((set) => (
-            <div key={set}>
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-[#8b95a1]">
-                {GIFT_SET_LABELS[set] ?? set}
-              </h3>
-              <ul className="divide-y divide-[#eef1f3] overflow-hidden rounded-lg ring-1 ring-[#e2e6ea]">
-                {gifts
-                  .filter((gift) => gift.set === set)
-                  .map((gift) => (
-                    <GiftRow
-                      key={gift.id}
-                      gift={gift}
-                      busy={saving}
-                      onEdit={() => setDraft(giftDraftFrom(gift))}
-                      onDelete={() => setPendingDelete(gift)}
-                    />
-                  ))}
-              </ul>
+        <div className="mt-5">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* One tab per set — the gift tray's own sets, legendary in gold as it is there. */}
+            <div
+              role="tablist"
+              aria-label="Gift sets"
+              className={cn(
+                "scrollbar-hide flex flex-1 gap-1.5 overflow-x-auto rounded-full bg-[#f4f6f8] p-1",
+                needle && "opacity-50",
+              )}
+            >
+              {SETS.map((set) => {
+                const active = !needle && activeSet === set
+                const legendary = set === "legendary"
+                return (
+                  <button
+                    key={set}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => {
+                      setActiveSet(set)
+                      setQuery("")
+                    }}
+                    className={cn(
+                      "flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all duration-200",
+                      legendary
+                        ? active
+                          ? "legendary-shine relative overflow-hidden bg-[linear-gradient(135deg,#f3c969,#c8963e)] text-white shadow"
+                          : "text-[#a8793f] hover:bg-[#fff4df]"
+                        : active
+                          ? "bg-white text-[#10141a] shadow"
+                          : "text-[#4f4f4f] hover:bg-white/70",
+                    )}
+                  >
+                    {legendary && <Crown className="size-3.5" aria-hidden="true" />}
+                    {GIFT_SET_LABELS[set] ?? set}
+                    <span
+                      className={cn(
+                        "rounded-full px-1.5 text-xs tabular-nums",
+                        active ? (legendary ? "bg-white/25" : "bg-[#eef1f3]") : "bg-white/70 text-[#8b95a1]",
+                      )}
+                    >
+                      {counts[set] ?? 0}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
-          ))}
+
+            <div className="relative w-full sm:w-56">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8b95a1]" aria-hidden="true" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search all gifts"
+                aria-label="Search all gifts"
+                className="rounded-full pl-9 pr-8"
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  aria-label="Clear search"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-[#8b95a1] hover:bg-[#eef1f3]"
+                >
+                  <X className="size-3.5" aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {!needle && activeSet === "legendary" && (
+            <p className="animate-fadeIn mt-3 flex items-center gap-2 rounded-xl bg-[linear-gradient(90deg,#fff4df,#fffaf0)] px-3 py-2 text-xs text-[#7a5310] ring-1 ring-[#f0dcae]">
+              <Crown className="size-4 shrink-0 text-[#c8963e]" aria-hidden="true" />
+              Legendary gifts arrive full screen on the receiver&apos;s side, each with its own scene and
+              sound and a &ldquo;Congratulations on the (amount) Gift&rdquo; caption. A gift only gets a
+              scene when its name is one the app knows: the gold badge says which. Press play to watch it.
+            </p>
+          )}
+
+          {shown.length === 0 ? (
+            <div className="mt-4 rounded-lg border border-dashed border-[#d7dde3] p-8 text-center">
+              <p className="text-sm font-semibold text-[#4f5862]">
+                {needle ? `No gift matches "${query.trim()}"` : `No ${GIFT_SET_LABELS[activeSet] ?? activeSet} gifts`}
+              </p>
+              <p className="mt-1 text-sm text-[#8b95a1]">
+                {needle ? "Search looks at names and ids across every set." : "This tab is hidden from the gift tray until one is added."}
+              </p>
+            </div>
+          ) : (
+            <ul
+              key={needle ? "search" : activeSet}
+              role="tabpanel"
+              className="animate-fade-in-up mt-4 divide-y divide-[#eef1f3] overflow-hidden rounded-lg ring-1 ring-[#e2e6ea]"
+            >
+              {shown.map((gift) => (
+                <GiftRow
+                  key={gift.id}
+                  gift={gift}
+                  busy={saving}
+                  showSet={Boolean(needle)}
+                  onEdit={() => setDraft(giftDraftFrom(gift))}
+                  onDelete={() => setPendingDelete(gift)}
+                  onPreview={() => previewGift(gift)}
+                />
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
       {/* ── the add / edit form ────────────────────────────────────────────── */}
 
       <Dialog open={Boolean(draft)} onOpenChange={(open) => !open && setDraft(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{draft?.isNew ? "Add a gift" : `Edit ${draft?.label}`}</DialogTitle>
-            <DialogDescription>
-              Changing a cost affects gifts sent from now on. Gifts already sent keep what they
-              cost at the time.
-            </DialogDescription>
+        {/* A column: the title and the buttons stay put, and only the form between them
+            scrolls — the icon picker can make it taller than a laptop screen. */}
+        <DialogContent showCloseButton className="flex max-h-[min(90vh,780px)] flex-col overflow-hidden sm:max-w-xl">
+          <DialogHeader className="border-b border-[#eef1f3] pb-4 pr-16">
+            <div className="flex items-center gap-3">
+              {draft && (
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#f4f6f8]">
+                  <GiftIcon gift={{ id: draft.id, label: draft.label, icon: draft.icon.trim() }} size={30} />
+                </span>
+              )}
+              <div className="min-w-0">
+                <DialogTitle className="truncate text-lg font-semibold text-[#10141a]">
+                  {draft?.isNew ? "Add a gift" : `Edit ${draft?.label}`}
+                </DialogTitle>
+                <DialogDescription className="mt-1">
+                  Changing a cost affects gifts sent from now on. Gifts already sent keep what
+                  they cost at the time.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
           {draft && (
-            <div className="space-y-4">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
               <div>
                 <label htmlFor="gift-label" className="text-sm font-medium text-[#10141a]">
                   Name
@@ -424,6 +619,63 @@ export function GiftCatalogManager() {
                   Only needed when the name does not suggest one. Leave it empty to go back to
                   matching by name — the preview shows what members will see.
                 </p>
+
+                {/* Every icon the app can draw, to pick from rather than guess a key. */}
+                <button
+                  type="button"
+                  onClick={() => setPickerOpen((open) => !open)}
+                  className="mt-2 text-xs font-semibold text-[#00868a] hover:underline"
+                  aria-expanded={pickerOpen}
+                >
+                  {pickerOpen ? "Hide the icons" : "Choose from the icons"}
+                </button>
+                {pickerOpen && (
+                  <div className="animate-fadeIn mt-2 rounded-xl border border-[#e2e6ea] p-2">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={iconFilter}
+                        onChange={(e) => setIconFilter(e.target.value)}
+                        placeholder="Filter, e.g. flower"
+                        aria-label="Filter icons"
+                        className="h-8 text-sm"
+                      />
+                      {draft.icon && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDraft((d) => (d ? { ...d, icon: "" } : d))}
+                        >
+                          Match by name
+                        </Button>
+                      )}
+                    </div>
+                    <div className="mt-2 grid max-h-48 grid-cols-6 gap-1 overflow-y-auto sm:grid-cols-8">
+                      {GIFT_ICON_RULES.filter((rule) => {
+                        const needle = iconFilter.trim().toLowerCase()
+                        return !needle || rule.key.includes(needle) || rule.match.some((word) => word.includes(needle))
+                      }).map((rule) => {
+                        const chosen = draft.icon.trim().toLowerCase() === rule.key
+                        return (
+                          <button
+                            key={rule.key}
+                            type="button"
+                            title={rule.key}
+                            aria-label={`Use the ${rule.key} icon`}
+                            aria-pressed={chosen}
+                            onClick={() => setDraft((d) => (d ? { ...d, icon: rule.key } : d))}
+                            className={cn(
+                              "flex aspect-square items-center justify-center rounded-lg transition hover:bg-[#f2f6f8]",
+                              chosen && "bg-[#e6f8f8] ring-2 ring-[#00b3ad]",
+                            )}
+                          >
+                            <GiftIcon gift={{ icon: rule.key }} size={24} />
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
@@ -444,7 +696,7 @@ export function GiftCatalogManager() {
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="border-t border-[#eef1f3] pt-4">
             <Button variant="outline" onClick={() => setDraft(null)} disabled={saving}>
               Cancel
             </Button>
@@ -482,6 +734,8 @@ export function GiftCatalogManager() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {preview && <GiftSplash key={preview.key} data={preview} onDone={() => setPreview(null)} />}
     </section>
   )
 }
