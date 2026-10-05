@@ -82,19 +82,40 @@ const show = () => render(<GiftCatalogManager />)
 /* ── reading it ──────────────────────────────────────────────────────────── */
 
 describe("the catalogue", () => {
-  it("lists the gifts, grouped by set", async () => {
+  it("lists the gifts in a tab per set, with how many each holds", async () => {
     show()
     expect(await screen.findByText("Rose")).toBeInTheDocument()
-    expect(screen.getByText("Bouquet")).toBeInTheDocument()
-    expect(screen.getByText("Everyday")).toBeInTheDocument()
-    expect(screen.getByText("Legendary")).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: /Everyday\s*2/ })).toHaveAttribute("aria-selected", "true")
+    expect(screen.getByRole("tab", { name: /Legendary\s*1/ })).toBeInTheDocument()
+    // Another set's gifts wait behind their own tab.
+    expect(screen.queryByText("Bouquet")).not.toBeInTheDocument()
+    await user.click(screen.getByRole("tab", { name: /Warm/ }))
+    expect(await screen.findByText("Bouquet")).toBeInTheDocument()
+    expect(screen.queryByText("Rose")).not.toBeInTheDocument()
+  })
+
+  it("searches across every set", async () => {
+    show()
+    await screen.findByText("Rose")
+    await user.type(screen.getByRole("textbox", { name: "Search all gifts" }), "bouq")
+    expect(await screen.findByText("Bouquet")).toBeInTheDocument()
+    expect(screen.queryByText("Rose")).not.toBeInTheDocument()
   })
 
   it("shows a deactivated gift, marked, rather than hiding it", async () => {
     // A screen that hid them could never turn one back on.
     show()
+    await screen.findByText("Rose")
+    await user.click(screen.getByRole("tab", { name: /Legendary/ }))
     expect(await screen.findByText("Royal Crown")).toBeInTheDocument()
     expect(screen.getByText("Not sendable")).toBeInTheDocument()
+  })
+
+  it("flags a legendary gift the app has no full-screen scene for", async () => {
+    show()
+    await screen.findByText("Rose")
+    await user.click(screen.getByRole("tab", { name: /Legendary/ }))
+    expect(await screen.findByText("No full-screen scene")).toBeInTheDocument()
   })
 
   it("says nothing is sendable when the catalogue is empty", async () => {
