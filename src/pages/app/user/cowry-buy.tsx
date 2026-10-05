@@ -16,6 +16,7 @@ import {
 } from "@/components/cowry/CowryUI"
 import { Routes } from "@/routes/constants"
 import { isMockAuthorizationUrl } from "@/utils/careconnect/mockPaymentProvider"
+import { purchaseIdFromReturn } from "@/utils/careconnect/purchaseReturn"
 import { getAuthErrorMessage } from "@/utils/auth"
 import {
   getPurchasePackages,
@@ -80,7 +81,9 @@ function ShellStack({ count }: { count: number }) {
 export default function CowryBuyPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const returningPurchaseId = searchParams.get("purchase")
+  // Not just "purchase": a provider sends the buyer back with its own reference under its
+  // own name, and ours is what we gave it. See purchaseIdFromReturn.
+  const returningPurchaseId = purchaseIdFromReturn(searchParams)
 
   const [packages, setPackages] = useState<CowryPurchasePackage[] | null>(null)
   const [loading, setLoading] = useState(true)
