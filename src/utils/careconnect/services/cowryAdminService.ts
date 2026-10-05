@@ -12,6 +12,7 @@
  */
 
 import axiosClient from "@/lib/axios"
+import type { Timestampish } from "@/utils/careconnect/types"
 
 export type CowryPoolType =
   | "daily_engagement"
@@ -274,6 +275,67 @@ export function suggestGiftId(label: string): string {
 
 /** What the backend will accept as a gift id. */
 export const GIFT_ID_PATTERN = /^[a-z0-9][a-z0-9_]*$/
+
+/* ── The sent-gift log ───────────────────────────────────────────────────── */
+
+export interface CowrySentGift {
+  id: string
+  giftId: string
+  giftLabel: string
+  giftSet: CowryGiftSetId
+  /** Purchased Cowries the sender spent. */
+  cost: number
+  /** Creator Cowries minted for the recipient. Always less than the cost. */
+  creatorAmount: number
+  senderId: string
+  senderName?: string | null
+  recipientId: string
+  recipientName?: string | null
+  targetType?: "post" | "profile" | null
+  targetId?: string | null
+  visible?: boolean
+  releaseAt?: Timestampish
+  createdAt?: Timestampish
+  /**
+   * Whether the sender attached a note. The note itself is never returned: an admin list of
+   * private messages between members would be surveillance rather than an audit trail.
+   */
+  hasMessage: boolean
+  /** Whether the creator's share is still inside its chargeback window. */
+  held: boolean
+}
+
+export interface CowrySentGiftTotals {
+  /** Across the whole filtered set, not the page. Null when aggregation was unavailable. */
+  gifts: number | null
+  cost: number | null
+  creatorAmount: number | null
+  /** False means the three figures above are null and the log cannot total itself. */
+  exact: boolean
+}
+
+export interface CowrySentGiftLog {
+  data: CowrySentGift[]
+  totals: CowrySentGiftTotals
+  paging: { limit: number; offset: number; hasMore: boolean }
+}
+
+export interface ListSentGiftsParams {
+  /** Sender and recipient cannot both be set; the backend refuses it. */
+  senderId?: string
+  recipientId?: string
+  giftId?: string
+  from?: string
+  to?: string
+  limit?: number
+  offset?: number
+}
+
+/** Every gift that has been sent, newest first, with exact totals for the filter. */
+export async function listSentGifts(params: ListSentGiftsParams = {}): Promise<CowrySentGiftLog> {
+  const { data } = await axiosClient.get("/careconnectCowry/admin/gifts/sent", { params })
+  return { data: data.data, totals: data.totals, paging: data.paging }
+}
 
 /** One data package. Changing a price changes what every user pays next redemption. */
 export async function savePackage(

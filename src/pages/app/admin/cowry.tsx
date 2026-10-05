@@ -23,6 +23,7 @@ import { toast } from "sonner"
 import { holdDescription } from "@/utils/careconnect/creatorHold"
 import { GiftCatalogManager } from "@/components/cowry/GiftCatalogManager"
 import { AdminGiftAnalytics } from "@/components/cowry/AdminGiftAnalytics"
+import { GiftLog } from "@/components/cowry/GiftLog"
 import { COWRY_TABS, useAdminNav, type CowryTabKey } from "@/components/admin/adminNav"
 import {
   AlertDialog,
@@ -1356,6 +1357,12 @@ export default function AdminCowryPage() {
       {activeTab === "analytics" && (
         <div key="analytics" className="animate-fade-in-up">
           <AdminGiftAnalytics />
+        </div>
+      )}
+
+      {activeTab === "giftLog" && (
+        <div key="giftLog" className="animate-fade-in-up">
+          <GiftLog />
         </div>
       )}
 

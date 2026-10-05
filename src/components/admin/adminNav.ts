@@ -6,6 +6,7 @@ import {
   Gift,
   History,
   Package,
+  Receipt,
   Scale,
   Sparkles,
   type LucideIcon,
@@ -23,6 +24,7 @@ export type CowryTabKey =
   | "packages"
   | "gifts"
   | "analytics"
+  | "giftLog"
   | "reconciliation"
   | "log"
 
@@ -33,6 +35,7 @@ export const COWRY_TABS: Array<{ key: CowryTabKey; label: string; icon: LucideIc
   { key: "packages", label: "Data packages", icon: Package },
   { key: "gifts", label: "Gifts", icon: Gift },
   { key: "analytics", label: "Gift activity", icon: BarChart3 },
+  { key: "giftLog", label: "Gifts sent", icon: Receipt },
   { key: "reconciliation", label: "Reconciliation", icon: Scale },
   { key: "log", label: "Change log", icon: History },
 ]
