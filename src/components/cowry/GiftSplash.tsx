@@ -12,6 +12,8 @@ import { CowryThrone } from "@/components/cowry/moments/CowryThrone"
 import { EternalFlame } from "@/components/cowry/moments/EternalFlame"
 import { LionStorm } from "@/components/cowry/moments/LionStorm"
 import { HarvestRain } from "@/components/cowry/moments/HarvestRain"
+import { VideoMoment } from "@/components/cowry/moments/VideoMoment"
+import { giftVideoFor } from "@/components/cowry/giftVideos"
 import { OceanPearl } from "@/components/cowry/moments/OceanPearl"
 import { PhoenixRise } from "@/components/cowry/moments/PhoenixRise"
 import { RisingSun } from "@/components/cowry/moments/RisingSun"
@@ -121,9 +123,17 @@ export function GiftSplash({ data, onDone }: { data: GiftSplashData; onDone: () 
 
   if (phase === "moment") {
     const scene = (() => {
-      if (arrival === "eagle-flight") return <EagleFlight onDone={showCard} />
-      if (arrival === "lion-storm") return <LionStorm onDone={showCard} />
-      if (arrival === "earth-harvest") return <HarvestRain onDone={showCard} />
+      // Filmed where there is a video for it; the drawn scene otherwise, and as its fallback.
+      const drawn =
+        arrival === "eagle-flight" ? <EagleFlight onDone={showCard} />
+        : arrival === "lion-storm" ? <LionStorm onDone={showCard} />
+        : arrival === "earth-harvest" ? <HarvestRain onDone={showCard} />
+        : null
+      const video = giftVideoFor(arrival)
+      if (drawn && video) {
+        return <VideoMoment src={video} label={`${label} arrives`} onDone={showCard} fallback={drawn} />
+      }
+      if (drawn) return drawn
       if (arrival === "rose-bloom") return <RoseBloom onDone={showCard} />
       if (arrival === "thunder-strike") return <ThunderStrike onDone={showCard} />
       if (arrival === "eternal-flame") return <EternalFlame onDone={showCard} />
@@ -175,11 +185,13 @@ export function GiftSplash({ data, onDone }: { data: GiftSplashData; onDone: () 
             aria-hidden="true"
           />
 
+          {/* z-10: the content row below is positioned too and comes later, so without it
+              that row sat on top of this button and swallowed most clicks on the ×. */}
           <button
             type="button"
             onClick={() => setLeaving(true)}
             aria-label="Dismiss"
-            className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-full text-[#657080] transition hover:bg-[#f2f6f8]"
+            className="absolute right-2 top-2 z-10 flex size-10 items-center justify-center rounded-full text-[#657080] transition hover:bg-[#f2f6f8] active:scale-95"
           >
             <X className="size-4" aria-hidden="true" />
           </button>
@@ -199,7 +211,7 @@ export function GiftSplash({ data, onDone }: { data: GiftSplashData; onDone: () 
               </span>
             </span>
 
-            <div className="min-w-0 pr-6">
+            <div className="min-w-0 pr-9">
               <p className="text-xs font-semibold uppercase tracking-wide" style={{ color }}>
                 {data.direction === "received" ? "You got a gift" : "Gift sent"}
               </p>
