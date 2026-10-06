@@ -1,4 +1,4 @@
-import { resolveGiftIcon, type GiftLike } from "@/components/cowry/giftIcons"
+import { matchGiftByName, overrideRule, type GiftLike } from "@/components/cowry/giftIcons"
 
 /**
  * How each gift arrives on the receiver's screen.
@@ -48,6 +48,12 @@ export function giftArrivalFor(gift: GiftLike | null | undefined, direction: "re
   // The big moment is the receiver's. The sender's tray is still open, and they get the
   // gift's own icon raining down instead.
   if (direction !== "received") return "rain"
-  const resolved = resolveGiftIcon(gift)
-  return resolved.kind === "rule" ? ARRIVALS[resolved.rule.key] ?? "rain" : "rain"
+  // By what the gift is called first: an icon override changes the picture, not the moment.
+  // Only a gift whose name has no moment of its own can borrow one through its override —
+  // so an admin can still give "Garden Rain" the Earth Harvest arrival by choosing that icon.
+  const byName = matchGiftByName(gift)
+  const named = byName ? ARRIVALS[byName.key] : undefined
+  if (named) return named
+  const chosen = overrideRule(gift)
+  return (chosen && ARRIVALS[chosen.key]) ?? "rain"
 }

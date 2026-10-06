@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import { Crown, Pencil, Play, Plus, RefreshCw, Search, Trash2, X } from "lucide-react"
+import { Crown, Loader2, Pencil, Play, Plus, RefreshCw, Search, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -482,7 +482,7 @@ export function GiftCatalogManager() {
         {/* A column: the title and the buttons stay put, and only the form between them
             scrolls — the icon picker can make it taller than a laptop screen. */}
         <DialogContent showCloseButton className="flex max-h-[min(90vh,780px)] flex-col overflow-hidden sm:max-w-xl">
-          <DialogHeader className="border-b border-[#eef1f3] pb-4 pr-16">
+          <DialogHeader className="shrink-0 border-b border-[#eef1f3] pb-4 pr-16">
             <div className="flex items-center gap-3">
               {draft && (
                 <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#f4f6f8]">
@@ -696,11 +696,18 @@ export function GiftCatalogManager() {
             </div>
           )}
 
-          <DialogFooter className="border-t border-[#eef1f3] pt-4">
+          <DialogFooter className="shrink-0 border-t border-[#eef1f3] pt-4">
             <Button variant="outline" onClick={() => setDraft(null)} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={() => void commit()} disabled={saving || Boolean(problem)}>
+            {/* Its own green, not the theme's primary — which the admin shell does not set,
+                and which left this button blank on a white dialog. */}
+            <Button
+              onClick={() => void commit()}
+              disabled={saving || Boolean(problem)}
+              className="bg-[#1f9c4c] text-white shadow-[0_6px_16px_-6px_rgba(31,156,76,0.6)] hover:bg-[#178a42] hover:opacity-100"
+            >
+              {saving && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
               {draft?.isNew ? "Add gift" : "Save changes"}
             </Button>
           </DialogFooter>
