@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner"
 import { holdDescription } from "@/utils/careconnect/creatorHold"
 import { GiftCatalogManager } from "@/components/cowry/GiftCatalogManager"
+import { TaxonomyManager } from "@/components/cowry/TaxonomyManager"
 import { AdminGiftAnalytics } from "@/components/cowry/AdminGiftAnalytics"
 import { GiftLog } from "@/components/cowry/GiftLog"
 import { COWRY_TABS, useAdminNav, type CowryTabKey } from "@/components/admin/adminNav"
@@ -1002,7 +1003,12 @@ export default function AdminCowryPage() {
       {/* ── gifts ──────────────────────────────────────────────────────── */}
       {activeTab === "gifts" && (
         <div key="gifts" className="animate-fade-in-up grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <GiftCatalogManager />
+          <div className="space-y-5">
+            <GiftCatalogManager />
+            {/* Below the catalogue rather than beside it: the groupings are what the
+                catalogue is filed under, so they are read second and edited rarely. */}
+            <TaxonomyManager />
+          </div>
 
           {/* The one gift setting that is not about a single gift, beside the catalogue
               rather than above it — the catalogue is what an operator comes here for. */}

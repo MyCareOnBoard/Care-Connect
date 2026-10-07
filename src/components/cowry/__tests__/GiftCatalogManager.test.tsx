@@ -5,9 +5,13 @@ import { GiftCatalogManager } from "../GiftCatalogManager"
 import {
   deleteGift,
   listAdminGifts,
+  listGiftTaxonomy,
   saveGift,
 } from "@/utils/careconnect/services/cowryAdminService"
-import type { CowryAdminGiftCatalog } from "@/utils/careconnect/services/cowryAdminService"
+import type {
+  CowryAdminGiftCatalog,
+  CowryTaxonomy,
+} from "@/utils/careconnect/services/cowryAdminService"
 
 /**
  * The gift catalogue screen.
@@ -30,6 +34,7 @@ vi.mock("@/utils/careconnect/services/cowryAdminService", async () => {
   return {
     ...actual,
     listAdminGifts: vi.fn(),
+    listGiftTaxonomy: vi.fn(),
     saveGift: vi.fn(),
     deleteGift: vi.fn(),
   }
@@ -38,18 +43,52 @@ vi.mock("@/utils/careconnect/services/cowryAdminService", async () => {
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 const listMock = vi.mocked(listAdminGifts)
+const taxonomyMock = vi.mocked(listGiftTaxonomy)
 const saveMock = vi.mocked(saveGift)
 const deleteMock = vi.mocked(deleteGift)
+
+/**
+ * The categories the screen builds its tabs from.
+ *
+ * Deliberately not the real nine. The tabs used to come from a constant in the component,
+ * and the point of the change is that they come from the API — a fixture naming categories
+ * that exist nowhere in the source is what proves it.
+ */
+function taxonomy(over: Partial<CowryTaxonomy> = {}): CowryTaxonomy {
+  return {
+    categories: [
+      { kind: "category", key: "wellness", label: "Wellness & Emotion", order: 1, active: true },
+      { kind: "category", key: "heritage", label: "Heritage", order: 2, active: true },
+      { kind: "category", key: "premium", label: "Special & Premium", order: 3, active: true },
+      { kind: "category", key: "warm", label: "Warm (retired)", order: 99, active: false },
+    ],
+    rarities: [
+      { kind: "rarity", key: "everyday", label: "Everyday", order: 1, active: true, minCost: 100, maxCost: 299 },
+      { kind: "rarity", key: "special", label: "Special", order: 2, active: true, minCost: 300, maxCost: 749 },
+    ],
+    collections: [
+      { kind: "collection", key: "heritage_collection", label: "Heritage Collection", order: 1, active: true },
+    ],
+    ...over,
+  }
+}
 
 function catalog(over: Partial<CowryAdminGiftCatalog> = {}): CowryAdminGiftCatalog {
   return {
     seeded: true,
     fromDefaults: false,
     gifts: [
-      { id: "rose", label: "Rose", set: "everyday", cost: 50, active: true },
-      { id: "clap", label: "Clap", set: "everyday", cost: 15, active: true },
-      { id: "bouquet", label: "Bouquet", set: "warm", cost: 100, active: true },
-      { id: "royal_crown", label: "Royal Crown", set: "legendary", cost: 50000, active: false },
+      { id: "rose", label: "Rose", category: "wellness", set: "wellness", cost: 50, active: true },
+      { id: "clap", label: "Clap", category: "wellness", set: "wellness", cost: 15, active: true },
+      { id: "bouquet", label: "Bouquet", category: "heritage", set: "heritage", cost: 100, active: true },
+      {
+        id: "royal_crown",
+        label: "Royal Crown",
+        category: "premium",
+        set: "premium",
+        cost: 50000,
+        active: false,
+      },
     ],
     ...over,
   }
@@ -68,11 +107,13 @@ let user: ReturnType<typeof userEvent.setup>
 beforeEach(() => {
   user = userEvent.setup({ delay: null })
   listMock.mockReset()
+  taxonomyMock.mockReset()
   saveMock.mockReset()
   deleteMock.mockReset()
   listMock.mockResolvedValue(catalog())
+  taxonomyMock.mockResolvedValue(taxonomy())
   saveMock.mockResolvedValue({
-    gift: { id: "rose", label: "Rose", set: "everyday", cost: 50 },
+    gift: { id: "rose", label: "Rose", category: "wellness", set: "wellness", cost: 50 },
   })
   deleteMock.mockResolvedValue(undefined)
 })
@@ -85,11 +126,11 @@ describe("the catalogue", () => {
   it("lists the gifts in a tab per set, with how many each holds", async () => {
     show()
     expect(await screen.findByText("Rose")).toBeInTheDocument()
-    expect(screen.getByRole("tab", { name: /Everyday\s*2/ })).toHaveAttribute("aria-selected", "true")
-    expect(screen.getByRole("tab", { name: /Legendary\s*1/ })).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: /Wellness & Emotion\s*2/ })).toHaveAttribute("aria-selected", "true")
+    expect(screen.getByRole("tab", { name: /Special & Premium\s*1/ })).toBeInTheDocument()
     // Another set's gifts wait behind their own tab.
     expect(screen.queryByText("Bouquet")).not.toBeInTheDocument()
-    await user.click(screen.getByRole("tab", { name: /Warm/ }))
+    await user.click(screen.getByRole("tab", { name: /Heritage/ }))
     expect(await screen.findByText("Bouquet")).toBeInTheDocument()
     expect(screen.queryByText("Rose")).not.toBeInTheDocument()
   })
@@ -106,7 +147,7 @@ describe("the catalogue", () => {
     // A screen that hid them could never turn one back on.
     show()
     await screen.findByText("Rose")
-    await user.click(screen.getByRole("tab", { name: /Legendary/ }))
+    await user.click(screen.getByRole("tab", { name: /Special & Premium/ }))
     expect(await screen.findByText("Royal Crown")).toBeInTheDocument()
     expect(screen.getByText("Not sendable")).toBeInTheDocument()
   })
@@ -114,7 +155,7 @@ describe("the catalogue", () => {
   it("flags a legendary gift the app has no full-screen scene for", async () => {
     show()
     await screen.findByText("Rose")
-    await user.click(screen.getByRole("tab", { name: /Legendary/ }))
+    await user.click(screen.getByRole("tab", { name: /Special & Premium/ }))
     expect(await screen.findByText("No full-screen scene")).toBeInTheDocument()
   })
 
@@ -163,7 +204,7 @@ describe("adding a gift", () => {
   it("suggests an id from the name", async () => {
     show()
     await screen.findByText("Rose")
-    await user.click(screen.getByRole("button", { name: /Add a gift/ }))
+    await user.click(screen.getByRole("button", { name: /Add a Treasure/ }))
 
     const name = await screen.findByLabelText("Name")
     await user.type(name, "Kente Cloth")
@@ -175,17 +216,17 @@ describe("adding a gift", () => {
     // Number("") is 0, so an unfilled cost must not read as a free gift.
     show()
     await screen.findByText("Rose")
-    await user.click(screen.getByRole("button", { name: /Add a gift/ }))
+    await user.click(screen.getByRole("button", { name: /Add a Treasure/ }))
     await user.type(await screen.findByLabelText("Name"), "Kente Cloth")
 
-    expect(await screen.findByText("Give the gift a cost.")).toBeInTheDocument()
+    expect(await screen.findByText("Give the Treasure a cost.")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Add gift" })).toBeDisabled()
   })
 
   it("saves once it has a name, an id and a cost", async () => {
     show()
     await screen.findByText("Rose")
-    await user.click(screen.getByRole("button", { name: /Add a gift/ }))
+    await user.click(screen.getByRole("button", { name: /Add a Treasure/ }))
     await user.type(await screen.findByLabelText("Name"), "Kente Cloth")
     await user.type(screen.getByLabelText("Cost in Cowries"), "2500")
 
@@ -203,7 +244,7 @@ describe("adding a gift", () => {
     // Blank means "use the platform default", which is not the same as zero.
     show()
     await screen.findByText("Rose")
-    await user.click(screen.getByRole("button", { name: /Add a gift/ }))
+    await user.click(screen.getByRole("button", { name: /Add a Treasure/ }))
     await user.type(await screen.findByLabelText("Name"), "Kente Cloth")
     await user.type(screen.getByLabelText("Cost in Cowries"), "2500")
     await user.click(screen.getByRole("button", { name: "Add gift" }))

@@ -189,12 +189,104 @@ export async function updateGifts(
 
 /* ── The gift catalogue ──────────────────────────────────────────────────── */
 
-export type CowryGiftSetId = "everyday" | "warm" | "bold" | "rare" | "legendary"
+/**
+ * A taxonomy key.
+ *
+ * Deliberately `string` rather than a union. Categories, rarities and collections are rows
+ * an admin owns, so a union here would be a second copy of the list that goes stale the
+ * moment someone adds one — which is the problem the taxonomy exists to solve. The pickers
+ * are populated from the API.
+ */
+export type CowryTaxonomyKey = string
+
+/** @deprecated The five sets that came before Treasures. Only old records still carry these. */
+export type CowryGiftSetId = string
+
+export type CowryTaxonomyKind = "category" | "rarity" | "collection"
+
+export interface CowryTaxonomyItem {
+  kind: CowryTaxonomyKind
+  /** The slug Treasures store. It is the identity and cannot be changed. */
+  key: string
+  label: string
+  description?: string | null
+  /** Presentation order, low first. */
+  order?: number
+  /** Inactive rows stay readable for history but leave the pickers. */
+  active?: boolean
+  /** Rarity only: the suggested price band. `maxCost` null is open-ended. */
+  minCost?: number | null
+  maxCost?: number | null
+  /** Rarity only: live-stream impact level, 1 (personal) to 5 (legendary). */
+  liveTier?: number | null
+  /** Collection only: the Treasure unlocked by completing it. */
+  rewardKey?: string | null
+}
+
+export interface CowryTaxonomy {
+  categories: CowryTaxonomyItem[]
+  rarities: CowryTaxonomyItem[]
+  collections: CowryTaxonomyItem[]
+}
+
+/** How a Treasure is obtained. Only purchase and limited can be sent from the tray. */
+export type CowryGiftAvailability =
+  | "purchase"
+  | "earn"
+  | "discover"
+  | "event"
+  | "limited"
+  | "collection"
+
+/** Where a Treasure is in its approval path. Only published is sendable. */
+export type CowryGiftStatus =
+  | "draft"
+  | "review"
+  | "approved"
+  | "published"
+  | "paused"
+  | "retired"
 
 export interface CowryAdminGift {
   id: string
   label: string
-  set: CowryGiftSetId
+  /**
+   * The three axes, as taxonomy keys.
+   *
+   * Optional on a stored Treasure because anything written before Treasures has only `set`.
+   * Required when saving — see CowryGiftInput.
+   */
+  category?: CowryTaxonomyKey
+  rarity?: CowryTaxonomyKey | null
+  collection?: CowryTaxonomyKey | null
+  /**
+   * Mirror of `category`, written by the server.
+   *
+   * Everything that read `set` before Treasures still reads it — the tray, the admin log,
+   * the analytics screens — so it is kept in step rather than removed. New code reads
+   * `category`.
+   */
+  set?: CowryGiftSetId
+  /** What it represents. `story` is empty until a cultural reviewer writes or sources one. */
+  meaning?: string | null
+  story?: string | null
+  origin?: string | null
+  visual?: string | null
+  availability?: CowryGiftAvailability
+  status?: CowryGiftStatus
+  /** A limited edition's print run, and how many have gone out. Null means unlimited. */
+  quantity?: number | null
+  issued?: number
+  availableFrom?: string | null
+  availableTo?: string | null
+  thumbnailUrl?: string | null
+  animationUrl?: string | null
+  audioUrl?: string | null
+  /** Whether this Treasure draws on a real culture or history and must be reviewed. */
+  culturalReviewRequired?: boolean
+  culturalReviewNote?: string | null
+  /** Whether a sender may attach a name, photo or dedication. */
+  personalizable?: boolean
   cost: number
   /**
    * Share of the cost minted for the recipient. Undefined means the platform default.
@@ -229,7 +321,16 @@ export async function listAdminGifts(): Promise<CowryAdminGiftCatalog> {
   return data.data
 }
 
-export type CowryGiftInput = Omit<CowryAdminGift, "id">
+/**
+ * What the save endpoint takes.
+ *
+ * Not `Omit<CowryAdminGift, "id">`: the stored shape has `category` and `set` optional so
+ * that records written before Treasures still type, while a save must name a category and
+ * must not supply `set` at all — the server mirrors that from the category.
+ */
+export type CowryGiftInput = Omit<CowryAdminGift, "id" | "set" | "issued" | "category"> & {
+  category: CowryTaxonomyKey
+}
 
 /**
  * Add or edit a gift.
@@ -256,6 +357,92 @@ export async function saveGift(
  */
 export async function deleteGift(id: string): Promise<void> {
   await axiosClient.delete(`/careconnectCowry/admin/gifts/${id}`)
+}
+
+/* ── The taxonomy ────────────────────────────────────────────────────────── */
+
+/**
+ * Categories, rarities and collections.
+ *
+ * One call for all three because the catalogue editor shows all three pickers at once, and
+ * three round trips to populate one form is three chances for it to render half-empty.
+ *
+ * Inactive rows come back too. The editor needs them to show what a Treasure is currently
+ * filed under even when that row has been retired, and to let one be turned back on.
+ */
+export async function listGiftTaxonomy(): Promise<CowryTaxonomy> {
+  const { data } = await axiosClient.get("/careconnectCowry/admin/gift-taxonomy")
+  return data.data
+}
+
+export type CowryTaxonomyInput = Omit<CowryTaxonomyItem, "kind" | "key">
+
+/**
+ * Add or edit a category, rarity or collection.
+ *
+ * This is the call that makes the catalogue configurable. Adding a category used to mean
+ * editing an enum, redeploying the backend and updating the frontend's copy of the same
+ * list. The key is the identity and cannot be changed afterwards — every Treasure filed
+ * under it stores the key — so the label is what gets edited.
+ */
+export async function saveTaxonomy(
+  kind: CowryTaxonomyKind,
+  key: string,
+  body: CowryTaxonomyInput,
+): Promise<CowryTaxonomyItem> {
+  const { data } = await axiosClient.put(
+    `/careconnectCowry/admin/gift-taxonomy/${kind}/${key}`,
+    body,
+  )
+  return data.data
+}
+
+/**
+ * Remove a category, rarity or collection.
+ *
+ * The server refuses while Treasures are still filed under it and says how many. Setting it
+ * inactive is almost always what was wanted: it empties the picker while leaving existing
+ * Treasures and historical records readable.
+ */
+export async function deleteTaxonomy(kind: CowryTaxonomyKind, key: string): Promise<void> {
+  await axiosClient.delete(`/careconnectCowry/admin/gift-taxonomy/${kind}/${key}`)
+}
+
+export interface CowryTreasureInstall {
+  installed: number
+  updated: number
+  retired: number
+  retiredItems: { id: string; label: string | null }[]
+}
+
+/**
+ * Install the Treasures catalogue.
+ *
+ * Explicit rather than automatic: seeding only ever fires on an environment that has never
+ * had a catalogue, so one already holding the gifts that came before Treasures would never
+ * pick these up. Anything that is not a Treasure is retired rather than deleted.
+ */
+export async function installTreasures(): Promise<CowryTreasureInstall> {
+  const { data } = await axiosClient.post("/careconnectCowry/admin/gifts/install-treasures")
+  return data.data
+}
+
+/** The rarity whose configured band contains this cost, for the editor's suggestion. */
+export function rarityForCost(
+  rarities: CowryTaxonomyItem[],
+  cost: number,
+): CowryTaxonomyItem | null {
+  if (!Number.isFinite(cost)) return null
+  return (
+    rarities
+      .filter((r) => r.active !== false)
+      .find((r) => cost >= (r.minCost ?? 0) && cost <= (r.maxCost ?? Infinity)) ?? null
+  )
+}
+
+/** Key to label for one axis, for rendering a stored key that may since have been retired. */
+export function taxonomyLabels(rows: CowryTaxonomyItem[]): Map<string, string> {
+  return new Map(rows.map((row) => [row.key, row.label]))
 }
 
 /**
