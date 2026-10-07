@@ -18,10 +18,10 @@ import {
  */
 
 const valid = (over: Partial<GiftDraft> = {}): GiftDraft => ({
-  ...emptyGiftDraft(),
-  label: "Rose Bouquet",
-  id: "rose_bouquet",
-  cost: "250",
+  ...emptyGiftDraft("heritage"),
+  label: "The Talking Drum",
+  id: "talking_drum",
+  cost: "500",
   ...over,
 })
 
@@ -37,9 +37,18 @@ describe("giftDraftProblem", () => {
     expect(giftDraftProblem(valid({ cost: "   " }))).toMatch(/cost/i)
   })
 
-  it("refuses a cost of zero or less", () => {
-    expect(giftDraftProblem(valid({ cost: "0" }))).toMatch(/at least 1/i)
-    expect(giftDraftProblem(valid({ cost: "-5" }))).toMatch(/at least 1/i)
+  it("refuses a free Treasure that members buy", () => {
+    // Free is legitimate for something earned, and a spam vector for anything bought —
+    // a free Treasure anyone can send also mints Creator Cowries for nothing.
+    expect(giftDraftProblem(valid({ cost: "0" }))).toMatch(/at least 1 Cowry/i)
+  })
+
+  it("allows a free Treasure that is earned rather than bought", () => {
+    expect(giftDraftProblem(valid({ cost: "0", availability: "collection" }))).toBeNull()
+  })
+
+  it("refuses a negative cost", () => {
+    expect(giftDraftProblem(valid({ cost: "-5" }))).toMatch(/whole number/i)
   })
 
   it("refuses a fractional cost, Cowries being whole things", () => {

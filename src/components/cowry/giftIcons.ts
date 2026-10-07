@@ -299,12 +299,36 @@ export function resolveGiftIcon(gift: GiftLike | null | undefined): ResolvedGift
     if (looksLikeEmoji(override)) return { kind: "emoji", emoji: override, color: FALLBACK.color }
   }
 
-  // Words from the name and the id ("water_drop" reads as "water drop").
-  const text = ` ${gift?.label ?? ""} ${(gift?.id ?? "").replace(/[_\-.]+/g, " ")} `.toLowerCase()
+  return { kind: "rule", rule: matchGiftByName(gift) ?? FALLBACK }
+}
+
+/**
+ * The rule a gift's own words select — its name and id — ignoring any icon override.
+ *
+ * What a gift *is* (and so how it arrives) comes from here; an override only changes the
+ * picture. Otherwise choosing a different icon for "Earth Harvest" would quietly cost it
+ * its full-screen arrival.
+ */
+export function matchGiftByName(gift: GiftLike | null | undefined): GiftIconRule | null {
+  // The name first, the id only if the name says nothing. An id cannot change once a gift is
+  // saved, so a gift renamed in the catalogue keeps its old id — "Earth Harvest" stored as
+  // cowry_throne — and reading the two together let the old id win.
+  return matchWords(gift?.label ?? "") ?? matchWords((gift?.id ?? "").replace(/[_\-.]+/g, " "))
+}
+
+function matchWords(words: string): GiftIconRule | null {
+  const text = ` ${words} `.toLowerCase()
+  if (!text.trim()) return null
   for (const rule of GIFT_ICON_RULES) {
-    if (rule.match.some((word) => wordPattern(word).test(text))) return { kind: "rule", rule }
+    if (rule.match.some((word) => wordPattern(word).test(text))) return rule
   }
-  return { kind: "rule", rule: FALLBACK }
+  return null
+}
+
+/** The rule an icon override names, if it names one ("earth-harvest", "flower"…). */
+export function overrideRule(gift: GiftLike | null | undefined): GiftIconRule | null {
+  const override = gift?.icon?.trim().toLowerCase()
+  return override ? RULES_BY_KEY.get(override) ?? null : null
 }
 
 /** The colour that goes with a gift's icon. */
