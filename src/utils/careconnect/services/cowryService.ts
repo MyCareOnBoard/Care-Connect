@@ -413,7 +413,15 @@ export async function listPurchases(
 
 /* ── Gifts ───────────────────────────────────────────────────────────────── */
 
-export type CowryGiftSet = "everyday" | "warm" | "bold" | "rare" | "legendary";
+/**
+ * A Treasure category key.
+ *
+ * Was a union of the five fixed sets. Categories are rows an admin owns now, so a union
+ * here would be a copy of that list which goes stale the moment someone adds one — the new
+ * category would fail to typecheck in screens that are perfectly capable of rendering it.
+ * The labels come from the API with the data.
+ */
+export type CowryGiftSet = string;
 
 export type CowryGiftRefusal =
   | "unknown_gift"

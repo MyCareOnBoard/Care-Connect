@@ -29,22 +29,30 @@ import { CowryIcon } from "@/components/cowry/CowryIcon"
 import { GiftSplash, type GiftSplashData } from "@/components/cowry/GiftSplash"
 import { giftArrivalFor, type GiftArrival } from "@/components/cowry/giftAnimations"
 import { GIFT_ICON_RULES } from "@/components/cowry/giftIcons"
-import { GIFT_SET_LABELS, formatCowries } from "@/utils/careconnect/cowry"
+import { formatCowries } from "@/utils/careconnect/cowry"
 import { getAuthErrorMessage } from "@/utils/auth"
 import { cn } from "@/lib/utils"
 import {
   deleteGift,
+  installTreasures,
   listAdminGifts,
+  listGiftTaxonomy,
+  rarityForCost,
   saveGift,
+  taxonomyLabels,
   type CowryAdminGift,
   type CowryAdminGiftCatalog,
-  type CowryGiftSetId,
+  type CowryGiftAvailability,
+  type CowryGiftStatus,
+  type CowryTaxonomy,
+  type CowryTaxonomyItem,
 } from "@/utils/careconnect/services/cowryAdminService"
 import {
   emptyGiftDraft,
   giftDraftFrom,
   giftDraftProblem,
   giftDraftToInput,
+  giftDraftWarnings,
   nextDraftForLabel,
   type GiftDraft,
 } from "@/utils/careconnect/giftDraft"
@@ -66,8 +74,6 @@ import {
  * icon override.
  */
 
-const SETS: CowryGiftSetId[] = ["everyday", "warm", "bold", "rare", "legendary"]
-
 /** What each full-screen arrival looks like, in a few words, for the legendary badge. */
 const ARRIVAL_LABELS: Partial<Record<GiftArrival, string>> = {
   "rose-bloom": "Rose blooms",
@@ -84,14 +90,76 @@ const ARRIVAL_LABELS: Partial<Record<GiftArrival, string>> = {
   "cowry-throne": "Cowry throne",
 }
 
-/** Gift sets get their own tint, so a legendary gift looks like one. */
-const SET_TINTS: Record<string, string> = {
-  everyday: "bg-[#eef1f3] text-[#565656]",
-  warm: "bg-[#fff4df] text-[#a8793f]",
-  bold: "bg-[#e0f2ff] text-[#0d8de0]",
-  rare: "bg-[#f1e8ff] text-[#7a4fd1]",
-  legendary: "bg-[linear-gradient(135deg,#fff1c7,#f3c969)] text-[#7a5310]",
+/**
+ * The palette a category is coloured from.
+ *
+ * A lookup keyed by category name is no longer possible: an admin can add a category this
+ * file has never heard of, and it would render in the fallback grey while every seeded one
+ * had a colour — the new category would look broken rather than new. So a colour is derived
+ * from the key instead. Stable for a given key, which is what matters: a category keeps the
+ * same colour across reloads and across screens.
+ */
+const CATEGORY_TINTS = [
+  "bg-[#eef1f3] text-[#565656]",
+  "bg-[#fff4df] text-[#a8793f]",
+  "bg-[#e0f2ff] text-[#0d8de0]",
+  "bg-[#f1e8ff] text-[#7a4fd1]",
+  "bg-[#e6f7ef] text-[#1b8a5a]",
+  "bg-[#ffecec] text-[#c2453d]",
+  "bg-[#e9ecff] text-[#4b57c4]",
+  "bg-[#fdf0f6] text-[#b24a86]",
+]
+
+/** The premium tier keeps its gold, because the receiver's experience is built around it. */
+const PREMIUM_TINT = "bg-[linear-gradient(135deg,#fff1c7,#f3c969)] text-[#7a5310]"
+const PREMIUM_KEYS = new Set(["premium", "legendary"])
+
+function tintFor(key?: string | null): string {
+  if (!key) return CATEGORY_TINTS[0]
+  if (PREMIUM_KEYS.has(key)) return PREMIUM_TINT
+  let hash = 0
+  for (let i = 0; i < key.length; i += 1) hash = (hash * 31 + key.charCodeAt(i)) >>> 0
+  return CATEGORY_TINTS[hash % CATEGORY_TINTS.length]
 }
+
+/** Which category a Treasure is in, tolerating rows written before Treasures. */
+const categoryOf = (gift: { category?: string | null; set?: string | null }): string =>
+  gift.category ?? gift.set ?? ""
+
+/** Treasures an admin has taken out of circulation, and why, for the row badge. */
+const STATUS_BADGES: Record<string, { label: string; className: string }> = {
+  draft: { label: "Draft", className: "bg-[#eef1f3] text-[#657080]" },
+  review: { label: "In cultural review", className: "bg-[#fff4df] text-[#a8793f]" },
+  approved: { label: "Approved, not published", className: "bg-[#e0f2ff] text-[#0d8de0]" },
+  paused: { label: "Paused", className: "bg-[#ffecec] text-[#c2453d]" },
+  retired: { label: "Retired", className: "bg-[#eef1f3] text-[#657080]" },
+}
+
+const AVAILABILITY_LABELS: Record<CowryGiftAvailability, string> = {
+  purchase: "Bought with Cowries",
+  limited: "Limited edition",
+  earn: "Earned",
+  discover: "Discovered",
+  event: "Event only",
+  collection: "Collection reward",
+}
+
+const STATUS_LABELS: Record<CowryGiftStatus, string> = {
+  draft: "Draft",
+  review: "In cultural review",
+  approved: "Approved",
+  published: "Published",
+  paused: "Paused",
+  retired: "Retired",
+}
+
+/**
+ * The value a Select uses for "none".
+ *
+ * Radix treats an empty string as "no value chosen" and refuses it as an item value, so an
+ * optional picker needs a real token standing in for empty. Converted back to "" on change.
+ */
+const NONE = "__none__"
 
 function GiftRow({
   gift,
@@ -99,6 +167,7 @@ function GiftRow({
   onDelete,
   onPreview,
   showSet,
+  categoryLabel,
   busy,
 }: {
   gift: CowryAdminGift
@@ -107,6 +176,8 @@ function GiftRow({
   onPreview: () => void
   /** In search results, which set each gift is in. */
   showSet?: boolean
+  /** Resolved by the parent, which holds the taxonomy. */
+  categoryLabel?: string
   busy: boolean
 }) {
   const inactive = gift.active === false
@@ -121,7 +192,7 @@ function GiftRow({
       <span
         className={cn(
           "flex size-9 shrink-0 items-center justify-center rounded-2xl",
-          SET_TINTS[gift.set] ?? SET_TINTS.everyday,
+          tintFor(categoryOf(gift)),
         )}
       >
         <GiftIcon gift={{ id: gift.id, label: gift.label, icon: gift.icon }} size={20} />
@@ -136,8 +207,28 @@ function GiftRow({
             </span>
           )}
           {showSet && (
-            <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", SET_TINTS[gift.set] ?? SET_TINTS.everyday)}>
-              {GIFT_SET_LABELS[gift.set] ?? gift.set}
+            <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", tintFor(categoryOf(gift)))}>
+              {categoryLabel ?? categoryOf(gift)}
+            </span>
+          )}
+          {gift.status && gift.status !== "published" && STATUS_BADGES[gift.status] && (
+            /*
+             * Why a Treasure is not sendable, rather than only that it is not. "Paused" and
+             * "in cultural review" are different decisions, and an admin scanning the list
+             * should not have to open each one to tell them apart.
+             */
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                STATUS_BADGES[gift.status].className,
+              )}
+            >
+              {STATUS_BADGES[gift.status].label}
+            </span>
+          )}
+          {gift.availability && gift.availability !== "purchase" && (
+            <span className="rounded-full bg-[#eef1f3] px-2 py-0.5 text-[11px] font-semibold text-[#657080]">
+              {AVAILABILITY_LABELS[gift.availability] ?? gift.availability}
             </span>
           )}
           {arrival !== "rain" && (
@@ -147,7 +238,7 @@ function GiftRow({
               {ARRIVAL_LABELS[arrival] ?? "Full screen"}
             </span>
           )}
-          {arrival === "rain" && gift.set === "legendary" && (
+          {arrival === "rain" && PREMIUM_KEYS.has(categoryOf(gift)) && (
             /* Legendary in the catalogue but a name the app has no scene for: it would
                arrive like any other gift, which is worth knowing before members pay for it. */
             <span
@@ -214,7 +305,10 @@ export function GiftCatalogManager() {
   const [draft, setDraft] = useState<GiftDraft | null>(null)
   const [saving, setSaving] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<CowryAdminGift | null>(null)
-  const [activeSet, setActiveSet] = useState<CowryGiftSetId>("everyday")
+  const [taxonomy, setTaxonomy] = useState<CowryTaxonomy | null>(null)
+  const [installing, setInstalling] = useState(false)
+  /** Empty until the taxonomy arrives, because the first category is no longer knowable. */
+  const [activeSet, setActiveSet] = useState<string>("")
   const [query, setQuery] = useState("")
   const [preview, setPreview] = useState<GiftSplashData | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -224,7 +318,18 @@ export function GiftCatalogManager() {
     setLoading(true)
     setFailed(false)
     try {
-      setCatalog(await listAdminGifts())
+      // Both together. The catalogue is unreadable without the taxonomy — every Treasure
+      // stores a category key, and a key with no label is not something to show an admin.
+      const [nextCatalog, nextTaxonomy] = await Promise.all([listAdminGifts(), listGiftTaxonomy()])
+      setCatalog(nextCatalog)
+      setTaxonomy(nextTaxonomy)
+      setActiveSet((current) => {
+        const live = nextTaxonomy.categories.filter((row) => row.active !== false)
+        // Hold the current tab if it still exists, so a save does not jump the admin
+        // back to the first category every time.
+        if (current && live.some((row) => row.key === current)) return current
+        return live[0]?.key ?? ""
+      })
     } catch {
       setFailed(true)
     } finally {
@@ -235,6 +340,24 @@ export function GiftCatalogManager() {
   useEffect(() => {
     void load()
   }, [load])
+
+  async function install() {
+    setInstalling(true)
+    try {
+      const result = await installTreasures()
+      const retired = result.retired
+        ? ` ${result.retired} older gift${result.retired === 1 ? " was" : "s were"} retired, not deleted.`
+        : ""
+      toast.success(
+        `${result.installed} Treasures installed, ${result.updated} refreshed.${retired}`,
+      )
+      await load()
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setInstalling(false)
+    }
+  }
 
   const problem = draft ? giftDraftProblem(draft) : null
 
@@ -279,9 +402,46 @@ export function GiftCatalogManager() {
   }
 
   const gifts = useMemo(() => catalog?.gifts ?? [], [catalog])
+
+  /** Only live categories get a tab. Retired ones still resolve a label for old Treasures. */
+  const categories = useMemo(
+    () => (taxonomy?.categories ?? []).filter((row) => row.active !== false),
+    [taxonomy],
+  )
+  const rarities = useMemo(
+    () => (taxonomy?.rarities ?? []).filter((row) => row.active !== false),
+    [taxonomy],
+  )
+  const collections = useMemo(
+    () => (taxonomy?.collections ?? []).filter((row) => row.active !== false),
+    [taxonomy],
+  )
+
+  /** Includes retired rows: a Treasure filed under one still has to render its name. */
+  const categoryLabels = useMemo(
+    () => taxonomyLabels(taxonomy?.categories ?? []),
+    [taxonomy],
+  )
+  const rarityLabels = useMemo(() => taxonomyLabels(taxonomy?.rarities ?? []), [taxonomy])
+
+  /**
+   * The rarity whose band this cost falls in.
+   *
+   * A suggestion rather than an assignment: the bands are admin-edited and overlap once
+   * someone changes them, and a Treasure's rarity is a decision rather than a function of
+   * its price. Surfaced as a warning when it disagrees with what was chosen.
+   */
+  const suggestedRarity = draft
+    ? (rarityForCost(rarities, Number(draft.cost))?.key ?? null)
+    : null
+  const warnings = draft && !problem ? giftDraftWarnings(draft, suggestedRarity) : []
+
   const counts = useMemo(() => {
     const next: Record<string, number> = {}
-    for (const gift of gifts) next[gift.set] = (next[gift.set] ?? 0) + 1
+    for (const gift of gifts) {
+      const key = categoryOf(gift)
+      next[key] = (next[key] ?? 0) + 1
+    }
     return next
   }, [gifts])
 
@@ -289,14 +449,14 @@ export function GiftCatalogManager() {
   const needle = query.trim().toLowerCase()
   const shown = needle
     ? gifts.filter((gift) => `${gift.label} ${gift.id}`.toLowerCase().includes(needle))
-    : gifts.filter((gift) => gift.set === activeSet).sort((a, b) => a.cost - b.cost)
+    : gifts.filter((gift) => categoryOf(gift) === activeSet).sort((a, b) => a.cost - b.cost)
 
   /** Plays the gift exactly as a receiver would get it — full screen for the legendary. */
   const previewGift = (gift: CowryAdminGift) =>
     setPreview({
       key: `admin-preview-${gift.id}-${Date.now()}`,
       gift: { id: gift.id, label: gift.label, icon: gift.icon },
-      set: gift.set,
+      set: categoryOf(gift),
       cost: gift.cost,
       senderName: "Preview",
       message: "This is how it arrives.",
@@ -314,10 +474,25 @@ export function GiftCatalogManager() {
             What members can send, what it costs them, and what the creator earns.
           </p>
         </div>
-        <Button onClick={() => setDraft({ ...emptyGiftDraft(), set: activeSet })} disabled={loading || saving}>
-          <Plus className="mr-2 size-4" aria-hidden="true" />
-          Add a gift
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {/*
+            * Offered only while the Treasures are not already in. Seeding fires only on an
+            * environment that has never had a catalogue, so an environment still holding the
+            * gifts that came before Treasures would never pick them up on its own.
+            */}
+          {!loading && gifts.length > 0 && !gifts.some((gift) => gift.id === "new_dawn") && (
+            <Button variant="outline" onClick={() => void install()} disabled={installing || saving}>
+              {installing ? "Installing…" : "Install Treasures"}
+            </Button>
+          )}
+          <Button
+            onClick={() => setDraft({ ...emptyGiftDraft(activeSet) })}
+            disabled={loading || saving || categories.length === 0}
+          >
+            <Plus className="mr-2 size-4" aria-hidden="true" />
+            Add a Treasure
+          </Button>
+        </div>
       </div>
 
       {catalog?.fromDefaults && (
@@ -375,9 +550,10 @@ export function GiftCatalogManager() {
                 needle && "opacity-50",
               )}
             >
-              {SETS.map((set) => {
+              {categories.map((category) => {
+                const set = category.key
                 const active = !needle && activeSet === set
-                const legendary = set === "legendary"
+                const legendary = PREMIUM_KEYS.has(set)
                 return (
                   <button
                     key={set}
@@ -400,7 +576,7 @@ export function GiftCatalogManager() {
                     )}
                   >
                     {legendary && <Crown className="size-3.5" aria-hidden="true" />}
-                    {GIFT_SET_LABELS[set] ?? set}
+                    {category.label}
                     <span
                       className={cn(
                         "rounded-full px-1.5 text-xs tabular-nums",
@@ -436,7 +612,7 @@ export function GiftCatalogManager() {
             </div>
           </div>
 
-          {!needle && activeSet === "legendary" && (
+          {!needle && PREMIUM_KEYS.has(activeSet) && (
             <p className="animate-fadeIn mt-3 flex items-center gap-2 rounded-xl bg-[linear-gradient(90deg,#fff4df,#fffaf0)] px-3 py-2 text-xs text-[#7a5310] ring-1 ring-[#f0dcae]">
               <Crown className="size-4 shrink-0 text-[#c8963e]" aria-hidden="true" />
               Legendary gifts arrive full screen on the receiver&apos;s side, each with its own scene and
@@ -448,7 +624,9 @@ export function GiftCatalogManager() {
           {shown.length === 0 ? (
             <div className="mt-4 rounded-lg border border-dashed border-[#d7dde3] p-8 text-center">
               <p className="text-sm font-semibold text-[#4f5862]">
-                {needle ? `No gift matches "${query.trim()}"` : `No ${GIFT_SET_LABELS[activeSet] ?? activeSet} gifts`}
+                {needle
+                  ? `No Treasure matches "${query.trim()}"`
+                  : `No ${categoryLabels.get(activeSet) ?? activeSet} Treasures`}
               </p>
               <p className="mt-1 text-sm text-[#8b95a1]">
                 {needle ? "Search looks at names and ids across every set." : "This tab is hidden from the gift tray until one is added."}
@@ -466,6 +644,7 @@ export function GiftCatalogManager() {
                   gift={gift}
                   busy={saving}
                   showSet={Boolean(needle)}
+                  categoryLabel={categoryLabels.get(categoryOf(gift))}
                   onEdit={() => setDraft(giftDraftFrom(gift))}
                   onDelete={() => setPendingDelete(gift)}
                   onPreview={() => previewGift(gift)}
@@ -537,22 +716,22 @@ export function GiftCatalogManager() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="gift-set" className="text-sm font-medium text-[#10141a]">
-                    Set
+                  <label htmlFor="gift-category" className="text-sm font-medium text-[#10141a]">
+                    Category
                   </label>
                   <Select
-                    value={draft.set}
+                    value={draft.category}
                     onValueChange={(value) =>
-                      setDraft((d) => (d ? { ...d, set: value as CowryGiftSetId } : d))
+                      setDraft((d) => (d ? { ...d, category: value } : d))
                     }
                   >
-                    <SelectTrigger id="gift-set" className="mt-1.5">
-                      <SelectValue />
+                    <SelectTrigger id="gift-category" className="mt-1.5">
+                      <SelectValue placeholder="Choose a category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {SETS.map((set) => (
-                        <SelectItem key={set} value={set}>
-                          {GIFT_SET_LABELS[set] ?? set}
+                      {categories.map((row) => (
+                        <SelectItem key={row.key} value={row.key}>
+                          {row.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -566,13 +745,228 @@ export function GiftCatalogManager() {
                   <Input
                     id="gift-cost"
                     type="number"
-                    min={1}
+                    min={0}
                     className="mt-1.5"
                     value={draft.cost}
                     onChange={(e) => setDraft((d) => (d ? { ...d, cost: e.target.value } : d))}
                   />
                 </div>
               </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="gift-rarity" className="text-sm font-medium text-[#10141a]">
+                    Rarity <span className="font-normal text-[#8b95a1]">(optional)</span>
+                  </label>
+                  <Select
+                    value={draft.rarity || NONE}
+                    onValueChange={(value) =>
+                      setDraft((d) => (d ? { ...d, rarity: value === NONE ? "" : value } : d))
+                    }
+                  >
+                    <SelectTrigger id="gift-rarity" className="mt-1.5">
+                      <SelectValue placeholder="No rarity" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>No rarity</SelectItem>
+                      {rarities.map((row) => (
+                        <SelectItem key={row.key} value={row.key}>
+                          {row.label}
+                          {Number.isFinite(row.minCost) ? ` · ${row.minCost}${row.maxCost ? `–${row.maxCost}` : "+"}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {suggestedRarity && suggestedRarity !== draft.rarity && (
+                    <p className="mt-1.5 text-xs text-[#8b95a1]">
+                      That cost falls in the {rarityLabels.get(suggestedRarity) ?? suggestedRarity} band.
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="gift-collection" className="text-sm font-medium text-[#10141a]">
+                    Collection <span className="font-normal text-[#8b95a1]">(optional)</span>
+                  </label>
+                  <Select
+                    value={draft.collection || NONE}
+                    onValueChange={(value) =>
+                      setDraft((d) => (d ? { ...d, collection: value === NONE ? "" : value } : d))
+                    }
+                  >
+                    <SelectTrigger id="gift-collection" className="mt-1.5">
+                      <SelectValue placeholder="Not in a collection" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Not in a collection</SelectItem>
+                      {collections.map((row) => (
+                        <SelectItem key={row.key} value={row.key}>
+                          {row.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="gift-availability" className="text-sm font-medium text-[#10141a]">
+                    How it is obtained
+                  </label>
+                  <Select
+                    value={draft.availability}
+                    onValueChange={(value) =>
+                      setDraft((d) => (d ? { ...d, availability: value as CowryGiftAvailability } : d))
+                    }
+                  >
+                    <SelectTrigger id="gift-availability" className="mt-1.5">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(AVAILABILITY_LABELS) as CowryGiftAvailability[]).map((key) => (
+                        <SelectItem key={key} value={key}>
+                          {AVAILABILITY_LABELS[key]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label htmlFor="gift-status" className="text-sm font-medium text-[#10141a]">
+                    Status
+                  </label>
+                  <Select
+                    value={draft.status}
+                    onValueChange={(value) =>
+                      setDraft((d) => (d ? { ...d, status: value as CowryGiftStatus } : d))
+                    }
+                  >
+                    <SelectTrigger id="gift-status" className="mt-1.5">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(STATUS_LABELS) as CowryGiftStatus[]).map((key) => (
+                        <SelectItem key={key} value={key}>
+                          {STATUS_LABELS[key]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1.5 text-xs text-[#8b95a1]">
+                    Only a published Treasure can be sent.
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="gift-meaning" className="text-sm font-medium text-[#10141a]">
+                  What it means
+                </label>
+                <Input
+                  id="gift-meaning"
+                  className="mt-1.5"
+                  placeholder="New beginnings"
+                  value={draft.meaning}
+                  onChange={(e) => setDraft((d) => (d ? { ...d, meaning: e.target.value } : d))}
+                />
+                <p className="mt-1.5 text-xs text-[#8b95a1]">
+                  Shown to the receiver when the Treasure arrives.
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="gift-story" className="text-sm font-medium text-[#10141a]">
+                  Its story <span className="font-normal text-[#8b95a1]">(optional)</span>
+                </label>
+                <textarea
+                  id="gift-story"
+                  rows={3}
+                  className="mt-1.5 w-full rounded-md border border-[#d7dde3] px-3 py-2 text-sm"
+                  placeholder="Left empty until someone has checked it."
+                  value={draft.story}
+                  onChange={(e) => setDraft((d) => (d ? { ...d, story: e.target.value } : d))}
+                />
+                <p className="mt-1.5 text-xs text-[#8b95a1]">
+                  Never write an invented story as though it were established history. Leave this
+                  empty rather than guessing.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-[#e2e6ea] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[#10141a]">Needs cultural review</p>
+                    <p className="mt-1 text-xs text-[#8b95a1]">
+                      For anything drawing on a real culture, history or symbol.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={draft.culturalReviewRequired}
+                    onCheckedChange={(checked) =>
+                      setDraft((d) => (d ? { ...d, culturalReviewRequired: checked } : d))
+                    }
+                  />
+                </div>
+                {draft.culturalReviewRequired && (
+                  <Input
+                    className="mt-3"
+                    placeholder="What has to be checked before this is published?"
+                    value={draft.culturalReviewNote}
+                    onChange={(e) =>
+                      setDraft((d) => (d ? { ...d, culturalReviewNote: e.target.value } : d))
+                    }
+                  />
+                )}
+              </div>
+
+              {(draft.availability === "limited" || draft.quantity.trim()) && (
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div>
+                    <label htmlFor="gift-quantity" className="text-sm font-medium text-[#10141a]">
+                      Print run
+                    </label>
+                    <Input
+                      id="gift-quantity"
+                      type="number"
+                      min={1}
+                      className="mt-1.5"
+                      placeholder="Unlimited"
+                      value={draft.quantity}
+                      onChange={(e) => setDraft((d) => (d ? { ...d, quantity: e.target.value } : d))}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="gift-from" className="text-sm font-medium text-[#10141a]">
+                      Available from
+                    </label>
+                    <Input
+                      id="gift-from"
+                      type="date"
+                      className="mt-1.5"
+                      value={draft.availableFrom}
+                      onChange={(e) =>
+                        setDraft((d) => (d ? { ...d, availableFrom: e.target.value } : d))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="gift-to" className="text-sm font-medium text-[#10141a]">
+                      Available until
+                    </label>
+                    <Input
+                      id="gift-to"
+                      type="date"
+                      className="mt-1.5"
+                      value={draft.availableTo}
+                      onChange={(e) =>
+                        setDraft((d) => (d ? { ...d, availableTo: e.target.value } : d))
+                      }
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label htmlFor="gift-rate" className="text-sm font-medium text-[#10141a]">
@@ -693,6 +1087,21 @@ export function GiftCatalogManager() {
               </div>
 
               {problem && <p className="text-sm text-[#b4232a]">{problem}</p>}
+            </div>
+          )}
+
+          {warnings.length > 0 && (
+            /*
+             * Judgements, not errors — an admin may overrule any of them, so these sit
+             * beside the save button rather than blocking it. Publishing something still in
+             * cultural review is the one that matters, and it is their call to make.
+             */
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <ul className="list-disc space-y-1 pl-4">
+                {warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
             </div>
           )}
 
