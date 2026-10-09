@@ -1,5 +1,7 @@
 import { useId } from "react"
 import { cn } from "@/lib/utils"
+import { drawIllustration } from "@/components/cowry/treasureIllustrations"
+import { isIllustration, type IllustrationKind } from "@/components/cowry/treasureIllustrationKinds"
 
 /**
  * The Premium Treasures, drawn rather than taken from the icon set, in the same hand-shaded
@@ -9,13 +11,17 @@ import { cn } from "@/lib/utils"
  * All six are gold — the Premium tier's colour, as Legendary's was.
  */
 
-export type TreasureArtKind =
+/** The six Premium pieces, in gold. */
+type PremiumKind =
   | "golden-journey"
   | "54-horizons"
   | "legacy-tree"
   | "time-capsule"
   | "golden-memory"
   | "timeless-treasure"
+
+/** Every drawn Treasure: Premium in gold here, the rest in treasureIllustrations.tsx. */
+export type TreasureArtKind = PremiumKind | IllustrationKind
 
 /** The shared gold, so every Premium piece is cut from the same metal. */
 function Golds({ id }: { id: string }) {
@@ -182,7 +188,7 @@ function TimelessTreasure({ id }: { id: string }) {
   )
 }
 
-const ART: Record<TreasureArtKind, (props: { id: string }) => React.JSX.Element> = {
+const ART: Record<PremiumKind, (props: { id: string }) => React.JSX.Element> = {
   "golden-journey": Journey,
   "54-horizons": Horizons,
   "legacy-tree": LegacyTree,
@@ -193,18 +199,30 @@ const ART: Record<TreasureArtKind, (props: { id: string }) => React.JSX.Element>
 
 export function TreasureArt({ kind, size = 24, className }: { kind: TreasureArtKind; size?: number; className?: string }) {
   const id = `ta-${useId().replace(/:/g, "")}`
-  const Art = ART[kind]
+  const everyday = isIllustration(kind)
+  const Art = everyday ? null : ART[kind as PremiumKind]
   return (
     <svg
       viewBox="0 0 100 100"
       width={size}
       height={size}
-      className={cn("shrink-0 overflow-visible drop-shadow-[0_2px_2px_rgba(90,59,12,0.35)]", className)}
+      className={cn(
+        "shrink-0 overflow-visible",
+        // Premium casts a warm gold shadow; the everyday pieces a neutral one.
+        everyday ? "drop-shadow-[0_2px_2px_rgba(15,23,42,0.28)]" : "drop-shadow-[0_2px_2px_rgba(90,59,12,0.35)]",
+        className,
+      )}
       aria-hidden="true"
       focusable="false"
     >
-      <Golds id={id} />
-      <Art id={id} />
+      {everyday ? (
+        drawIllustration(kind as IllustrationKind, id)
+      ) : (
+        <>
+          <Golds id={id} />
+          {Art && <Art id={id} />}
+        </>
+      )}
     </svg>
   )
 }

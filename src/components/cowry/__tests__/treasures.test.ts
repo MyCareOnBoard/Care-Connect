@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import { resolveGiftIcon } from "@/components/cowry/giftIcons"
 import { giftArrivalFor } from "@/components/cowry/giftAnimations"
 import { isGoldTab, trayTabs } from "@/components/cowry/giftTraySelection"
+import { isIllustration } from "@/components/cowry/treasureIllustrationKinds"
 import type { CowryGiftCatalogItem } from "@/utils/careconnect/services/cowryService"
 
 /**
@@ -64,6 +65,11 @@ describe("treasure icons", () => {
         const gold = resolved.kind === "rule" && Boolean(resolved.rule.legendary)
         expect([label, gold]).toEqual([label, category === "Premium"])
         if (category === "Premium") expect(resolved.kind === "rule" && resolved.rule.icon).toBe("art")
+        else {
+          // Every everyday Treasure is drawn as what it is named, not a generic symbol.
+          expect([label, resolved.kind === "rule" && resolved.rule.icon]).toEqual([label, "art"])
+          expect(resolved.kind === "rule" && isIllustration(resolved.rule.art ?? "")).toBe(true)
+        }
       }
     }
   })
