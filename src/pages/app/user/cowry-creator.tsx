@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router"
 import { toast } from "sonner"
-import { Gift, Lock, ShieldAlert, Smartphone } from "lucide-react"
+import { Lock, ShieldAlert, Smartphone } from "lucide-react"
+import { TreasureChest } from "@/components/cowry/TreasureChest"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CowryIcon } from "@/components/cowry/CowryIcon"
@@ -124,7 +125,7 @@ export default function CowryCreatorPage() {
     <div className="animate-fade-in-up space-y-7 p-5 sm:p-8">
       <CowryPageHeader
         title="Creator earnings"
-        subtitle="Cowries from gifts people send you. You can redeem them for mobile data."
+        subtitle="Cowries from treasures people send you. You can redeem them for mobile data."
       />
 
       {earnings.suspended && (
@@ -173,7 +174,7 @@ export default function CowryCreatorPage() {
           </p>
           <p className="mt-1 text-xs text-[#657080]">
             {nextRelease === null
-              ? `Frees up ${earnings.holdDays} days after each gift`
+              ? `Frees up ${earnings.holdDays} days after each treasure`
               : nextRelease === 0
                 ? "Some frees up today"
                 : `Next frees up in ${nextRelease} day${nextRelease === 1 ? "" : "s"}`}
@@ -182,8 +183,8 @@ export default function CowryCreatorPage() {
 
         <div className="cowry-lift cowry-hover rounded-2xl bg-white p-5 ring-1 ring-[#e2e6ea]">
           <p className="flex items-center gap-1.5 text-sm text-[#657080]">
-            <Gift className="cowry-wobble size-3.5" aria-hidden="true" />
-            Gifts received
+            <TreasureChest className="cowry-wobble size-3.5" aria-hidden="true" />
+            Treasures received
           </p>
           <p className="mt-2 text-3xl font-bold text-[#141922]">
             <AnimatedCowries value={earnings.giftsReceived} />
@@ -197,8 +198,8 @@ export default function CowryCreatorPage() {
           <h2 className="text-lg font-bold">Becoming available</h2>
           {/* Said once, plainly. The hold is a rule with a reason, not a withholding. */}
           <p className="mt-1 max-w-2xl text-sm text-[#657080]">
-            Gifts are bought with a card, and a card payment can be reversed for up to{" "}
-            {earnings.holdDays} days. Each gift&apos;s Cowries become yours once that window
+            Treasures are bought with a card, and a card payment can be reversed for up to{" "}
+            {earnings.holdDays} days. Each treasure&apos;s Cowries become yours once that window
             closes — nothing needs doing to claim them.
           </p>
 
@@ -238,10 +239,10 @@ export default function CowryCreatorPage() {
       )}
 
       <section>
-        <h2 className="mb-4 text-lg font-bold">Gifts you&apos;ve received</h2>
+        <h2 className="mb-4 text-lg font-bold">Treasures you&apos;ve received</h2>
         {received.length === 0 ? (
-          <CowryEmpty title="No gifts yet">
-            When someone sends you a gift it appears here, along with the Cowries it earned you.
+          <CowryEmpty title="No treasures yet">
+            When someone sends you a treasure it appears here, along with the Cowries it earned you.
           </CowryEmpty>
         ) : (
           <ul className="cowry-stagger divide-y divide-[#eef1f3] overflow-hidden rounded-2xl bg-white ring-1 ring-[#e2e6ea]">

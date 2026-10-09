@@ -37,7 +37,7 @@ import type { CareConnectProfile } from "@/utils/careconnect/types"
 
 const tabs = [
   { key: "invitations", label: "Invitations", icon: Inbox },
-  { key: "connections", label: "Connections", icon: Users },
+  { key: "connections", label: "Linkups", icon: Users },
   { key: "agencies", label: "Healthcare Providers", icon: Building2 },
 ] as const
 type NetworkTab = (typeof tabs)[number]["key"]
@@ -204,7 +204,7 @@ export default function NetworkPage() {
     setInvitations((current) => current.filter((item) => item.id !== request.id))
     try {
       await acceptRequest(request.id)
-      toast.success(`You're now connected with ${request.requester.name || "them"}`)
+      toast.success(`You're now linked up with ${request.requester.name || "them"}`)
     } catch (error) {
       setInvitations((current) => [request, ...current])
       toast.error(getAuthErrorMessage(error))
@@ -226,7 +226,7 @@ export default function NetworkPage() {
     setConnectedViewers((current) => new Set(current).add(viewer.uid))
     try {
       await follow(viewer.uid, "connect", "individual")
-      toast.success(`Connection request sent to ${viewer.name || "them"}`)
+      toast.success(`Linkup request sent to ${viewer.name || "them"}`)
     } catch (error) {
       setConnectedViewers((current) => {
         const next = new Set(current)
@@ -359,7 +359,7 @@ export default function NetworkPage() {
                             requested ? "border-[#d9d9d9] text-[#657080]" : "border-[#00b4b8] text-[#00b4b8]",
                           )}
                         >
-                          {requested ? "Requested" : "Connect"}
+                          {requested ? "Requested" : "Linkup"}
                         </button>
                       </div>
                     )
@@ -392,7 +392,7 @@ export default function NetworkPage() {
                   <div className="rounded-3xl border border-dashed border-[#d7dde3] bg-white/60 p-10 text-center">
                     <Inbox className="mx-auto size-9 text-[#9aa4b2]" aria-hidden="true" />
                     <p className="mt-3 text-sm font-semibold text-[#151922]">You&apos;re all caught up</p>
-                    <p className="mt-1 text-sm text-[#657080]">New connection requests will appear here.</p>
+                    <p className="mt-1 text-sm text-[#657080]">New linkup requests will appear here.</p>
                   </div>
                 ) : (
                   visibleInvitations.map((request, index) => (
@@ -417,7 +417,7 @@ export default function NetworkPage() {
                   <SuggestionGrid
                     title="People you may know"
                     items={suggestedPeople}
-                    actionLabel="Connect"
+                    actionLabel="Linkup"
                     activeLabel="Pending"
                     relation="connect"
                     targetType="individual"
@@ -431,7 +431,7 @@ export default function NetworkPage() {
             <>
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <h1 className="text-xl font-bold text-[#151922]">
-                  Connections <span className="text-[#8a94a3]">({connections.length})</span>
+                  Linkups <span className="text-[#8a94a3]">({connections.length})</span>
                 </h1>
                 <div className="relative w-full max-w-sm">
                   <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
@@ -441,7 +441,7 @@ export default function NetworkPage() {
 
               <div className="mt-4 space-y-3">
                 {visibleConnections.length === 0 ? (
-                  <p className="rounded-3xl border border-dashed border-[#e5ecf5] p-10 text-center text-sm text-[#657080]">No connections yet.</p>
+                  <p className="rounded-3xl border border-dashed border-[#e5ecf5] p-10 text-center text-sm text-[#657080]">No linkups yet.</p>
                 ) : (
                   visibleConnections.map((item, index) => (
                     <NetworkConnectionRow
@@ -455,7 +455,7 @@ export default function NetworkPage() {
                       messageHref={`${routes.messages}?to=${item.uid}`}
                       removeLabel="Remove"
                       removing={removingId === item.connectionId}
-                      onRemove={() => removeConnection(item.connectionId, item.uid, "Connection removed")}
+                      onRemove={() => removeConnection(item.connectionId, item.uid, "Linkup removed")}
                       style={{ animationDelay: `${index * 60}ms` }}
                     />
                   ))

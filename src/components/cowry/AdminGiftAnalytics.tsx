@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { ArrowRight, Crown, Gift, RefreshCw, Trophy, TrendingUp } from "lucide-react"
+import { ArrowRight, Crown, RefreshCw, Trophy, TrendingUp } from "lucide-react"
+import { TreasureChest } from "@/components/cowry/TreasureChest"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CowryIcon } from "@/components/cowry/CowryIcon"
@@ -44,7 +45,7 @@ const SET_BARS: Record<string, string> = {
   legendary: "bg-[linear-gradient(90deg,#f3c969,#c8963e)]",
 }
 
-function Figure({ label, value, hint, icon: Icon }: { label: string; value: string; hint?: string; icon: typeof Gift }) {
+function Figure({ label, value, hint, icon: Icon }: { label: string; value: string; hint?: string; icon: typeof TreasureChest }) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-4">
       <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
@@ -101,14 +102,14 @@ export function AdminGiftAnalytics() {
   }, [gifts])
 
   const topCount = mostGiven[0]?.count ?? 1
-  const sampleNote = `Among the ${gifts.length} biggest gift${gifts.length === 1 ? "" : "s"} in this window`
+  const sampleNote = `Among the ${gifts.length} biggest treasure${gifts.length === 1 ? "" : "s"} in this window`
 
   return (
     <section className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4">
         <div>
-          <h2 className="text-lg font-semibold text-[#10141a]">Gift activity</h2>
-          <p className="text-sm text-[#4f4f4f]">What members are sending, and which gifts lead.</p>
+          <h2 className="text-lg font-semibold text-[#10141a]">Treasure activity</h2>
+          <p className="text-sm text-[#4f4f4f]">What members are sending, and which treasures lead.</p>
         </div>
         <div className="flex items-center gap-2">
           <div role="tablist" aria-label="Time window" className="flex gap-1 rounded-full bg-[#f4f6f8] p-1">
@@ -136,7 +137,7 @@ export function AdminGiftAnalytics() {
 
       {failed ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-[#d7dde3] bg-white p-6">
-          <p className="text-sm text-[#657080]">Gift activity could not be loaded.</p>
+          <p className="text-sm text-[#657080]">Treasure activity could not be loaded.</p>
           <Button variant="outline" size="sm" onClick={() => void load(active)}>
             <RefreshCw className="size-4" aria-hidden="true" />
             Try again
@@ -153,15 +154,15 @@ export function AdminGiftAnalytics() {
         <div className={cn("space-y-5 transition-opacity", loading && "opacity-60")}>
           <div className="cowry-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Figure
-              icon={Gift}
-              label="Gifts sent"
+              icon={TreasureChest}
+              label="Treasures sent"
               value={`${formatCowries(board?.scanned ?? 0)}${board?.scanCapped ? "+" : ""}`}
-              hint={board?.scanCapped ? "More than the backend counts in one go" : "Every gift in this window"}
+              hint={board?.scanCapped ? "More than the backend counts in one go" : "Every treasure in this window"}
             />
             <Figure icon={TrendingUp} label="Cowries in the biggest" value={formatCowries(total)} hint={sampleNote} />
             <Figure
               icon={Trophy}
-              label="Biggest gift"
+              label="Biggest treasure"
               value={gifts[0] ? formatCowries(gifts[0].cost) : "—"}
               hint={gifts[0]?.giftLabel}
             />
@@ -170,13 +171,13 @@ export function AdminGiftAnalytics() {
 
           {gifts.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-[#d7dde3] bg-white p-10 text-center">
-              <Gift className="mx-auto size-8 text-[#c3cad3]" aria-hidden="true" />
-              <p className="mt-2 text-sm text-[#6b7280]">No gifts were sent in this window.</p>
+              <TreasureChest className="mx-auto size-8 text-[#c3cad3]" aria-hidden="true" />
+              <p className="mt-2 text-sm text-[#6b7280]">No treasures were sent in this window.</p>
             </div>
           ) : (
             <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
               <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                <h3 className="text-sm font-semibold text-[#10141a]">Biggest gifts</h3>
+                <h3 className="text-sm font-semibold text-[#10141a]">Biggest treasures</h3>
                 <ol className="cowry-stagger mt-3 divide-y divide-[#eef1f3]">
                   {gifts.slice(0, 10).map((gift, index) => (
                     <li key={gift.id} className="flex items-center gap-3 py-2.5">

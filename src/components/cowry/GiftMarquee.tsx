@@ -111,12 +111,12 @@ export function GiftMarquee({ flow }: { flow: CareFlow }) {
   return (
     <div
       role="region"
-      aria-label="Top gifts this week"
+      aria-label="Top treasures this week"
       className="relative z-30 flex h-10 items-center overflow-hidden bg-[linear-gradient(90deg,#3a2508_0%,#7a5310_30%,#a8793f_50%,#7a5310_70%,#3a2508_100%)] text-white shadow-[inset_0_-1px_0_rgba(255,255,255,0.12)]"
     >
       <span className="relative z-10 flex h-full shrink-0 items-center gap-1.5 bg-[#2a1a05]/85 pl-3 pr-4 text-xs font-bold uppercase tracking-wide text-[#ffe7a8] shadow-[6px_0_12px_-4px_rgba(0,0,0,0.5)] backdrop-blur">
         <Trophy className="size-4" aria-hidden="true" />
-        <span className="hidden sm:inline">Top gifts</span>
+        <span className="hidden sm:inline">Top treasures</span>
       </span>
 
       <div className="group relative min-w-0 flex-1 overflow-hidden">
@@ -137,7 +137,7 @@ export function GiftMarquee({ flow }: { flow: CareFlow }) {
       <button
         type="button"
         onClick={dismiss}
-        aria-label="Hide top gifts"
+        aria-label="Hide top treasures"
         className="relative z-10 flex h-full shrink-0 items-center bg-[#2a1a05]/85 px-3 text-[#ffe7a8]/80 transition hover:text-white"
       >
         <X className="size-4" aria-hidden="true" />

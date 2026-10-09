@@ -75,12 +75,12 @@ const LEGENDARY_TIER = [
   "Earth Harvest",
 ]
 
-describe("catalogue gift icons", () => {
+describe("catalogue treasure icons", () => {
   it.each(Object.entries(EXPECTED))("%s wears the %s icon", (label, key) => {
     expect(keyOf(label)).toBe(key)
   })
 
-  it("never falls back to the plain gift box for a catalogue gift", () => {
+  it("never falls back to the plain treasure box for a catalogue treasure", () => {
     for (const label of Object.keys(EXPECTED)) expect(keyOf(label)).not.toBe("gift")
   })
 
@@ -94,7 +94,7 @@ describe("catalogue gift icons", () => {
   })
 })
 
-describe("gift tray selection", () => {
+describe("treasure tray selection", () => {
   const gift = (label: string, set: CowryGiftSet, cost: number): CowryGiftCatalogItem => ({
     id: label.toLowerCase().replace(/\s+/g, "_"),
     label,
@@ -102,11 +102,11 @@ describe("gift tray selection", () => {
     cost,
   })
 
-  it("curates the eight legendary gifts", () => {
+  it("curates the eight legendary treasures", () => {
     expect(LEGENDARY_SELECTION.map((names) => (Array.isArray(names) ? names[0] : names))).toEqual(LEGENDARY_TIER)
   })
 
-  it("orders the legendary tab by price, and leaves out gifts no longer in the tier", () => {
+  it("orders the legendary tab by price, and leaves out treasures no longer in the tier", () => {
     const prices = [10000, 20000, 30000, 40000, 50000, 80000, 90000, 100000]
     const catalogue = [
       ...LEGENDARY_TIER.map((label, i) => gift(label, "legendary", prices[i])).reverse(),
@@ -121,7 +121,7 @@ describe("gift tray selection", () => {
     expect(traySelection("legendary", catalogue).map((g) => g.label)).toEqual(["Golden Lion King", "Harvest Rain"])
   })
 
-  it("shows every gift in the other sets, in catalogue order, with no limit", () => {
+  it("shows every treasure in the other sets, in catalogue order, with no limit", () => {
     const warm = ["Hibiscus", "Palm Tree", "Gele", "Talking Drum", "Aso Oke", "Jollof Plate", "Bouquet", "Lantern"].map(
       (label, i) => gift(label, "warm", 100 + i),
     )
@@ -138,7 +138,7 @@ describe("gift tray selection", () => {
     ])
   })
 
-  it("finds a chosen gift even when the backend filed it under another set", () => {
+  it("finds a chosen treasure even when the backend filed it under another set", () => {
     const catalogue = [
       gift("Thunder Staff", "legendary", 20000),
       gift("Golden Eagle", "legendary", 100000),
@@ -156,7 +156,7 @@ describe("gift tray selection", () => {
     expect(traySelection("rare", catalogue)).toEqual([])
   })
 
-  it("reports chosen gifts the catalogue does not have at all", () => {
+  it("reports chosen treasures the catalogue does not have at all", () => {
     const catalogue = [gift("Thunder Staff", "legendary", 20000), gift("Golden Eagle", "legendary", 100000)]
     const missing = missingFromCatalogue(catalogue).map((item) => item.name)
     expect(missing).toEqual(["Blooming Rose", "Eternal Flame", "Rising Sun", "City of Lights", "Golden Lion", "Earth Harvest"])

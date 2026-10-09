@@ -3,7 +3,6 @@ import {
   BarChart3,
   Coins,
   Gauge,
-  Gift,
   History,
   Package,
   Receipt,
@@ -11,6 +10,7 @@ import {
   Sparkles,
   type LucideIcon,
 } from "lucide-react"
+import { TreasureChest } from "@/components/cowry/TreasureChest"
 
 /**
  * The Cowry console's sections, shared by the page's own tab bar (laptop and up) and the
@@ -33,9 +33,9 @@ export const COWRY_TABS: Array<{ key: CowryTabKey; label: string; icon: LucideIc
   { key: "rewards", label: "Reward rates", icon: Sparkles },
   { key: "pricing", label: "Pricing & fees", icon: Coins },
   { key: "packages", label: "Data packages", icon: Package },
-  { key: "gifts", label: "Gifts", icon: Gift },
-  { key: "analytics", label: "Gift activity", icon: BarChart3 },
-  { key: "giftLog", label: "Gifts sent", icon: Receipt },
+  { key: "gifts", label: "Treasures", icon: TreasureChest },
+  { key: "analytics", label: "Treasure activity", icon: BarChart3 },
+  { key: "giftLog", label: "Treasures sent", icon: Receipt },
   { key: "reconciliation", label: "Reconciliation", icon: Scale },
   { key: "log", label: "Change log", icon: History },
 ]

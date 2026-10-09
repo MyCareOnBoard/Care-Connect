@@ -99,7 +99,7 @@ export default function ViewProfilePage() {
   const certifications = profile.certifications.map(normalizeCert)
   const metrics = [
     { label: "Profile views", value: String(profile.profileViewsCount ?? 0) },
-    { label: "Connections", value: String(profile.connectionsCount ?? 0) },
+    { label: "Linkups", value: String(profile.connectionsCount ?? 0) },
   ]
 
   return (
@@ -154,10 +154,10 @@ export default function ViewProfilePage() {
                     className="h-10 rounded-full px-5"
                     onClick={() => setGiftTrayOpen(true)}
                   >
-                    Send a gift
+                    Send a treasure
                   </Button>
                   <FollowButton
-                    label="Connect"
+                    label="Linkup"
                     activeLabel="Pending"
                     targetId={profile.uid}
                     relation={profile.userType === "careconnect_company" || profile.userType === "agency" ? "subscribe" : "connect"}

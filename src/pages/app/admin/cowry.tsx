@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   Clock,
   Coins,
-  Gift,
   Loader2,
   Menu,
   RefreshCw,
@@ -19,6 +18,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react"
+import { TreasureChest } from "@/components/cowry/TreasureChest"
 import { toast } from "sonner"
 import { holdDescription } from "@/utils/careconnect/creatorHold"
 import { GiftCatalogManager } from "@/components/cowry/GiftCatalogManager"
@@ -696,8 +696,8 @@ export default function AdminCowryPage() {
           hint="Across every budget pool"
         />
         <Stat
-          label="Gifts sent today"
-          icon={Gift}
+          label="Treasures sent today"
+          icon={TreasureChest}
           tint="bg-[#fff1c7] text-[#a8793f]"
           value={giftsToday ? `${formatCowries(giftsToday.count)}${giftsToday.capped ? "+" : ""}` : "—"}
           hint={giftsToday?.biggest ? `Biggest: ${giftsToday.biggest}` : giftsToday ? "None yet in the last 24 hours" : "Could not load"}
@@ -1019,7 +1019,7 @@ export default function AdminCowryPage() {
                 Creator hold
               </h2>
               <p className="mt-1 text-sm text-[#4f4f4f]">
-                How long a creator waits before a gift they received becomes spendable.
+                How long a creator waits before a treasure they received becomes spendable.
               </p>
 
               <label htmlFor="creator-hold" className="mt-4 block text-sm font-medium text-[#10141a]">
@@ -1068,7 +1068,7 @@ export default function AdminCowryPage() {
             <div className="rounded-2xl bg-gray-50 p-4 text-sm text-[#4f4f4f] ring-1 ring-gray-200">
               <p className="font-semibold text-[#10141a]">What the hold is for</p>
               <p className="mt-1">
-                A gift is bought with purchased Cowries, and that purchase can still be charged
+                A treasure is bought with purchased Cowries, and that purchase can still be charged
                 back. The hold is the window in which that can be unwound before the creator has
                 spent the proceeds. 43,200 minutes &mdash; thirty days &mdash; is the production
                 setting.
@@ -1082,8 +1082,8 @@ export default function AdminCowryPage() {
                 effectively fifteen &mdash; setting 5 does not release in 5.
               </p>
               <p className="mt-2">
-                A gift&apos;s release date is stamped when it is sent, so shortening the hold does
-                not free gifts already held. Send a new gift to see the change.
+                A treasure&apos;s release date is stamped when it is sent, so shortening the hold does
+                not free treasures already held. Send a new treasure to see the change.
               </p>
             </div>
           </aside>

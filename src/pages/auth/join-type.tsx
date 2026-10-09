@@ -40,7 +40,7 @@ export default function JoinTypePage() {
         <div className="space-y-3.5">
           <JoinTypeCard
             title="Individual"
-            description="Create a professional profile, apply for jobs, connect with employers, and grow your healthcare career."
+            description="Create a professional profile, apply for jobs, link up with employers, and grow your healthcare career."
             selected={joinType === "individual"}
             onClick={() => setJoinType("individual")}
           />

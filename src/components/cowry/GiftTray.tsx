@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Link } from "react-router"
 import { toast } from "sonner"
-import { Crown, Gift, Loader2 } from "lucide-react"
+import { Crown, Loader2 } from "lucide-react"
+import { TreasureChest } from "@/components/cowry/TreasureChest"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -10,7 +11,7 @@ import { CowryAmount } from "@/components/cowry/CowryIcon"
 import { GiftIcon } from "@/components/cowry/GiftIcon"
 import { giftColor } from "@/components/cowry/giftIcons"
 import { playGiftSplash } from "@/components/cowry/giftPreview"
-import { missingFromCatalogue, traySelection } from "@/components/cowry/giftTraySelection"
+import { isGoldTab, missingFromCatalogue, trayTabs } from "@/components/cowry/giftTraySelection"
 import { cn } from "@/lib/utils"
 import { haptic } from "@/lib/haptics"
 import { Routes } from "@/routes/constants"
@@ -24,7 +25,6 @@ import {
 } from "@/utils/careconnect/services/cowryService"
 import {
   GIFT_REFUSAL_MESSAGES,
-  GIFT_SET_LABELS,
   formatCowries,
 } from "@/utils/careconnect/cowry"
 
@@ -50,8 +50,6 @@ interface GiftTrayProps {
   /** Called after a gift lands, so the host can refresh its own list. */
   onSent?: () => void
 }
-
-const SET_ORDER: CowryGiftSet[] = ["everyday", "warm", "bold", "rare", "legendary"]
 
 /** How long the confirmation stays up before the tray closes itself. */
 const CELEBRATION_MS = 1800
@@ -110,19 +108,20 @@ export function GiftTray({
     [],
   )
 
-  // Each tab's gifts: the whole set for most tabs, the curated list for Legendary (giftTraySelection.ts).
-  const bySet = useMemo(() => {
-    const groups = new Map<CowryGiftSet, CowryGiftCatalogItem[]>()
-    const all = catalog?.gifts ?? []
-    for (const set of SET_ORDER) {
-      const list = traySelection(set, all)
-      if (list.length) groups.set(set, list)
-    }
-    return groups
-  }, [catalog])
+  // The tabs and what each holds: the catalogue's own categories, in its order and with its
+  // labels (giftTraySelection.ts) — so a category an admin adds appears without a release.
+  const tabs = useMemo(() => (catalog ? trayTabs(catalog) : []), [catalog])
+  const bySet = useMemo(() => new Map(tabs.map((tab) => [tab.id, tab.gifts])), [tabs])
+  // Whatever tab was open may not exist in this catalogue; fall back to the first.
+  const currentSet: CowryGiftSet = bySet.has(activeSet) ? activeSet : (tabs[0]?.id ?? activeSet)
 
   // The Legendary tab's gifts, by id — styled gold whatever set the backend filed them in.
-  const legendaryIds = useMemo(() => new Set((bySet.get("legendary") ?? []).map((gift) => gift.id)), [bySet])
+  // The top tier's gifts, by id — Premium (or Legendary), styled gold whatever set they are filed in.
+  const legendaryIds = useMemo(
+    () => new Set(tabs.filter(isGoldTab).flatMap((tab) => tab.gifts.map((gift) => gift.id))),
+    [tabs],
+  )
+  const currentIsGold = tabs.some((tab) => tab.id === currentSet && isGoldTab(tab))
   const isLegendary = (gift: CowryGiftCatalogItem) => legendaryIds.has(gift.id)
 
   // While developing, say plainly which chosen gifts the catalogue does not have.
@@ -131,7 +130,7 @@ export function GiftTray({
     const missing = missingFromCatalogue(catalog.gifts)
     if (missing.length) {
       console.warn(
-        "Gift tray: these chosen gifts are not in the catalogue, so they are not shown. Add them to the backend catalogue, or match their spelling in giftTraySelection.ts:",
+        "Treasure tray: these chosen treasures are not in the catalogue, so they are not shown. Add them to the backend catalogue, or match their spelling in giftTraySelection.ts:",
         missing.map((item) => `${item.set}: ${item.name}`),
       )
     }
@@ -154,7 +153,7 @@ export function GiftTray({
       })
 
       if (!result.ok) {
-        toast.error(GIFT_REFUSAL_MESSAGES[result.reason ?? ""] ?? "That gift couldn't be sent.")
+        toast.error(GIFT_REFUSAL_MESSAGES[result.reason ?? ""] ?? "That treasure couldn't be sent.")
         return
       }
 
@@ -211,8 +210,8 @@ export function GiftTray({
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Gift className="size-5 text-[#00b4b8]" aria-hidden="true" />
-                Send a gift
+                <TreasureChest className="size-5 text-[#00b4b8]" aria-hidden="true" />
+                Send a treasure
                 {recipientName && <span className="font-normal text-[#657080]">to {recipientName}</span>}
               </DialogTitle>
             </DialogHeader>
@@ -234,51 +233,51 @@ export function GiftTray({
               {!loading && catalog && (
                 <>
                   <div className="flex flex-wrap gap-2">
-                    {SET_ORDER.filter((set) => bySet.has(set)).map((set) =>
-                      set === "legendary" ? (
+                    {tabs.map(({ id: set, label: setLabel }) =>
+                      isGoldTab({ id: set, label: setLabel }) ? (
                         // The top tier gets the most presence: gold, a crown, a moving shine.
                         <button
                           key={set}
                           type="button"
                           onClick={() => setActiveSet(set)}
-                          aria-pressed={activeSet === set}
+                          aria-pressed={currentSet === set}
                           className={cn(
                             "legendary-shine relative inline-flex items-center gap-1.5 overflow-hidden rounded-full px-3.5 py-1.5 text-xs font-bold transition",
-                            activeSet === set
+                            currentSet === set
                               ? "bg-[linear-gradient(135deg,#7a5310,#c8963e_45%,#f3c969)] text-white shadow-[0_6px_16px_-6px_rgba(200,150,62,0.9)]"
                               : "bg-[linear-gradient(135deg,#fff4df,#fbe3a0)] text-[#7a5310] ring-1 ring-[#e8d1a0] hover:ring-[#c8963e]",
                           )}
                         >
                           <Crown className="size-3.5" aria-hidden="true" />
-                          {GIFT_SET_LABELS[set] ?? set}
+                          {setLabel}
                         </button>
                       ) : (
                         <button
                           key={set}
                           type="button"
                           onClick={() => setActiveSet(set)}
-                          aria-pressed={activeSet === set}
+                          aria-pressed={currentSet === set}
                           className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                            activeSet === set
+                            currentSet === set
                               ? "bg-[#10141a] text-white"
                               : "bg-[#eef1f3] text-[#565656] hover:bg-[#e2e6ea]"
                           }`}
                         >
-                          {GIFT_SET_LABELS[set] ?? set}
+                          {setLabel}
                         </button>
                       ),
                     )}
                   </div>
 
-                  {activeSet === "legendary" && (
+                  {currentIsGold && (
                     <p className="animate-fadeIn flex items-center gap-2 rounded-xl bg-[linear-gradient(90deg,#fff4df,#fffaf0)] px-3 py-2 text-xs text-[#7a5310] ring-1 ring-[#f0dcae]">
                       <Crown className="size-4 shrink-0 text-[#c8963e]" aria-hidden="true" />
-                      The rarest gifts on Care Connect — they arrive in style on the receiver&apos;s screen.
+                      The rarest treasures on Care Connect — they arrive in style on the receiver&apos;s screen.
                     </p>
                   )}
 
                   <div className="grid grid-cols-3 gap-2 pr-1 overflow-y-auto max-h-72">
-                    {(bySet.get(activeSet) ?? []).map((gift) => {
+                    {(bySet.get(currentSet) ?? []).map((gift) => {
                       const affordable = balance >= gift.cost
                       const active = selected?.id === gift.id
                       if (isLegendary(gift)) {
@@ -355,12 +354,12 @@ export function GiftTray({
                         placeholder="Add a short message (optional)"
                         value={message}
                         onChange={(event) => setMessage(event.target.value)}
-                        aria-label="Message with your gift"
+                        aria-label="Message with your treasure"
                       />
 
                       <p className="text-xs text-[#657080]">
                         Balance afterwards: {formatCowries(balance - selected.cost)}. Your name is
-                        shown with the gift.
+                        shown with the treasure.
                       </p>
 
                       {balance >= selected.cost ? (

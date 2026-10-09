@@ -22,6 +22,8 @@ export type SoundName =
   | "eagle" // Golden Eagle arrival
   | "roar" // Golden Lion arrival
   | "harvest" // Earth Harvest arrival
+  | "sparkle" // a 200–399 Treasure: a scatter of twinkles
+  | "spotlight" // a 400–699 Treasure: a rising shimmer into a bright chord
   | "bloom" // Blooming Rose arrival
   | "thunder" // Thunder Staff arrival
   | "flame" // Eternal Flame arrival
@@ -574,6 +576,20 @@ CUES.harvest = (ctx, out) => {
   ;[261.6, 329.6, 392, 523.3].forEach((freq) => tone(ctx, out, { freq, at: 3.5, dur: 2, gain: 0.06, attack: 0.4 }))
   // Birds.
   ;[4.0, 4.12, 4.5, 4.62, 4.74].forEach((at) => tone(ctx, out, { freq: 2600, glide: 3600, at, dur: 0.08, gain: 0.05 }))
+}
+
+// A quick scatter of high twinkles, like light catching glitter.
+CUES.sparkle = (ctx, out) => {
+  ;[2637, 3136, 3520, 2794, 3951, 3322].forEach((freq, i) =>
+    tone(ctx, out, { freq, at: 0.05 + i * 0.06 + Math.random() * 0.03, dur: 0.18, type: "sine", gain: 0.05 }),
+  )
+}
+
+// A shimmer that rises as the icon does, landing on a bright, open chord.
+CUES.spotlight = (ctx, out) => {
+  noise(ctx, out, { dur: 0.9, filter: "bandpass", freq: 1200, sweepTo: 6000, q: 1.2, gain: 0.08, attack: 0.5 })
+  ;[523.3, 659.3, 784, 1046.5].forEach((freq, i) => tone(ctx, out, { freq, at: 0.1 + i * 0.09, dur: 0.4, type: "triangle", gain: 0.07 }))
+  ;[523.3, 784, 1046.5, 1568].forEach((freq) => tone(ctx, out, { freq, at: 0.55, dur: 1.4, gain: 0.05, attack: 0.05 }))
 }
 
 // A crack of thunder, rain pouring, a second strike — and the roar.

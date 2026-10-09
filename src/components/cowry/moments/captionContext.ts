@@ -9,14 +9,21 @@ export interface MomentCaptionValue {
   title: string
   /** The gift's name, smaller, beneath. */
   subtitle?: string
+  /** What the Treasure means — "Celebration" — beneath its name, when it has one. */
+  meaning?: string
 }
 
 export const MomentCaptionContext = createContext<MomentCaptionValue | null>(null)
 
-export function congratulationsFor(cost: number | null | undefined, giftName?: string | null): MomentCaptionValue {
+export function congratulationsFor(
+  cost: number | null | undefined,
+  giftName?: string | null,
+  meaning?: string | null,
+): MomentCaptionValue {
   const amount = Math.trunc(cost ?? 0)
   return {
-    title: amount > 0 ? `Congratulations on the ${formatCowries(amount)} Gift` : "Congratulations on your Gift",
+    title: amount > 0 ? `Congratulations on the ${formatCowries(amount)} Treasure` : "Congratulations on your Treasure",
     subtitle: giftName || undefined,
+    meaning: meaning?.trim() || undefined,
   }
 }

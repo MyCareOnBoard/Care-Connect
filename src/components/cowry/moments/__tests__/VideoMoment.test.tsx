@@ -35,12 +35,12 @@ function show(onDone = vi.fn()) {
 }
 
 describe("a filmed arrival", () => {
-  it("plays the video with the gift's amount and name over it", async () => {
+  it("plays the video with the treasure's amount and name over it", async () => {
     show()
     await act(async () => {})
     expect(document.querySelector("video")?.getAttribute("src")).toBe("/videos/lion.mp4")
     expect(play).toHaveBeenCalled()
-    expect(screen.getByText("Congratulations on the 90,000 Gift")).toBeInTheDocument()
+    expect(screen.getByText("Congratulations on the 90,000 Treasure")).toBeInTheDocument()
     expect(screen.getByText("Golden Lion")).toBeInTheDocument()
   })
 
@@ -74,7 +74,7 @@ describe("a filmed arrival", () => {
     expect(onDone).toHaveBeenCalled()
   })
 
-  it("moves on to the gift card when the video ends", async () => {
+  it("moves on to the treasure card when the video ends", async () => {
     const onDone = show()
     fireEvent.ended(document.querySelector("video")!)
     await act(async () => {
@@ -84,7 +84,7 @@ describe("a filmed arrival", () => {
   })
 })
 
-describe("which gifts are filmed", () => {
+describe("which treasures are filmed", () => {
   it("has videos for the eagle, the lion and the harvest only", () => {
     expect(giftVideoFor("eagle-flight")).toMatch(/Golden-Eagle-Flying-in-Jungle\.mp4$/)
     expect(giftVideoFor("lion-storm")).toMatch(/Crowned-Lion-Roaring-in-Storm\.mp4$/)

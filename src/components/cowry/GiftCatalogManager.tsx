@@ -243,7 +243,7 @@ function GiftRow({
                arrive like any other gift, which is worth knowing before members pay for it. */
             <span
               className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200"
-              title="The app has no full-screen scene for this name, so it arrives like any other gift"
+              title="The app has no full-screen scene for this name, so it arrives like any other treasure"
             >
               No full-screen scene
             </span>
@@ -346,7 +346,7 @@ export function GiftCatalogManager() {
     try {
       const result = await installTreasures()
       const retired = result.retired
-        ? ` ${result.retired} older gift${result.retired === 1 ? " was" : "s were"} retired, not deleted.`
+        ? ` ${result.retired} older treasure${result.retired === 1 ? " was" : "s were"} retired, not deleted.`
         : ""
       toast.success(
         `${result.installed} Treasures installed, ${result.updated} refreshed.${retired}`,
@@ -370,10 +370,10 @@ export function GiftCatalogManager() {
       // Said once, loudly: the first edit turned a fallback list into fifty real rows.
       if (seededCatalogue) {
         toast.success(
-          `Saved. The ${seededCatalogue} built-in gifts are now editable rows in the catalogue.`,
+          `Saved. The ${seededCatalogue} built-in treasures are now editable rows in the catalogue.`,
         )
       } else {
-        toast.success(draft.isNew ? "Gift added" : "Gift saved")
+        toast.success(draft.isNew ? "Treasure added" : "Treasure saved")
       }
 
       setDraft(null)
@@ -469,7 +469,7 @@ export function GiftCatalogManager() {
     <section className="rounded-2xl border border-gray-200 bg-white p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-[#10141a]">Gift catalogue</h2>
+          <h2 className="text-lg font-semibold text-[#10141a]">Treasure catalogue</h2>
           <p className="mt-1 text-sm text-[#4f4f4f]">
             What members can send, what it costs them, and what the creator earns.
           </p>
@@ -501,7 +501,7 @@ export function GiftCatalogManager() {
          * fifty rows should have been told it was going to happen.
          */
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <p className="font-semibold">These are the built-in gifts</p>
+          <p className="font-semibold">These are the built-in treasures</p>
           <p className="mt-1">
             Nothing has been saved yet, so members are seeing this list as a default. The first
             change you make saves all {gifts.length} of them as editable rows — after that, this
@@ -533,9 +533,9 @@ export function GiftCatalogManager() {
         </div>
       ) : gifts.length === 0 ? (
         <div className="mt-5 rounded-lg border border-dashed border-[#d7dde3] p-8 text-center">
-          <p className="text-sm font-semibold text-[#4f5862]">No gifts</p>
+          <p className="text-sm font-semibold text-[#4f5862]">No treasures</p>
           <p className="mt-1 text-sm text-[#8b95a1]">
-            Members have nothing to send until you add one. The gift tray will be empty.
+            Members have nothing to send until you add one. The treasure tray will be empty.
           </p>
         </div>
       ) : (
@@ -544,7 +544,7 @@ export function GiftCatalogManager() {
             {/* One tab per set — the gift tray's own sets, legendary in gold as it is there. */}
             <div
               role="tablist"
-              aria-label="Gift sets"
+              aria-label="Treasure sets"
               className={cn(
                 "scrollbar-hide flex flex-1 gap-1.5 overflow-x-auto rounded-full bg-[#f4f6f8] p-1",
                 needle && "opacity-50",
@@ -595,8 +595,8 @@ export function GiftCatalogManager() {
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search all gifts"
-                aria-label="Search all gifts"
+                placeholder="Search all treasures"
+                aria-label="Search all treasures"
                 className="rounded-full pl-9 pr-8"
               />
               {query && (
@@ -629,7 +629,7 @@ export function GiftCatalogManager() {
                   : `No ${categoryLabels.get(activeSet) ?? activeSet} Treasures`}
               </p>
               <p className="mt-1 text-sm text-[#8b95a1]">
-                {needle ? "Search looks at names and ids across every set." : "This tab is hidden from the gift tray until one is added."}
+                {needle ? "Search looks at names and ids across every set." : "This tab is hidden from the treasure tray until one is added."}
               </p>
             </div>
           ) : (
@@ -670,10 +670,10 @@ export function GiftCatalogManager() {
               )}
               <div className="min-w-0">
                 <DialogTitle className="truncate text-lg font-semibold text-[#10141a]">
-                  {draft?.isNew ? "Add a gift" : `Edit ${draft?.label}`}
+                  {draft?.isNew ? "Add a treasure" : `Edit ${draft?.label}`}
                 </DialogTitle>
                 <DialogDescription className="mt-1">
-                  Changing a cost affects gifts sent from now on. Gifts already sent keep what
+                  Changing a cost affects treasures sent from now on. Treasures already sent keep what
                   they cost at the time.
                 </DialogDescription>
               </div>
@@ -710,7 +710,7 @@ export function GiftCatalogManager() {
                 <p className="mt-1 text-xs text-[#6b7280]">
                   {draft.isNew
                     ? "The icon is picked from the words in here, so name it after a real thing — rose_bouquet finds a rose, gift_7 finds nothing. It cannot be changed later."
-                    : "An id cannot be changed — a different id would be a different gift."}
+                    : "An id cannot be changed — a different id would be a different treasure."}
                 </p>
               </div>
 
@@ -987,7 +987,7 @@ export function GiftCatalogManager() {
                 />
                 <p className="mt-1 text-xs text-[#6b7280]">
                   How much of the cost is minted for the recipient. 0.5 is half. Never above 1 —
-                  minting more than the sender spent would make gifting a way to print Cowries.
+                  minting more than the sender spent would make sending treasures a way to print Cowries.
                 </p>
               </div>
 
@@ -1076,7 +1076,7 @@ export function GiftCatalogManager() {
                 <div>
                   <p className="text-sm font-medium text-[#10141a]">Sendable</p>
                   <p className="text-xs text-[#6b7280]">
-                    Turn this off to take it out of the gift tray without deleting it.
+                    Turn this off to take it out of the treasure tray without deleting it.
                   </p>
                 </div>
                 <Switch
@@ -1117,7 +1117,7 @@ export function GiftCatalogManager() {
               className="bg-[#1f9c4c] text-white shadow-[0_6px_16px_-6px_rgba(31,156,76,0.6)] hover:bg-[#178a42] hover:opacity-100"
             >
               {saving && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-              {draft?.isNew ? "Add gift" : "Save changes"}
+              {draft?.isNew ? "Add treasure" : "Save changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1133,8 +1133,8 @@ export function GiftCatalogManager() {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove {pendingDelete?.label}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Members will no longer be able to send it. Gifts already sent are unaffected — each
-              one recorded its own name and cost, so past gifts and creator earnings still read
+              Members will no longer be able to send it. Treasures already sent are unaffected — each
+              one recorded its own name and cost, so past treasures and creator earnings still read
               correctly. If you only want to stop it being sent, edit it and turn off
               &ldquo;Sendable&rdquo; instead, which can be undone.
             </AlertDialogDescription>
