@@ -86,7 +86,7 @@ export function AgencyWelcome({
         <Users className="size-5 text-[#d97a2b]" aria-hidden="true" />
         <span className="text-sm font-bold text-[#151922]">Find professionals</span>
       </span>
-      <span className="mt-3 text-sm text-[#8a5a2b]">Connect with nurses, carers and specialists.</span>
+      <span className="mt-3 text-sm text-[#8a5a2b]">Link up with nurses, carers and specialists.</span>
       <CardFooter label="Browse people" className="text-[#b86a1e]" />
     </StripCard>,
   )

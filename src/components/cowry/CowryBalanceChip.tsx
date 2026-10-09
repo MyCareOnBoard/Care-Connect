@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useLocation, useNavigate } from "react-router"
-import { ArrowRight, Clock, Gift, ShoppingCart, Sparkles, X, type LucideIcon } from "lucide-react"
+import { ArrowRight, Clock, ShoppingCart, Sparkles, X, type LucideIcon } from "lucide-react"
+import { TreasureChest } from "@/components/cowry/TreasureChest"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { CowryIcon } from "@/components/cowry/CowryIcon"
@@ -41,7 +42,7 @@ const REFRESH_THROTTLE_MS = 30_000
 const BUCKETS: Array<{ type: CowryWalletType; icon: LucideIcon; tint: string }> = [
   { type: "reward", icon: Sparkles, tint: "bg-[#fff4df] text-[#c8963e]" },
   { type: "purchased", icon: ShoppingCart, tint: "bg-[#e0f2ff] text-[#0d8de0]" },
-  { type: "creator", icon: Gift, tint: "bg-[#fbe8f4] text-[#c0438f]" },
+  { type: "creator", icon: TreasureChest, tint: "bg-[#fbe8f4] text-[#c0438f]" },
 ]
 
 /** Compact figure for the chip: 12,480 → "12.5K" so the header never reflows. */

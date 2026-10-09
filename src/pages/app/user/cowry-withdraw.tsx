@@ -200,7 +200,7 @@ export default function CowryWithdrawPage() {
                 number we&apos;d have to change.
               </p>
               <p className="mt-2 text-sm leading-relaxed text-[#657080]">
-                Your bought Cowries are safe. You can send gifts with them, or put them
+                Your bought Cowries are safe. You can send treasures with them, or put them
                 toward mobile data, today.
               </p>
             </div>

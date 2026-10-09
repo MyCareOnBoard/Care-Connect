@@ -51,11 +51,11 @@ describe("PortfolioPost", () => {
     expect(box).toHaveValue("Congratulations!")
   })
 
-  it("offers the gift button only where gifting applies", () => {
+  it("offers the treasure button only where sending treasures applies", () => {
     const { unmount } = renderPost()
-    expect(screen.queryByRole("button", { name: /gift/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /treasure/i })).not.toBeInTheDocument()
     unmount()
     renderPost({ onGift: vi.fn() })
-    expect(screen.getByRole("button", { name: /gift/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /treasure/i })).toBeInTheDocument()
   })
 })

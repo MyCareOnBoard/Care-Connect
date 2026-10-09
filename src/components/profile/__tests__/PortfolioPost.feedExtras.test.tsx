@@ -145,8 +145,8 @@ describe("the opening comment on a card", () => {
 
 /* ── the gifts ───────────────────────────────────────────────────────────── */
 
-describe("the gifts on a card", () => {
-  it("shows the count and draws the gifts it attracted", async () => {
+describe("the treasures on a card", () => {
+  it("shows the count and draws the treasures it attracted", async () => {
     renderCard(
       postData({
         giftsCount: 9,
@@ -159,7 +159,7 @@ describe("the gifts on a card", () => {
     )
     expect(await screen.findByText("9")).toBeInTheDocument()
     // Named for a screen reader, since the icons themselves are decorative.
-    expect(screen.getByText(/gifts, mostly rose/)).toBeInTheDocument()
+    expect(screen.getByText(/treasures, mostly rose/)).toBeInTheDocument()
   })
 
   it("draws at most three, however many kinds arrived", async () => {
@@ -176,21 +176,21 @@ describe("the gifts on a card", () => {
     )
     await screen.findByText("30")
     // Four kinds were sent; the row is capped so it cannot crowd out the counts beside it.
-    expect(screen.getByText(/gifts, mostly rose/)).toBeInTheDocument()
+    expect(screen.getByText(/treasures, mostly rose/)).toBeInTheDocument()
   })
 
-  it("says nothing about gifts on a post that has none", async () => {
+  it("says nothing about treasures on a post that has none", async () => {
     renderCard(postData({ giftsCount: 0, topGifts: [] }))
     await screen.findByText("A short post.")
-    expect(screen.queryByText(/gift/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/treasure/)).not.toBeInTheDocument()
   })
 
-  it("speaks of one gift in the singular", async () => {
+  it("speaks of one treasure in the singular", async () => {
     renderCard(postData({ giftsCount: 1, topGifts: [{ giftId: "rose", count: 1 }] }))
-    expect(await screen.findByText(/gift, mostly rose/)).toBeInTheDocument()
+    expect(await screen.findByText(/treasure, mostly rose/)).toBeInTheDocument()
   })
 
-  it("survives a count with no gift breakdown behind it", async () => {
+  it("survives a count with no treasure breakdown behind it", async () => {
     // The tally is a separate field from the count; one can arrive without the other.
     renderCard(postData({ giftsCount: 3, topGifts: [] }))
     expect(await screen.findByText("3")).toBeInTheDocument()

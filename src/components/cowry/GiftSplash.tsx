@@ -4,7 +4,7 @@ import { Link } from "react-router"
 import { X } from "lucide-react"
 import { GiftIcon } from "@/components/cowry/GiftIcon"
 import { EagleFlight } from "@/components/cowry/EagleFlight"
-import { giftColor, type GiftLike } from "@/components/cowry/giftIcons"
+import { giftColor, matchGiftByName, type GiftLike } from "@/components/cowry/giftIcons"
 import { IconRain, RAIN_MS } from "@/components/cowry/CowryRain"
 import { AncestralMark } from "@/components/cowry/moments/AncestralMark"
 import { CityOfLights } from "@/components/cowry/moments/CityOfLights"
@@ -13,7 +13,10 @@ import { EternalFlame } from "@/components/cowry/moments/EternalFlame"
 import { LionStorm } from "@/components/cowry/moments/LionStorm"
 import { HarvestRain } from "@/components/cowry/moments/HarvestRain"
 import { VideoMoment } from "@/components/cowry/moments/VideoMoment"
-import { giftVideoFor } from "@/components/cowry/giftVideos"
+import { SparkleBurst, SpotlightMoment, ThemeMoment } from "@/components/cowry/moments/TreasureMoments"
+import { HumanConnectionMoment } from "@/components/cowry/moments/HumanMoments"
+import { THEMES, humanSceneFor, isHumanScene, themeFor, treasureMeaningFor, treasureTier } from "@/components/cowry/treasureTiers"
+import { giftVideoFor, treasureVideoFor } from "@/components/cowry/giftVideos"
 import { OceanPearl } from "@/components/cowry/moments/OceanPearl"
 import { PhoenixRise } from "@/components/cowry/moments/PhoenixRise"
 import { RisingSun } from "@/components/cowry/moments/RisingSun"
@@ -75,12 +78,19 @@ export function GiftSplash({ data, onDone }: { data: GiftSplashData; onDone: () 
   const [leaving, setLeaving] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const color = giftColor(data.gift)
-  const label = data.gift.label || "a gift"
+  const label = data.gift.label || "a treasure"
 
   // Top-tier gifts arrive with a full-screen moment of their own (the Golden Eagle's
   // flight); the card follows once it is over. Everything else rains and shows the card.
   const arrival = giftArrivalFor(data.gift, data.direction)
-  const [phase, setPhase] = useState<"moment" | "card">(arrival === "rain" ? "card" : "moment")
+  // Treasures without a scene of their own arrive bigger the more they cost (treasureTiers.ts):
+  // from 400 a spotlight, from 700 a scene themed to their category. The receiver's only.
+  const tier = treasureTier(data.cost)
+  // A Treasure with a film of its own plays it whatever it costs (giftVideos.ts).
+  const treasureVideo = arrival === "rain" && data.direction === "received" ? treasureVideoFor(data.gift) : null
+  const tiered = arrival === "rain" && data.direction === "received" && (tier >= 3 || Boolean(treasureVideo))
+  const theme = themeFor(data.set, tier)
+  const [phase, setPhase] = useState<"moment" | "card">(arrival === "rain" && !tiered ? "card" : "moment")
   const showCard = useCallback(() => setPhase("card"), [])
 
   // Leave after a while, unless someone is reading or pointing at the card.
@@ -108,11 +118,18 @@ export function GiftSplash({ data, onDone }: { data: GiftSplashData; onDone: () 
   }, [phase])
 
   // The rain runs once per gift, whatever the card does — for gifts that rain at all.
-  const [raining, setRaining] = useState(arrival === "rain")
+  const [raining, setRaining] = useState(arrival === "rain" && !tiered)
   // The gift chime, for gifts that rain. The full-screen ones bring their own sound.
   useEffect(() => {
-    if (arrival === "rain") playSound("gift")
-  }, [arrival])
+    if (arrival === "rain" && !tiered) playSound("gift")
+  }, [arrival, tiered])
+  // From 200, sparkles burst from the middle over the shower.
+  const [sparkling, setSparkling] = useState(arrival === "rain" && data.direction === "received" && tier === 2)
+  useEffect(() => {
+    if (!sparkling) return
+    const stop = setTimeout(() => setSparkling(false), 1400)
+    return () => clearTimeout(stop)
+  }, [sparkling])
   const [seed] = useState(() => Date.now())
   useEffect(() => {
     const stop = setTimeout(() => setRaining(false), RAIN_MS + 400)
@@ -123,6 +140,25 @@ export function GiftSplash({ data, onDone }: { data: GiftSplashData; onDone: () 
 
   if (phase === "moment") {
     const scene = (() => {
+      if (tiered) {
+        const arrives = `${label} arrives`
+        if (treasureVideo) {
+          // The film, with its price-band scene behind it in case it will not play.
+          const fallback =
+            tier >= 4 ? <ThemeMoment gift={data.gift} theme={theme} label={arrives} onDone={showCard} />
+            : <SpotlightMoment gift={data.gift} colors={THEMES[theme].colors} label={arrives} onDone={showCard} />
+          return <VideoMoment src={treasureVideo} label={arrives} onDone={showCard} fallback={fallback} />
+        }
+        // Human Connection: each Treasure a full-screen scene of what it means (HumanMoments.tsx).
+        const ruleKey = matchGiftByName(data.gift)?.key
+        if (theme === "human" || isHumanScene(ruleKey)) {
+          return <HumanConnectionMoment scene={humanSceneFor(ruleKey)} gift={data.gift} label={arrives} onDone={showCard} />
+        }
+        if (tier === 3) {
+          return <SpotlightMoment gift={data.gift} colors={THEMES[theme].colors} label={arrives} onDone={showCard} />
+        }
+        return <ThemeMoment gift={data.gift} theme={theme} label={arrives} onDone={showCard} />
+      }
       // Filmed where there is a video for it; the drawn scene otherwise, and as its fallback.
       const drawn =
         arrival === "eagle-flight" ? <EagleFlight onDone={showCard} />
@@ -147,12 +183,13 @@ export function GiftSplash({ data, onDone }: { data: GiftSplashData; onDone: () 
     })()
     // Every full-screen arrival carries "Congratulations on the 100,000 Gift" (MomentCaption).
     if (scene) {
-      return <MomentCaptionContext.Provider value={congratulationsFor(data.cost, label)}>{scene}</MomentCaptionContext.Provider>
+      return <MomentCaptionContext.Provider value={congratulationsFor(data.cost, label, treasureMeaningFor(data.gift))}>{scene}</MomentCaptionContext.Provider>
     }
   }
 
   return (
     <>
+      {sparkling && <SparkleBurst colors={THEMES[theme].colors} />}
       {raining && (
         <IconRain
           seed={seed}
@@ -213,7 +250,7 @@ export function GiftSplash({ data, onDone }: { data: GiftSplashData; onDone: () 
 
             <div className="min-w-0 pr-9">
               <p className="text-xs font-semibold uppercase tracking-wide" style={{ color }}>
-                {data.direction === "received" ? "You got a gift" : "Gift sent"}
+                {data.direction === "received" ? "You got a treasure" : "Treasure sent"}
               </p>
               <p className="mt-0.5 text-base font-bold leading-snug text-[#151922]">
                 {data.direction === "received"
@@ -241,7 +278,7 @@ export function GiftSplash({ data, onDone }: { data: GiftSplashData; onDone: () 
               onClick={() => setLeaving(true)}
               className="relative mt-3 inline-flex text-sm font-semibold text-[#00868a] hover:underline"
             >
-              See your gifts →
+              See your treasures →
             </Link>
           )}
         </div>,
