@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react"
+import { Loader2, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -389,12 +389,14 @@ export function TaxonomyManager() {
       {/* ── add / edit ─────────────────────────────────────────────────────── */}
 
       <Dialog open={Boolean(draft)} onOpenChange={(open) => !open && setDraft(null)}>
-        <DialogContent showCloseButton className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
+        {/* A column: the title and the buttons stay put, the fields between them scroll — a
+            rarity's extra fields can make it taller than a laptop screen. */}
+        <DialogContent showCloseButton className="flex max-h-[min(90vh,720px)] flex-col overflow-hidden sm:max-w-lg">
+          <DialogHeader className="shrink-0 border-b border-[#eef1f3] pb-4 pr-16">
+            <DialogTitle className="text-lg font-semibold text-[#10141a]">
               {draft?.isNew ? `Add a ${draft.kind}` : `Edit ${draft?.label}`}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm text-[#657080]">
               {draft?.isNew
                 ? "It becomes available in the Treasure editor straight away."
                 : "The key cannot change — every Treasure filed under it stores the key."}
@@ -402,7 +404,7 @@ export function TaxonomyManager() {
           </DialogHeader>
 
           {draft && (
-            <div className="space-y-4">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
               <div>
                 <label htmlFor="tax-label" className="text-sm font-medium text-[#10141a]">
                   Name
@@ -556,11 +558,18 @@ export function TaxonomyManager() {
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t border-[#eef1f3] pt-4">
             <Button variant="outline" onClick={() => setDraft(null)} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={() => void commit()} disabled={Boolean(problem) || saving}>
+            {/* Its own green, not the theme's primary — which the admin shell does not set,
+                and which left this button blank on a white dialog. */}
+            <Button
+              onClick={() => void commit()}
+              disabled={Boolean(problem) || saving}
+              className="bg-[#1f9c4c] text-white shadow-[0_6px_16px_-6px_rgba(31,156,76,0.6)] hover:bg-[#178a42] hover:opacity-100"
+            >
+              {saving && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
               {saving ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
@@ -581,7 +590,11 @@ export function TaxonomyManager() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void remove()} disabled={saving}>
+            <AlertDialogAction
+              onClick={() => void remove()}
+              disabled={saving}
+              className="bg-[#b4232a] text-white hover:bg-[#8f1b21]"
+            >
               Remove
             </AlertDialogAction>
           </AlertDialogFooter>

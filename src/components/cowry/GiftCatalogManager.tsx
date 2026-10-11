@@ -45,7 +45,7 @@ import {
   type CowryGiftAvailability,
   type CowryGiftStatus,
   type CowryTaxonomy,
-  type CowryTaxonomyItem,
+  // type CowryTaxonomyItem,
 } from "@/utils/careconnect/services/cowryAdminService"
 import {
   emptyGiftDraft,

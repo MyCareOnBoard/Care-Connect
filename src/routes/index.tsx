@@ -36,17 +36,24 @@ const AgencyJobsPage = lazy(() => import("@/pages/app/agency/jobs"));
 const MessagesPage = lazy(() => import("@/pages/app/messages"));
 const ApplicationsPage = lazy(() => import("@/pages/app/applications"));
 const MarketplacePage = lazy(() => import("@/pages/app/marketplace"));
-const SchedulePage = lazy(() => import("@/pages/app/schedule"));
-const TelehealthPage = lazy(() => import("@/pages/app/telehealth"));
-const ServiceAnalyticsPage = lazy(() => import("@/pages/app/agency/service-analytics"));
-const AgencyTelehealthBookingsPage = lazy(() => import("@/pages/app/agency/telehealth-bookings"));
+// TELEHEALTH PAUSED — every Telehealth page shows the Coming Soon page for now. Nothing is
+// deleted: to bring Telehealth back, uncomment the lines marked TELEHEALTH PAUSED here (the
+// imports and the routes below), remove the Coming Soon routes, and restore the nav in
+// AppShell.tsx and the Availability item in AccountControls.tsx.
+const TelehealthComingSoonPage = lazy(() => import("@/pages/app/telehealth-coming-soon"));
+// TELEHEALTH PAUSED
+// const SchedulePage = lazy(() => import("@/pages/app/schedule"));
+// const TelehealthPage = lazy(() => import("@/pages/app/telehealth"));
+// const ServiceAnalyticsPage = lazy(() => import("@/pages/app/agency/service-analytics"));
+// const AgencyTelehealthBookingsPage = lazy(() => import("@/pages/app/agency/telehealth-bookings"));
 const ProfilePage = lazy(() => import("@/pages/app/profile"));
 const ViewProfilePage = lazy(() => import("@/pages/app/view-profile"));
 const SettingsPage = lazy(() => import("@/pages/app/settings"));
-const HealthProfilePage = lazy(() => import("@/pages/app/user/health-profile"));
-const MyRecordsPage = lazy(() => import("@/pages/app/user/records"));
-const ClientRecordsPage = lazy(() => import("@/pages/app/professional/client-records"));
-const FollowUpsPage = lazy(() => import("@/pages/app/user/follow-ups"));
+// TELEHEALTH PAUSED
+// const HealthProfilePage = lazy(() => import("@/pages/app/user/health-profile"));
+// const MyRecordsPage = lazy(() => import("@/pages/app/user/records"));
+// const ClientRecordsPage = lazy(() => import("@/pages/app/professional/client-records"));
+// const FollowUpsPage = lazy(() => import("@/pages/app/user/follow-ups"));
 const CowryWalletPage = lazy(() => import("@/pages/app/user/cowry-wallet"));
 const CowryHistoryPage = lazy(() => import("@/pages/app/user/cowry-history"));
 const CowryEarnPage = lazy(() => import("@/pages/app/user/cowry-earn"));
@@ -105,15 +112,23 @@ export const router = createBrowserRouter([
           { path: Routes.app.user.jobs, Component: UserJobsPage },
           { path: Routes.app.user.applications, Component: ApplicationsPage },
           { path: Routes.app.user.marketplace, Component: MarketplacePage },
-          { path: Routes.app.user.schedule, Component: SchedulePage },
-          { path: Routes.app.user.telehealth, Component: TelehealthPage },
+          // TELEHEALTH PAUSED
+          // { path: Routes.app.user.schedule, Component: SchedulePage },
+          // { path: Routes.app.user.telehealth, Component: TelehealthPage },
+          { path: Routes.app.user.schedule, Component: TelehealthComingSoonPage },
+          { path: Routes.app.user.telehealth, Component: TelehealthComingSoonPage },
           { path: Routes.app.user.profile, Component: ProfilePage },
           { path: `${Routes.app.user.profile}/:id`, Component: ViewProfilePage },
           { path: Routes.app.user.settings, Component: SettingsPage },
-          { path: Routes.app.user.healthProfile, Component: HealthProfilePage },
-          { path: Routes.app.user.records, Component: MyRecordsPage },
-          { path: `${Routes.app.user.records}/:clientId`, Component: ClientRecordsPage },
-          { path: Routes.app.user.followUps, Component: FollowUpsPage },
+          // TELEHEALTH PAUSED
+          // { path: Routes.app.user.healthProfile, Component: HealthProfilePage },
+          // { path: Routes.app.user.records, Component: MyRecordsPage },
+          // { path: `${Routes.app.user.records}/:clientId`, Component: ClientRecordsPage },
+          // { path: Routes.app.user.followUps, Component: FollowUpsPage },
+          { path: Routes.app.user.healthProfile, Component: TelehealthComingSoonPage },
+          { path: Routes.app.user.records, Component: TelehealthComingSoonPage },
+          { path: `${Routes.app.user.records}/:clientId`, Component: TelehealthComingSoonPage },
+          { path: Routes.app.user.followUps, Component: TelehealthComingSoonPage },
           // A Cowry page that is switched off loses its route as well as its nav entry.
           // Hiding only the link would leave it reachable by URL and by an old bookmark,
           // which is not "off" — it is just harder to find.
@@ -131,9 +146,13 @@ export const router = createBrowserRouter([
           { path: Routes.app.agency.messages, Component: MessagesPage },
           { path: Routes.app.agency.jobs, Component: AgencyJobsPage },
           { path: Routes.app.agency.marketplace, Component: MarketplacePage },
-          { path: Routes.app.agency.telehealth, Component: TelehealthPage },
-          { path: Routes.app.agency.telehealthBookings, Component: AgencyTelehealthBookingsPage },
-          { path: `${Routes.app.agency.telehealth}/:id/analytics`, Component: ServiceAnalyticsPage },
+          // TELEHEALTH PAUSED
+          // { path: Routes.app.agency.telehealth, Component: TelehealthPage },
+          // { path: Routes.app.agency.telehealthBookings, Component: AgencyTelehealthBookingsPage },
+          // { path: `${Routes.app.agency.telehealth}/:id/analytics`, Component: ServiceAnalyticsPage },
+          { path: Routes.app.agency.telehealth, Component: TelehealthComingSoonPage },
+          { path: Routes.app.agency.telehealthBookings, Component: TelehealthComingSoonPage },
+          { path: `${Routes.app.agency.telehealth}/:id/analytics`, Component: TelehealthComingSoonPage },
           { path: Routes.app.agency.profile, Component: ProfilePage },
           { path: `${Routes.app.agency.profile}/:id`, Component: ViewProfilePage },
           { path: Routes.app.agency.settings, Component: SettingsPage },

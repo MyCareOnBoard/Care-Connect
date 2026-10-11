@@ -398,9 +398,9 @@ function ServiceCard({ service, onEdit }: { service: TelehealthService; onEdit: 
   const pill = STATUS_PILL[service.status] ?? STATUS_PILL.active
   return (
     <div className="rounded-3xl border border-[#e5ecf5] bg-white p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <h3 className="text-base font-semibold text-[#151922]">{service.title}</h3>
-        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${pill.className}`}>{pill.label}</span>
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="min-w-0 break-words text-base font-semibold text-[#151922]">{service.title}</h3>
+        <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${pill.className}`}>{pill.label}</span>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-[#656f80]">
         <span className="inline-flex items-center gap-2">
@@ -421,13 +421,14 @@ function ServiceCard({ service, onEdit }: { service: TelehealthService; onEdit: 
           <CalendarCheck className="size-4" />
           {service.bookingsCount} Bookings · Posted {formatRelative(service.createdAt)}
         </span>
-        <div className="flex items-center gap-2">
+        {/* Side by side, sharing the width on a phone; their natural size from tablet up. */}
+        <div className="flex w-full items-center gap-2 sm:w-auto">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={onEdit}
-            className="rounded-lg gap-1.5 border-[#e2e2e2] text-[#151922] hover:border-[#00b4b8] hover:text-[#00b4b8]"
+            className="flex-1 gap-1.5 rounded-lg border-[#e2e2e2] text-[#151922] hover:border-[#00b4b8] hover:text-[#00b4b8] sm:flex-none"
           >
             <Pencil className="size-3.5" />
             Edit
@@ -436,7 +437,7 @@ function ServiceCard({ service, onEdit }: { service: TelehealthService; onEdit: 
             asChild
             variant="outline"
             size="sm"
-            className="rounded-lg border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
+            className="flex-1 rounded-lg border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8] sm:flex-none"
           >
             <Link to={Routes.app.agency.serviceAnalytics(service.id)}>View analytics</Link>
           </Button>
@@ -450,18 +451,21 @@ function OverviewStatCard({
   label,
   value,
   action,
+  className,
 }: {
   label: string
   value: string
   action?: ReactNode
+  className?: string
 }) {
   return (
-    <div className="rounded-2xl border border-[#e5ecf5] bg-white p-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-2xl font-bold text-[#151922]">{value}</p>
+    <div className={`min-w-0 rounded-2xl border border-[#e5ecf5] bg-white p-4 ${className ?? ""}`}>
+      {/* Wraps rather than overflowing: a long amount and its button share a half-width tile. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 break-words text-xl font-bold tabular-nums text-[#151922] sm:text-2xl">{value}</p>
         {action}
       </div>
-      <p className="mt-1 text-sm text-[#656f80]">{label}</p>
+      <p className="mt-1 text-sm leading-snug text-[#656f80]">{label}</p>
     </div>
   )
 }
@@ -498,6 +502,9 @@ function AgencyOverview({ services, team, bookings }: { services: TelehealthServ
         <OverviewStatCard
           label="Amount made"
           value={stats.amountMade}
+          // Full width on a phone: the amount and its button need the room. The other four
+          // then pair up in two even rows.
+          className="col-span-2 sm:col-span-1"
           action={
             <Button
               size="sm"
@@ -585,13 +592,13 @@ function BookingsSidebar({ bookings }: { bookings: TelehealthBooking[] }) {
                 {visibleBookings.map((booking) => (
                   <div key={booking.id} className="border-b border-[#eef1f3] pb-5 last:border-0 last:pb-0">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <span className={`flex size-11 items-center justify-center rounded-full text-sm font-semibold text-white ${avatarBg(booking.id)}`}>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className={`flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white ${avatarBg(booking.id)}`}>
                           {getInitials(booking.clientName)}
                         </span>
-                        <div>
-                          <p className="text-sm font-semibold text-[#151922]">{booking.clientName}</p>
-                          <p className="text-sm text-[#656f80]">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-[#151922]">{booking.clientName}</p>
+                          <p className="truncate text-sm text-[#656f80]">
                             {booking.serviceTitle} · {SERVICE_MODE_LABELS[booking.mode]}
                           </p>
                         </div>
@@ -1985,12 +1992,26 @@ function AgencyTelehealthPage() {
     .filter((service) => modeFilter === "all" || service.modes.includes(modeFilter))
   const shownServices = visibleServices.slice(0, visibleServiceCount)
 
+  const createButton = (
+    <Button className="shrink-0 rounded-full bg-[#00b4b8] text-white hover:opacity-90" onClick={() => setCreateOpen(true)}>
+      <Plus className="size-4" />
+      Create service
+    </Button>
+  )
+
   return (
     <div className="p-5 sm:p-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-[#151922]">Telehealth</h1>
-        <div className="flex flex-1 flex-wrap items-center justify-end gap-4">
-          <div className="relative w-full max-w-sm">
+      {/*
+        On a phone: the title with Create beside it, the search full width, then the filter and
+        Team Members side by side. From tablet up: title on the left, everything else on the right.
+      */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold text-[#151922]">Telehealth</h1>
+          <div className="md:hidden">{createButton}</div>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center md:flex-1 md:justify-end">
+          <div className="relative w-full sm:max-w-sm sm:flex-1">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
             <Input
               value={search}
@@ -1999,52 +2020,54 @@ function AgencyTelehealthPage() {
               className="pl-9"
             />
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="font-semibold whitespace-nowrap text-[#151922]">Filter by:</span>
-            <Select value={modeFilter} onValueChange={(value) => setModeFilter(value as "all" | ServiceMode)}>
-              <SelectTrigger className="w-36">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All modes</SelectItem>
-                <SelectItem value="online">{SERVICE_MODE_LABELS.online}</SelectItem>
-                <SelectItem value="in_person">{SERVICE_MODE_LABELS.in_person}</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-3">
+            <div className="flex min-w-0 items-center gap-2 text-sm">
+              <span className="hidden font-semibold whitespace-nowrap text-[#151922] lg:inline">Filter by:</span>
+              <Select value={modeFilter} onValueChange={(value) => setModeFilter(value as "all" | ServiceMode)}>
+                <SelectTrigger className="w-full sm:w-36" aria-label="Filter by mode">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All modes</SelectItem>
+                  <SelectItem value="online">{SERVICE_MODE_LABELS.online}</SelectItem>
+                  <SelectItem value="in_person">{SERVICE_MODE_LABELS.in_person}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full min-w-0 rounded-full border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8] sm:w-auto"
+                >
+                  <Users className="size-4 shrink-0" />
+                  <span className="truncate">
+                    <span className="hidden sm:inline">Team Members </span>
+                    <span className="sm:hidden">Team </span>({team.length})
+                  </span>
+                  <ChevronDown className="size-3.5 shrink-0" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="rounded-xl border-[#eef1f3] bg-white">
+                <DropdownMenuItem
+                  className="gap-2 rounded-lg data-highlighted:bg-[#e3f8f8] data-highlighted:text-[#00898c]"
+                  onSelect={() => setViewTeamOpen(true)}
+                >
+                  <Users className="size-4" />
+                  View Team Members
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="gap-2 rounded-lg data-highlighted:bg-[#e3f8f8] data-highlighted:text-[#00898c]"
+                  onSelect={() => setTeamInviteOpen(true)}
+                >
+                  <UserPlus className="size-4" />
+                  Add Team Members
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-full border-[#00b4b8] text-[#00b4b8] hover:bg-[#e3f8f8]"
-              >
-                <Users className="size-4" />
-                Team Members ({team.length})
-                <ChevronDown className="size-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="rounded-xl border-[#eef1f3] bg-white">
-              <DropdownMenuItem
-                className="gap-2 rounded-lg data-highlighted:bg-[#e3f8f8] data-highlighted:text-[#00898c]"
-                onSelect={() => setViewTeamOpen(true)}
-              >
-                <Users className="size-4" />
-                View Team Members
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="gap-2 rounded-lg data-highlighted:bg-[#e3f8f8] data-highlighted:text-[#00898c]"
-                onSelect={() => setTeamInviteOpen(true)}
-              >
-                <UserPlus className="size-4" />
-                Add Team Members
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button className="rounded-full bg-[#00b4b8] text-white hover:opacity-90" onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" />
-            Create service
-          </Button>
+          <div className="hidden md:block">{createButton}</div>
         </div>
       </div>
 
