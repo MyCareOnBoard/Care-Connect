@@ -45,14 +45,14 @@ export default function TelehealthComingSoonPage() {
           <p className="mt-6 inline-flex items-center rounded-full bg-[#e3f8f8] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-[#00898c]">
             Coming soon
           </p>
-          <h1 className="mt-3 text-2xl font-bold text-[#151922] sm:text-3xl">Telehealth is coming soon</h1>
+          <h1 className="mt-3 text-2xl font-bold text-black bg-[#e3f8f8] items-center rounded-full py-1 sm:text-3xl">Telehealth is coming soon</h1>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[#657080] sm:text-base">
             We&apos;re putting the finishing touches to care that comes to you. Here&apos;s what
             Telehealth will bring to Care Connect.
           </p>
         </div>
 
-        <ul className="cowry-stagger grid gap-3 px-6 pb-2 text-left sm:grid-cols-2">
+        <ul className="cowry-stagger grid gap-3 px-6 pb-2 mt-4 text-left sm:grid-cols-2">
           {COMING.map(({ icon: Icon, label, hint }) => (
             <li key={label} className="flex items-start gap-3 rounded-2xl border border-[#eef1f3] bg-[#fbfdfd] p-4">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#e3f8f8] text-[#00898c]">
