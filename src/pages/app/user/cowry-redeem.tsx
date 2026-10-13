@@ -351,9 +351,16 @@ export default function CowryRedeemPage() {
   const showPhoneError = phoneTouched && phoneNumber !== "" && !phoneValid
 
   // Say why Continue is off, instead of leaving a grey button to be puzzled over.
-  const blocker = !wallet?.canRedeem
-    ? "Redeeming is unavailable on this account right now."
-    : monthlyLeft === 0
+  //
+  // The supplier comes first, because it is the one reason that is nothing to do with the
+  // member: their balance, their limits and their number are all fine, and there is simply
+  // nothing on the other end yet. Ordering it below the account checks would tell someone
+  // with an empty wallet to top up for a thing that could not be delivered either way.
+  const blocker = catalog?.available === false
+    ? "Redeeming for data isn't switched on yet. Your Cowries are untouched."
+    : !wallet?.canRedeem
+      ? "Redeeming is unavailable on this account right now."
+      : monthlyLeft === 0
       ? "You've used all your data rewards for this month."
       : !selected
         ? "Choose a package."

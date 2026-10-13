@@ -206,6 +206,9 @@ export const REDEEM_REFUSAL_MESSAGES: Record<string, string> = {
   unknown_package: "That package isn't available any more.",
   invalid_phone: "That doesn't look like a Nigerian mobile number.",
   phone_in_use: "That number is already receiving data on another account.",
+  // Not a limit and not the member's fault: nothing stands behind the delivery yet, so
+  // nothing is taken. Worded as a feature that is not ready rather than as a failure.
+  supplier_unavailable: "Redeeming for data isn't switched on yet. Your Cowries are untouched.",
   not_eligible: "We couldn't complete this request.",
 }
 

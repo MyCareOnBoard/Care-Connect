@@ -269,6 +269,15 @@ export interface CowryRedemptionCatalog {
   networks: Array<{ id: CowryNetwork; label: string }>
   usage: { today: number; month: number; megabytesThisMonth: number }
   wallet: CowryWallet
+  /**
+   * Whether a redemption would actually be honoured.
+   *
+   * False while no data supplier is configured. The packages are still listed, so a member
+   * can see what their Cowries are worth, but the screen must not offer a button that would
+   * take their balance and deliver nothing.
+   */
+  available?: boolean
+  unavailableReason?: string | null
 }
 
 export interface RedeemInput {
