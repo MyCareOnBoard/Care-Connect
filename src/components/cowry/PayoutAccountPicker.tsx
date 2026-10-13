@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import {
   Building2,
@@ -26,6 +26,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils"
 import { getAuthErrorMessage } from "@/utils/auth"
 import {
+  clearRecaptchaVerifier,
+  startPhoneLink,
+  type PhoneLinkRefusal,
+} from "@/utils/auth/services/phoneLinkService"
+import {
   addPayoutAccount,
   confirmPayoutAccount,
   listPayoutAccounts,
@@ -50,8 +55,10 @@ import {
  *                  must match the member. One step, and it either passes or it does not.
  *
  *   mobile money   there is no name to resolve anywhere in the region, because the account
- *                  IS the phone number. So a code is texted to it and the account is not
- *                  payable until that code comes back. Two steps, necessarily.
+ *                  IS the phone number. So the number is linked to the member's Firebase
+ *                  account — Firebase sends the SMS, counts the attempts and expires the
+ *                  code — and the server then reads it back off the auth record. Two steps,
+ *                  necessarily, and the code never passes through us.
  *
  * The four states an account can be in mean different things and call for different
  * actions, so none of them is collapsed into another:
@@ -60,7 +67,8 @@ import {
  *   rejected       it resolved to somebody else. The bank's version is shown, because that
  *                  is how a member spots which digit they got wrong.
  *   pending        nobody could reach the bank. Not a failed check, and must not read as one.
- *   awaiting_code  waiting on the member, not on us. It needs a code, not a retry.
+ *   awaiting_verification
+ *                  waiting on the member, not on us. It needs confirming, not a retry.
  */
 
 type Props = {
@@ -74,6 +82,28 @@ const RAIL_LABEL: Record<string, string> = {
   mobile_money: "Mobile money",
 }
 
+/** Where the invisible reCAPTCHA Firebase needs for an SMS gets mounted. */
+const RECAPTCHA_CONTAINER_ID = "payout-phone-recaptcha"
+
+type LinkConfirmResult = { ok: true } | { ok: false; reason: PhoneLinkRefusal }
+
+/**
+ * What a member is told when Firebase refuses.
+ *
+ * Firebase's own codes name a mechanism rather than a situation, and the two that matter
+ * most here — one number per account, and a number already proven elsewhere — are states a
+ * member can act on only if they are described in those terms.
+ */
+const LINK_MESSAGE: Record<PhoneLinkRefusal, string> = {
+  phone_already_set:
+    "Your account already has a different number confirmed, and only one can be. Remove that wallet first, or use that number.",
+  phone_taken: "That number is already confirmed on another Care Connect account.",
+  wrong_code: "That code didn't match. Try again.",
+  code_expired: "That code has expired. Close this and add the number again for a fresh one.",
+  send_failed: "We couldn't text a code to that number. Check it and try again.",
+  not_signed_in: "Please sign in again.",
+}
+
 function StatusBadge({ account }: { account: CowryPayoutAccount }) {
   if (account.status === "verified") {
     return (
@@ -83,10 +113,10 @@ function StatusBadge({ account }: { account: CowryPayoutAccount }) {
       </span>
     )
   }
-  if (account.status === "awaiting_code") {
+  if (account.status === "awaiting_verification") {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-[#eaf2ff] px-2 py-0.5 text-[11px] font-semibold text-[#2b6cb0]">
-        Needs your code
+        Needs confirming
       </span>
     )
   }
@@ -124,9 +154,14 @@ export function PayoutAccountPicker({ selectedId, onSelect }: Props) {
   const [networkKey, setNetworkKey] = useState("")
   const [localNumber, setLocalNumber] = useState("")
 
-  /** The account waiting on a texted code, and the code being typed into it. */
+  /** The wallet being confirmed, the code being typed, and the live Firebase link. */
   const [confirming, setConfirming] = useState<CowryPayoutAccount | null>(null)
   const [code, setCode] = useState("")
+  const [sending, setSending] = useState(false)
+  const [linkError, setLinkError] = useState<string | null>(null)
+  // Held rather than stored in state as a value, because it is a one-shot closure over a
+  // Firebase verification and re-rendering must not replace it with a stale one.
+  const confirmStep = useRef<((code: string) => Promise<LinkConfirmResult>) | null>(null)
 
   const network = networks.find((item) => item.key === networkKey) ?? null
 
@@ -200,14 +235,20 @@ export function PayoutAccountPicker({ selectedId, onSelect }: Props) {
         return
       }
 
-      if (result.reason === "account_awaiting_code" && result.account) {
-        // Not a failure. The code is already on its way, so the form becomes the place
-        // to type it rather than closing and leaving the member to find it again.
+      if (result.reason === "account_awaiting_verification" && result.account) {
+        // Not a failure — the wallet is saved and only needs proving. Moving straight
+        // into the code step keeps it one continuous action rather than closing the form
+        // and leaving the member to find their way back to it.
         setAdding(false)
         setLocalNumber("")
-        setConfirming(result.account)
-        setCode("")
         await load()
+        await beginConfirm(result.account)
+        return
+      }
+
+      if (result.reason === "account_phone_already_set") {
+        toast.error(result.message ?? LINK_MESSAGE.phone_already_set)
+        setAdding(false)
         return
       }
 
@@ -246,12 +287,66 @@ export function PayoutAccountPicker({ selectedId, onSelect }: Props) {
     }
   }
 
-  async function submitCode() {
-    if (!confirming) return
-    setBusy(true)
-    try {
-      const result = await confirmPayoutAccount(confirming.id, code)
+  /**
+   * Open the code dialog and ask Firebase to text the number.
+   *
+   * Firebase sends the SMS, counts the attempts and expires the code; none of that is ours
+   * and none of it passes through our server. The dialog opens before the request so the
+   * reCAPTCHA has somewhere to mount and the member can see something is happening.
+   */
+  async function beginConfirm(target: CowryPayoutAccount) {
+    setConfirming(target)
+    setCode("")
+    setLinkError(null)
+    confirmStep.current = null
 
+    if (!target.msisdn) {
+      setLinkError(LINK_MESSAGE.send_failed)
+      return
+    }
+
+    setSending(true)
+    try {
+      const started = await startPhoneLink(target.msisdn, RECAPTCHA_CONTAINER_ID)
+      if (!started.ok) {
+        setLinkError(
+          started.reason === "phone_already_set" && started.message
+            ? `Your account already has ${started.message} confirmed, and only one number can be.`
+            : LINK_MESSAGE[started.reason],
+        )
+        return
+      }
+      confirmStep.current = started.confirm
+    } catch (error) {
+      setLinkError(getAuthErrorMessage(error))
+    } finally {
+      setSending(false)
+    }
+  }
+
+  /**
+   * Answer the SMS, then ask our server to look.
+   *
+   * Two steps because they prove different things. The first is between the member and
+   * Firebase and is what actually establishes anything; the second is our server reading
+   * the result off the auth record. Doing only the first would leave the wallet unusable;
+   * doing only the second would be taking the client's word for it.
+   */
+  async function submitCode() {
+    if (!confirming || !confirmStep.current) return
+    setBusy(true)
+    setLinkError(null)
+    try {
+      const linked = await confirmStep.current(code)
+      if (!linked.ok) {
+        setLinkError(LINK_MESSAGE[linked.reason])
+        setCode("")
+        // An expired code cannot be retried in place; the member needs a fresh send.
+        if (linked.reason === "code_expired") confirmStep.current = null
+        return
+      }
+
+      const result = await confirmPayoutAccount(confirming.id)
       if (result.ok) {
         toast.success("Number confirmed.")
         setConfirming(null)
@@ -261,20 +356,11 @@ export function PayoutAccountPicker({ selectedId, onSelect }: Props) {
         return
       }
 
-      if (result.reason === "sms_code_wrong") {
-        // Survivable. The provider allows a few tries, so the field stays open.
-        toast.error("That code didn't match. Try again.")
-        setCode("")
-        return
-      }
-      // Burnt, expired, or gone. The account went with it, so there is nothing to retry
-      // in place — they add the number again and get a fresh code.
-      toast.error("That code has expired. Add the number again to get a new one.")
-      setConfirming(null)
-      setCode("")
-      await load()
+      // Firebase accepted the code but our server cannot see the number against the
+      // account. Rare, and not something a member can fix by typing again.
+      setLinkError("We couldn't confirm that number. Try adding it again.")
     } catch (error) {
-      toast.error(getAuthErrorMessage(error))
+      setLinkError(getAuthErrorMessage(error))
     } finally {
       setBusy(false)
     }
@@ -374,18 +460,15 @@ export function PayoutAccountPicker({ selectedId, onSelect }: Props) {
                     )}
                   </button>
 
-                  {account.status === "awaiting_code" && (
+                  {account.status === "awaiting_verification" && (
                     <Button
                       variant="outline"
                       size="sm"
                       className="shrink-0"
                       disabled={busy}
-                      onClick={() => {
-                        setConfirming(account)
-                        setCode("")
-                      }}
+                      onClick={() => void beginConfirm(account)}
                     >
-                      Enter code
+                      Confirm
                     </Button>
                   )}
 
@@ -559,6 +642,8 @@ export function PayoutAccountPicker({ selectedId, onSelect }: Props) {
                   We&apos;ll text a code to this number. Being able to receive it is what proves
                   the wallet is yours — there&apos;s no bank to ask on this one. You&apos;ll be
                   paid in <span className="font-semibold">{network.currency}</span>.
+                  <br />
+                  Only one number can be confirmed per account.
                 </p>
               )}
             </div>
@@ -576,7 +661,7 @@ export function PayoutAccountPicker({ selectedId, onSelect }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* ── the texted code ────────────────────────────────────────────────── */}
+      {/* ── confirming the number with Firebase ────────────────────────────── */}
 
       <Dialog
         open={confirming !== null}
@@ -584,6 +669,11 @@ export function PayoutAccountPicker({ selectedId, onSelect }: Props) {
           if (!open) {
             setConfirming(null)
             setCode("")
+            setLinkError(null)
+            confirmStep.current = null
+            // The verifier is single-use once it has fired. A stale one makes the next
+            // attempt fail for a reason that has nothing to do with the number.
+            clearRecaptchaVerifier()
           }
         }}
       >
@@ -591,11 +681,22 @@ export function PayoutAccountPicker({ selectedId, onSelect }: Props) {
           <DialogHeader>
             <DialogTitle>Confirm your number</DialogTitle>
             <DialogDescription>
-              We texted a code to{" "}
-              <span className="font-semibold text-[#141922]">{confirming?.masked}</span>. Enter it
-              to finish adding this wallet.
+              {sending ? (
+                <>Texting a code to {confirming?.msisdn ?? confirming?.masked}…</>
+              ) : (
+                <>
+                  Enter the code we texted to{" "}
+                  <span className="font-semibold text-[#141922]">
+                    {confirming?.msisdn ?? confirming?.masked}
+                  </span>
+                  . Being able to receive it is what proves the wallet is yours.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
+
+          {/* Firebase mounts its invisible reCAPTCHA here before it will send an SMS. */}
+          <div id={RECAPTCHA_CONTAINER_ID} />
 
           <Label htmlFor="momo-code" className="sr-only">
             Confirmation code
@@ -606,6 +707,7 @@ export function PayoutAccountPicker({ selectedId, onSelect }: Props) {
             autoComplete="one-time-code"
             maxLength={10}
             placeholder="000000"
+            disabled={sending || confirmStep.current === null}
             className="h-14 text-center text-2xl font-bold tracking-[0.35em] tabular-nums"
             value={code}
             // Never trimmed to a number: a leading zero is part of the code, and 012345
@@ -613,11 +715,20 @@ export function PayoutAccountPicker({ selectedId, onSelect }: Props) {
             onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 10))}
           />
 
+          {linkError && (
+            <p className="rounded-xl bg-[#fdecea] px-3 py-2.5 text-sm text-[#b4372c]">
+              {linkError}
+            </p>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirming(null)} disabled={busy}>
               Cancel
             </Button>
-            <Button onClick={() => void submitCode()} disabled={code.length < 4 || busy}>
+            <Button
+              onClick={() => void submitCode()}
+              disabled={code.length < 4 || busy || sending || confirmStep.current === null}
+            >
               {busy && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />}
               Confirm
             </Button>

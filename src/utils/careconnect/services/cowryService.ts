@@ -703,7 +703,11 @@ export async function getWithdrawalQuote(
 /* ── where a withdrawal is paid ──────────────────────────────────────────── */
 
 export type CowryPayoutRail = "ng_bank" | "mobile_money"
-export type CowryPayoutAccountStatus = "pending" | "verified" | "rejected" | "awaiting_code"
+export type CowryPayoutAccountStatus =
+  | "pending"
+  | "verified"
+  | "rejected"
+  | "awaiting_verification"
 
 export interface CowryPayoutAccount {
   id: string
@@ -715,10 +719,10 @@ export interface CowryPayoutAccount {
    * `pending` means the check could not be run, which is not the same as failing it — the
    * screen must not tell someone their account was refused when nobody reached the bank.
    *
-   * `awaiting_code` is waiting on the member rather than on us: a code has been texted to
-   * a mobile money number and nobody has entered it. "We couldn't reach your bank" and
-   * "type the code we just sent you" call for completely different actions, so they are
-   * not the same state.
+   * `awaiting_verification` is waiting on the member rather than on us: a mobile money
+   * number is saved and they have not yet proved to Firebase that they hold it. "We
+   * couldn't reach your bank" and "confirm the number we just texted" call for completely
+   * different actions, so they are not the same state.
    */
   status: CowryPayoutAccountStatus
   /** The name the bank holds. It is what proves whose account it is. */
@@ -728,6 +732,13 @@ export interface CowryPayoutAccount {
   network: string | null
   /** The network's own name, so a screen never has to print `mtn_gh`. */
   networkLabel: string | null
+  /**
+   * The number in full, for mobile money only.
+   *
+   * Needed rather than cosmetic: confirming means linking that exact number to the
+   * member's Firebase account, and a masked one cannot be linked.
+   */
+  msisdn: string | null
   currency: string | null
   /** Last four digits — what a confirmation screen is actually read for. */
   masked: string
@@ -804,9 +815,10 @@ export interface CowryMomoNetwork {
 /**
  * The mobile money networks a payout can be sent to.
  *
- * `available` is false when the server has no way to send a verification code. A network
- * nobody can prove they hold is a network nobody can be paid on, so the option is shown as
- * unavailable rather than offered and then refused at the end.
+ * `available` is false until the rail is switched on, which waits on Firebase Phone Auth
+ * being enabled for the project and this domain being allow-listed for reCAPTCHA. Neither
+ * is visible from the server, so the rail is told it is ready rather than assuming it — and
+ * a member is never offered a destination they cannot finish.
  */
 export async function listPayoutNetworks(): Promise<{
   available: boolean
@@ -817,20 +829,17 @@ export async function listPayoutNetworks(): Promise<{
 }
 
 /**
- * Spend the code texted to a mobile money number.
+ * Ask the server to check the number against Firebase.
  *
- * This is the only thing on that rail that proves the number belongs to the member — there
- * is no name to resolve the way a bank resolves an account number. A wrong code leaves the
- * account alone so it can be tried again; a burnt one removes it, because a half-saved
- * account that cannot be finished is worse than none.
+ * Carries no code. The member proved the number to Firebase before this is called — see
+ * `startPhoneLink` — and the server reads the result off the auth record through the Admin
+ * SDK. That ordering is the whole point: this call could claim anything, but it cannot put
+ * a number on the member's auth record without the SMS having been answered.
  */
-export async function confirmPayoutAccount(
-  id: string,
-  code: string,
-): Promise<CowryPayoutAccountResult> {
+export async function confirmPayoutAccount(id: string): Promise<CowryPayoutAccountResult> {
   const { data } = await axiosClient.post(
     `/careconnectCowry/withdraw/accounts/${id}/confirm`,
-    { code },
+    {},
   )
   return data
 }
