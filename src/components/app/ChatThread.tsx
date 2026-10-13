@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react"
 import { createPortal } from "react-dom"
-import { FileText, Paperclip, Send, X } from "lucide-react"
+import { Check, CheckCheck, FileText, Paperclip, Send, X } from "lucide-react"
 import { EmojiPicker } from "@/components/app/EmojiPicker"
 import { PostText } from "@/components/profile/PostText"
 import { cn } from "@/lib/utils"
@@ -30,6 +30,11 @@ type ChatThreadProps = {
   header?: ReactNode
   className?: string
   emptyLabel?: string
+  /**
+   * Whether the other person has read your latest message. Shown under it as "Seen" or
+   * "Sent" when the conversation ends on something you said; leave it out to show neither.
+   */
+  seen?: boolean
 }
 
 /** Messages this close together from the same person read as one run of bubbles. */
@@ -103,7 +108,7 @@ function AttachmentView({ attachment, onOpenPhoto }: { attachment: ChatAttachmen
   )
 }
 
-export function ChatThread({ messages, onSend, onAttach, header, className = "", emptyLabel = "No messages yet. Say hello 👋" }: ChatThreadProps) {
+export function ChatThread({ messages, onSend, onAttach, header, className = "", emptyLabel = "No messages yet. Say hello 👋", seen }: ChatThreadProps) {
   const [draft, setDraft] = useState("")
   const [photo, setPhoto] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -210,7 +215,17 @@ export function ChatThread({ messages, onSend, onAttach, header, className = "",
                     </div>
                   )}
                   {/* The time once per run of bubbles, under the last one. */}
-                  {!joinsNext && <span className="mt-1 px-1 text-[11px] text-[#8a8f98]">{message.time}</span>}
+                  {!joinsNext && (
+                    <span className="mt-1 inline-flex items-center gap-1 px-1 text-[11px] text-[#8a8f98]">
+                      {message.time}
+                      {mine && index === messages.length - 1 && seen !== undefined && (
+                        <span className={cn("inline-flex items-center gap-0.5 font-medium", seen && "text-[#00898c]")}>
+                          · {seen ? <CheckCheck className="size-3.5" aria-hidden="true" /> : <Check className="size-3.5" aria-hidden="true" />}
+                          {seen ? "Seen" : "Sent"}
+                        </span>
+                      )}
+                    </span>
+                  )}
                 </div>
               </Fragment>
             )
