@@ -68,6 +68,63 @@ export function traySelection(set: CowryGiftSet, gifts: CowryGiftCatalogItem[]):
 }
 
 /**
+ * The top tier, drawn in gold in the tray: Premium now, Legendary before it. Matched on the
+ * key or the label, since the key is whatever the admin gave the category.
+ */
+export function isGoldTab(tab: { id: string; label?: string | null }): boolean {
+  const words = `${tab.id} ${tab.label ?? ""}`.toLowerCase()
+  return /\b(premium|legendary)\b/.test(words)
+}
+
+/** The order of the tabs from before Treasures, for a catalogue that does not send its own. */
+const LEGACY_ORDER = ["everyday", "warm", "bold", "rare", "legendary"]
+
+/** "food_table" reads as "Food Table" when the catalogue gives no label of its own. */
+const titleCase = (key: string) =>
+  key.replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
+
+/**
+ * The tray's tabs, in order, each with what it holds.
+ *
+ * Driven by the catalogue, not a list kept here: Treasures are filed by category, and the
+ * categories are rows an admin adds and renames (TaxonomyManager). So the tabs are the
+ * catalogue's own `sets`, in its order and with its labels — Wellness & Emotion, Heritage,
+ * Food & Table, … — and a category added tomorrow appears without a release. Anything a gift
+ * is filed under that the list does not mention still gets a tab, after the rest, so no gift
+ * can go missing from the tray. A tab with nothing sendable in it is left out.
+ */
+export function trayTabs(catalog: {
+  gifts: CowryGiftCatalogItem[]
+  sets?: Array<{ id: CowryGiftSet; label?: string | null }> | null
+}): Array<{ id: CowryGiftSet; label: string; gifts: CowryGiftCatalogItem[] }> {
+  const listed = (catalog.sets ?? []).filter((set) => set?.id)
+  const labels = new Map(listed.map((set) => [set.id, set.label?.trim() || ""]))
+  const order: CowryGiftSet[] = listed.length
+    ? listed.map((set) => set.id)
+    : [...new Set([...LEGACY_ORDER.filter((id) => catalog.gifts.some((gift) => gift.set === id)), ...catalog.gifts.map((gift) => gift.set)])]
+  for (const gift of catalog.gifts) if (gift.set && !order.includes(gift.set)) order.push(gift.set)
+  // The curated Legendary tab gathers its gifts by name from anywhere, so it can have gifts
+  // even when no gift is filed under "legendary" and the catalogue does not list it.
+  if (!order.includes("legendary") && legendaryGifts(catalog.gifts).length) order.push("legendary")
+
+  return order
+    .map((id) => ({
+      id,
+      label: labels.get(id) || LEGACY_LABELS[id] || titleCase(id),
+      gifts: traySelection(id, catalog.gifts),
+    }))
+    .filter((tab) => tab.gifts.length > 0)
+}
+
+const LEGACY_LABELS: Record<string, string> = {
+  everyday: "Everyday",
+  warm: "Warm",
+  bold: "Bold",
+  rare: "Rare",
+  legendary: "Legendary",
+}
+
+/**
  * Legendary names the catalogue does not have — under any set, by name or id. These cannot
  * be shown (there is nothing to buy); the backend needs to add them, or the name here needs
  * to match the catalogue's spelling.

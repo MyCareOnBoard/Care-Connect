@@ -434,7 +434,7 @@ export function DashboardFeed() {
               }}
               action={
                 mine ? undefined : (
-                  <FollowButton label="Connect" activeLabel="Pending" targetId={post.authorId} relation="connect" initialActive={followed.has(post.authorId)} />
+                  <FollowButton label="Linkup" activeLabel="Pending" targetId={post.authorId} relation="connect" initialActive={followed.has(post.authorId)} />
                 )
               }
               onGift={

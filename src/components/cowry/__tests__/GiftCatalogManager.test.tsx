@@ -123,7 +123,7 @@ const show = () => render(<GiftCatalogManager />)
 /* ── reading it ──────────────────────────────────────────────────────────── */
 
 describe("the catalogue", () => {
-  it("lists the gifts in a tab per set, with how many each holds", async () => {
+  it("lists the treasures in a tab per set, with how many each holds", async () => {
     show()
     expect(await screen.findByText("Rose")).toBeInTheDocument()
     expect(screen.getByRole("tab", { name: /Wellness & Emotion\s*2/ })).toHaveAttribute("aria-selected", "true")
@@ -138,12 +138,12 @@ describe("the catalogue", () => {
   it("searches across every set", async () => {
     show()
     await screen.findByText("Rose")
-    await user.type(screen.getByRole("textbox", { name: "Search all gifts" }), "bouq")
+    await user.type(screen.getByRole("textbox", { name: "Search all treasures" }), "bouq")
     expect(await screen.findByText("Bouquet")).toBeInTheDocument()
     expect(screen.queryByText("Rose")).not.toBeInTheDocument()
   })
 
-  it("shows a deactivated gift, marked, rather than hiding it", async () => {
+  it("shows a deactivated treasure, marked, rather than hiding it", async () => {
     // A screen that hid them could never turn one back on.
     show()
     await screen.findByText("Rose")
@@ -152,7 +152,7 @@ describe("the catalogue", () => {
     expect(screen.getByText("Not sendable")).toBeInTheDocument()
   })
 
-  it("flags a legendary gift the app has no full-screen scene for", async () => {
+  it("flags a legendary treasure the app has no full-screen scene for", async () => {
     show()
     await screen.findByText("Rose")
     await user.click(screen.getByRole("tab", { name: /Special & Premium/ }))
@@ -162,8 +162,8 @@ describe("the catalogue", () => {
   it("says nothing is sendable when the catalogue is empty", async () => {
     listMock.mockResolvedValue(catalog({ gifts: [] }))
     show()
-    expect(await screen.findByText("No gifts")).toBeInTheDocument()
-    expect(screen.getByText(/gift tray will be empty/i)).toBeInTheDocument()
+    expect(await screen.findByText("No treasures")).toBeInTheDocument()
+    expect(screen.getByText(/treasure tray will be empty/i)).toBeInTheDocument()
   })
 
   it("offers a retry rather than breaking when it cannot load", async () => {
@@ -185,7 +185,7 @@ describe("before anything has been saved", () => {
     listMock.mockResolvedValue(catalog({ seeded: false, fromDefaults: true }))
     show()
 
-    expect(await screen.findByText("These are the built-in gifts")).toBeInTheDocument()
+    expect(await screen.findByText("These are the built-in treasures")).toBeInTheDocument()
     expect(screen.getByText(/first change you make saves all 4 of them/i)).toBeInTheDocument()
   })
 
@@ -194,13 +194,13 @@ describe("before anything has been saved", () => {
     show()
 
     await screen.findByText("Rose")
-    expect(screen.queryByText("These are the built-in gifts")).not.toBeInTheDocument()
+    expect(screen.queryByText("These are the built-in treasures")).not.toBeInTheDocument()
   })
 })
 
 /* ── editing ─────────────────────────────────────────────────────────────── */
 
-describe("adding a gift", () => {
+describe("adding a treasure", () => {
   it("suggests an id from the name", async () => {
     show()
     await screen.findByText("Rose")
@@ -220,7 +220,7 @@ describe("adding a gift", () => {
     await user.type(await screen.findByLabelText("Name"), "Kente Cloth")
 
     expect(await screen.findByText("Give the Treasure a cost.")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Add gift" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Add treasure" })).toBeDisabled()
   })
 
   it("saves once it has a name, an id and a cost", async () => {
@@ -230,7 +230,7 @@ describe("adding a gift", () => {
     await user.type(await screen.findByLabelText("Name"), "Kente Cloth")
     await user.type(screen.getByLabelText("Cost in Cowries"), "2500")
 
-    await user.click(screen.getByRole("button", { name: "Add gift" }))
+    await user.click(screen.getByRole("button", { name: "Add treasure" }))
 
     await waitFor(() =>
       expect(saveMock).toHaveBeenCalledWith(
@@ -247,7 +247,7 @@ describe("adding a gift", () => {
     await user.click(screen.getByRole("button", { name: /Add a Treasure/ }))
     await user.type(await screen.findByLabelText("Name"), "Kente Cloth")
     await user.type(screen.getByLabelText("Cost in Cowries"), "2500")
-    await user.click(screen.getByRole("button", { name: "Add gift" }))
+    await user.click(screen.getByRole("button", { name: "Add treasure" }))
 
     await waitFor(() => expect(saveMock).toHaveBeenCalled())
     const [, body] = saveMock.mock.calls[0]
@@ -255,7 +255,7 @@ describe("adding a gift", () => {
   })
 })
 
-describe("editing a gift", () => {
+describe("editing a treasure", () => {
   it("opens with its values and will not let the id change", async () => {
     // The id is the document id: editing it would create a second gift, not rename this one.
     show()
@@ -282,7 +282,7 @@ describe("editing a gift", () => {
 
 /* ── removing ────────────────────────────────────────────────────────────── */
 
-describe("removing a gift", () => {
+describe("removing a treasure", () => {
   it("asks first, and points at deactivating instead", async () => {
     show()
     await screen.findByText("Rose")
@@ -312,11 +312,11 @@ describe("removing a gift", () => {
     expect(deleteMock).not.toHaveBeenCalled()
   })
 
-  it("says the gift history is unaffected, because that is the worry", async () => {
+  it("says the treasure history is unaffected, because that is the worry", async () => {
     show()
     await screen.findByText("Rose")
     await user.click(screen.getByRole("button", { name: "Remove Rose" }))
 
-    expect(await screen.findByText(/Gifts already sent are unaffected/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Treasures already sent are unaffected/i)).toBeInTheDocument()
   })
 })

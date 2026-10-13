@@ -18,7 +18,7 @@ const interestOptions = [
   "Sell medical equipment",
   "Offer healthcare services",
   "Buy medical equipment",
-  "Connect with providers",
+  "Link up with providers",
   "Build professional partnerships",
 ]
 

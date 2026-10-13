@@ -157,7 +157,7 @@ export function TopGiftsBoard({
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-lg font-bold">
           <Trophy className="size-5 text-[#f3c969]" aria-hidden="true" />
-          Biggest gifts
+          Biggest treasures
         </h2>
 
         <div className="flex flex-wrap gap-1" role="group" aria-label="Time window">
@@ -191,9 +191,9 @@ export function TopGiftsBoard({
           </Button>
         </div>
       ) : !board || board.gifts.length === 0 ? (
-        <CowryEmpty title="No gifts in this window yet">
+        <CowryEmpty title="No treasures in this window yet">
           {activeWindow === "all"
-            ? "When someone sends a gift, the biggest ones appear here."
+            ? "When someone sends a treasure, the biggest ones appear here."
             : "Nothing sent in this window. Try a longer one."}
         </CowryEmpty>
       ) : (
@@ -211,7 +211,7 @@ export function TopGiftsBoard({
              * looked at — which is not quite the claim the heading makes.
              */
             <p className="mt-3 text-xs text-[#8b95a1]">
-              Ranked from the {board.scanned} most recent gifts in this window.
+              Ranked from the {board.scanned} most recent treasures in this window.
             </p>
           )}
         </>

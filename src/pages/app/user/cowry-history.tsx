@@ -50,7 +50,7 @@ const TYPE_FILTERS: Array<{ value: CowryTransactionType | "all"; label: string }
   { value: "earn", label: "Earned" },
   { value: "redeem", label: "Redeemed" },
   { value: "buy", label: "Purchased" },
-  { value: "gift", label: "Gifts" },
+  { value: "gift", label: "Treasures" },
   { value: "reserve", label: "Held" },
   { value: "release", label: "Returned" },
   { value: "reverse", label: "Corrections" },

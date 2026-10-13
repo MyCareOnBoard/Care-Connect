@@ -1,89 +1,90 @@
 import {
-  Sprout,
-  AudioWaveform,
-  Building2,
-  CloudLightning,
-  Fingerprint,
-  Flower,
-  Footprints,
-  Hand,
-  Handshake,
-  Lamp,
-  Nut,
-  Shield,
-  Shirt,
-  Smile,
-  Soup,
-  Store,
-  Sunrise,
-  ThumbsUp,
-  Trees,
-  UserRound,
-  Wand,
-  Waves,
-  Wind,
   Anchor,
   Apple,
+  AudioWaveform,
   Award,
   Bird,
+  Building2,
+  Cake,
   CakeSlice,
-  Castle,
+  Candy,
   Car,
+  Castle,
   Cherry,
   Citrus,
+  CloudLightning,
   Clover,
+  Coffee,
+  Coins,
   Cookie,
+  Crown,
+  Droplet,
   Drum,
   Egg,
   Feather,
+  Fingerprint,
   Fish,
+  Flame,
+  Flower,
+  Flower2,
+  Footprints,
+  Gem,
   Globe,
   Grape,
   Guitar,
+  Hand,
+  HandHeart,
+  Handshake,
+  Heart,
+  HeartPulse,
+  IceCreamCone,
   Key,
+  Lamp,
+  Leaf,
+  Medal,
   Mic,
+  Moon,
   Mountain,
+  Music,
+  Nut,
+  PartyPopper,
   PawPrint,
+  Pill,
   Pizza,
   Plane,
   Popcorn,
   Rabbit,
-  Ribbon,
-  Sailboat,
-  Snowflake,
-  TreePalm,
-  Turtle,
-  Umbrella,
-  Cake,
-  Candy,
-  Coffee,
-  Coins,
-  Crown,
-  Droplet,
-  Flame,
-  Flower2,
-  Gem,
-  Gift,
-  HandHeart,
-  Heart,
-  HeartPulse,
-  IceCreamCone,
-  Leaf,
-  Medal,
-  Moon,
-  Music,
-  PartyPopper,
-  Pill,
   Rainbow,
+  Ribbon,
   Rocket,
+  Sailboat,
+  Shield,
+  Shirt,
+  Smile,
+  Snowflake,
+  Soup,
   Sparkles,
+  Sprout,
   Star,
   Stethoscope,
+  Store,
   Sun,
+  Sunrise,
+  ThumbsUp,
+  TreePalm,
+  Trees,
   Trophy,
+  Turtle,
+  Umbrella,
+  UserRound,
+  Wand,
+  Waves,
+  Wind,
   Zap,
   type LucideIcon,
 } from "lucide-react"
+import { TreasureChest } from "@/components/cowry/TreasureChest"
+import type { TreasureArtKind } from "@/components/cowry/TreasureArt"
 
 /**
  * Which icon each gift wears.
@@ -116,7 +117,9 @@ export interface GiftIconRule {
   /** Words in the gift's name or id that select this icon. Lowercase. */
   match: string[]
   /** A lucide icon, or one of the hand-drawn ones. */
-  icon: LucideIcon | "cowry" | "eagle" | "lion" | "pearl" | "cowry-throne"
+  icon: LucideIcon | "cowry" | "eagle" | "lion" | "pearl" | "cowry-throne" | "art"
+  /** Which drawn Premium piece, when `icon` is "art" — see TreasureArt. */
+  art?: TreasureArtKind
   /** A finish for the drawn cowry: silver or diamond instead of its natural ivory and gold. */
   tint?: "silver" | "diamond"
   /** Legendary gifts sit on a gold-rimmed coin with a moving shine — see GiftIcon. */
@@ -128,6 +131,77 @@ export interface GiftIconRule {
 }
 
 export const GIFT_ICON_RULES: GiftIconRule[] = [
+  /* ── Treasures ──────────────────────────────────────────────────────────────
+     First of all, so a Treasure's own name always wins: "The Harvest Basket" is a basket of
+     food, not the Earth Harvest legendary, and "The Golden Sunset" is not the old Sunrise.
+     None is legendary and none has a full-screen arrival yet — those come with the new
+     legendary tier. Prices are the admin's; only names are matched here. */
+
+  // Wellness & Emotion
+  { key: "new-dawn", match: ["new dawn"], icon: "art", art: "new-dawn", color: "#f59e0b" },
+  { key: "strong-root", match: ["strong root", "strong roots"], icon: "art", art: "strong-root", color: "#4d7c0f" },
+  { key: "calm-water", match: ["calm water", "calm waters"], icon: "art", art: "calm-water", color: "#0ea5e9" },
+  { key: "open-hand", match: ["open hand"], icon: "art", art: "open-hand", color: "#e0a93a" },
+  { key: "family-basket", match: ["family basket"], icon: "art", art: "family-basket", color: "#0d9488" },
+  { key: "light-within", match: ["light within"], icon: "art", art: "light-within", color: "#eab308" },
+  { key: "safe-harbour", match: ["safe harbour", "safe harbor"], icon: "art", art: "safe-harbour", color: "#1e5b8a" },
+
+  // Heritage
+  { key: "calabash", match: ["calabash"], icon: "art", art: "calabash", color: "#b8834a" },
+  { key: "heritage-basket", match: ["heritage basket"], icon: "art", art: "heritage-basket", color: "#a16207" },
+  { key: "village-lantern", match: ["village lantern"], icon: "art", art: "village-lantern", color: "#e0a93a" },
+  { key: "story-fire", match: ["story fire"], icon: "art", art: "story-fire", color: "#ea580c" },
+  { key: "ancestral-pattern", match: ["ancestral pattern"], icon: "art", art: "ancestral-pattern", color: "#9a3412" },
+  { key: "golden-stool", match: ["golden stool"], icon: "art", art: "golden-stool", color: "#d4a017" },
+
+  // Food & Table
+  { key: "shared-bowl", match: ["shared bowl"], icon: "art", art: "shared-bowl", color: "#e4572e" },
+  { key: "jollof-table", match: ["jollof table"], icon: "art", art: "jollof-table", color: "#dc2626" },
+  { key: "morning-akara", match: ["morning akara", "akara"], icon: "art", art: "morning-akara", color: "#c2410c" },
+  { key: "family-pot", match: ["family pot"], icon: "art", art: "family-pot", color: "#57534e" },
+  { key: "harvest-basket", match: ["harvest basket"], icon: "art", art: "harvest-basket", color: "#ca8a04" },
+  { key: "spice-trail", match: ["spice trail"], icon: "art", art: "spice-trail", color: "#b45309" },
+  { key: "tea-circle", match: ["tea circle"], icon: "art", art: "tea-circle", color: "#78350f" },
+
+  // Achievement
+  { key: "barefoot-victory", match: ["barefoot victory"], icon: "art", art: "barefoot-victory", color: "#a855f7" },
+  { key: "first-flight", match: ["first flight"], icon: "art", art: "first-flight", color: "#0d8de0" },
+  { key: "breakthrough", match: ["breakthrough"], icon: "art", art: "breakthrough", color: "#f59e0b" },
+  { key: "golden-mile", match: ["golden mile"], icon: "art", art: "golden-mile", color: "#d4a017" },
+  { key: "open-door", match: ["open door"], icon: "art", art: "open-door", color: "#0f766e" },
+  // Before "legacy" on its own, so the tree is the tree.
+  { key: "legacy-tree", match: ["legacy tree"], icon: "art", art: "legacy-tree", color: "#d4a017", legendary: true },
+  { key: "legacy", match: ["legacy"], icon: "art", art: "legacy", color: "#7c2d12" },
+
+  // Nature
+  { key: "baobab", match: ["baobab"], icon: "art", art: "baobab", color: "#65a30d" },
+  { key: "golden-sunset", match: ["golden sunset"], icon: "art", art: "golden-sunset", color: "#ea580c" },
+  { key: "first-rain", match: ["first rain"], icon: "art", art: "first-rain", color: "#2563eb" },
+  { key: "rising-moon", match: ["rising moon"], icon: "art", art: "rising-moon", color: "#6366f1" },
+  { key: "golden-savannah", match: ["golden savannah", "savannah", "savanna"], icon: "art", art: "golden-savannah", color: "#ca8a04" },
+  { key: "ocean-breeze", match: ["ocean breeze"], icon: "art", art: "ocean-breeze", color: "#0891b2" },
+
+  // Music & Expression
+  { key: "rhythm", match: ["rhythm"], icon: "art", art: "rhythm", color: "#7c3aed" },
+  { key: "dancing-shadow", match: ["dancing shadow"], icon: "art", art: "dancing-shadow", color: "#334155" },
+  { key: "voice", match: ["the voice", "voice"], icon: "art", art: "voice", color: "#6366f1" },
+  { key: "painters-sun", match: ["painter's sun", "painters sun", "painter s sun"], icon: "art", art: "painters-sun", color: "#f97316" },
+  { key: "storyteller", match: ["storyteller", "story teller"], icon: "art", art: "storyteller", color: "#9a3412" },
+
+  // Human Connection
+  { key: "thank-you", match: ["thank you"], icon: "art", art: "thank-you", color: "#00b4b8" },
+  { key: "friendship-thread", match: ["friendship thread"], icon: "art", art: "friendship-thread", color: "#db2777" },
+  { key: "warm-embrace", match: ["warm embrace"], icon: "art", art: "warm-embrace", color: "#e11d48" },
+  { key: "helping-hand", match: ["helping hand"], icon: "art", art: "helping-hand", color: "#0d9488" },
+  { key: "welcome", match: ["the welcome", "welcome"], icon: "art", art: "welcome", color: "#0ea5e9" },
+
+  // Premium — drawn in gold (TreasureArt), with the gold rim and shine the top tier wears.
+  { key: "golden-journey", match: ["golden journey"], icon: "art", art: "golden-journey", color: "#d4a017", legendary: true },
+  { key: "54-horizons", match: ["54 horizons", "horizons"], icon: "art", art: "54-horizons", color: "#d4a017", legendary: true },
+  { key: "time-capsule", match: ["time capsule"], icon: "art", art: "time-capsule", color: "#d4a017", legendary: true },
+  { key: "golden-memory", match: ["golden memory"], icon: "art", art: "golden-memory", color: "#d4a017", legendary: true },
+  { key: "timeless-treasure", match: ["timeless treasure"], icon: "art", art: "timeless-treasure", color: "#d4a017", legendary: true },
+
   /* ── The catalogue, by name ────────────────────────────────────────────────
      First, so an exact gift name always wins over the general word rules further down
      ("Fire Works" is fireworks, not fire; "Thunder Staff" is thunder, not a staff). */
@@ -144,7 +218,7 @@ export const GIFT_ICON_RULES: GiftIconRule[] = [
   { key: "bouquet", match: ["bouquet"], icon: Flower2, color: "#e0559a" },
   { key: "jollof", match: ["jollof plate", "jollof", "rice"], icon: Soup, color: "#e4572e" },
   { key: "aso-oke", match: ["aso oke", "asooke", "fabric", "cloth"], icon: Shirt, color: "#7a4fd1", form: "solid" },
-  { key: "talking-drum", match: ["talking drum"], icon: Drum, color: "#a8641a" },
+  { key: "talking-drum", match: ["talking drum"], icon: "art", art: "talking-drum", color: "#a8641a" },
   { key: "gele", match: ["gele", "headtie", "head tie", "headwrap"], icon: Ribbon, color: "#c026d3" },
   { key: "palm-tree", match: ["palm tree"], icon: TreePalm, color: "#2f9e5b" },
   { key: "lantern", match: ["lantern"], icon: Lamp, color: "#e0a93a" },
@@ -264,7 +338,7 @@ export const GIFT_ICON_RULES: GiftIconRule[] = [
   { key: "key", match: ["key", "keys"], icon: Key, color: "#d4a017" },
 ]
 
-const FALLBACK: GiftIconRule = { key: "gift", match: [], icon: Gift, color: "#00b4b8" }
+const FALLBACK: GiftIconRule = { key: "gift", match: [], icon: TreasureChest, color: "#00b4b8" }
 
 /** What a gift is drawn as: a rule's icon, or an emoji the backend chose. */
 export type ResolvedGiftIcon =

@@ -24,6 +24,11 @@ export function MomentCaption() {
             {caption.subtitle}
           </span>
         )}
+        {caption.meaning && (
+          <span className="mt-0.5 text-sm font-medium italic text-[#fff7dc] drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] sm:text-base">
+            <span className="font-semibold not-italic text-[#f3c969]">Meaning:</span> {caption.meaning}
+          </span>
+        )}
       </div>
     </div>
   )

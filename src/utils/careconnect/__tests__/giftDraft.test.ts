@@ -26,7 +26,7 @@ const valid = (over: Partial<GiftDraft> = {}): GiftDraft => ({
 })
 
 describe("giftDraftProblem", () => {
-  it("accepts a filled-in gift", () => {
+  it("accepts a filled-in treasure", () => {
     expect(giftDraftProblem(valid())).toBeNull()
   })
 
@@ -94,13 +94,13 @@ describe("giftDraftProblem", () => {
 })
 
 describe("the id a label suggests", () => {
-  it("follows the label while the gift is new", () => {
+  it("follows the label while the treasure is new", () => {
     const draft = nextDraftForLabel(emptyGiftDraft(), "Rose Bouquet")
     expect(draft.id).toBe("rose_bouquet")
     expect(draft.label).toBe("Rose Bouquet")
   })
 
-  it("leaves the id alone once the gift exists", () => {
+  it("leaves the id alone once the treasure exists", () => {
     // An id is the document id. Changing it would create a second gift rather than rename
     // this one, so renaming an existing gift must not touch it.
     const existing = giftDraftFrom({ id: "rose", label: "Rose", set: "everyday", cost: 50 })
@@ -113,12 +113,12 @@ describe("the id a label suggests", () => {
 })
 
 describe("giftDraftFrom", () => {
-  it("marks an existing gift as not new", () => {
+  it("marks an existing treasure as not new", () => {
     const draft = giftDraftFrom({ id: "rose", label: "Rose", set: "everyday", cost: 50 })
     expect(draft.isNew).toBe(false)
   })
 
-  it("leaves the creator share empty when the gift has none", () => {
+  it("leaves the creator share empty when the treasure has none", () => {
     // Empty means "use the platform default", which is different from zero.
     const draft = giftDraftFrom({ id: "rose", label: "Rose", set: "everyday", cost: 50 })
     expect(draft.creatorRate).toBe("")
@@ -135,12 +135,12 @@ describe("giftDraftFrom", () => {
     expect(draft.creatorRate).toBe("0")
   })
 
-  it("reads a gift with no active flag as sendable", () => {
+  it("reads a treasure with no active flag as sendable", () => {
     const draft = giftDraftFrom({ id: "rose", label: "Rose", set: "everyday", cost: 50 })
     expect(draft.active).toBe(true)
   })
 
-  it("reads a deactivated gift as not sendable", () => {
+  it("reads a deactivated treasure as not sendable", () => {
     const draft = giftDraftFrom({
       id: "rose",
       label: "Rose",

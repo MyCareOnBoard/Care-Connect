@@ -57,7 +57,7 @@ const defaultSummary = {
   email: "",
   phone: "",
   metrics: [
-    { label: "Connections", value: "0" },
+    { label: "Linkups", value: "0" },
     { label: "Profile views", value: "0" },
     { label: "Application views", value: "0" },
   ],
@@ -70,7 +70,7 @@ const defaultAgencySummary = {
   email: "",
   phone: "",
   metrics: [
-    { label: "Connections", value: "0" },
+    { label: "Linkups", value: "0" },
     { label: "Profile views", value: "0" },
     { label: "Jobs posted", value: "0" },
   ],
@@ -140,7 +140,7 @@ export default function ProfilePage() {
           email: user.email || "",
           phone: user.phoneNumber || "",
           metrics: [
-            { label: "Connections", value: String(profile.connectionsCount ?? 0) },
+            { label: "Linkups", value: String(profile.connectionsCount ?? 0) },
             { label: "Profile views", value: String(profile.profileViewsCount ?? 0) },
             { label: "Application views", value: String(profile.applicationViewsCount ?? 0) },
           ],
@@ -158,7 +158,7 @@ export default function ProfilePage() {
             email: user.email || "",
             phone: user.phoneNumber || "",
             metrics: [
-              { label: "Connections", value: String(profile.connectionsCount ?? 0) },
+              { label: "Linkups", value: String(profile.connectionsCount ?? 0) },
               { label: "Profile views", value: String(profile.profileViewsCount ?? 0) },
               { label: "Jobs posted", value: String(jobs.length) },
             ],

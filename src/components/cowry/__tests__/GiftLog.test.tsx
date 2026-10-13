@@ -74,7 +74,7 @@ beforeEach(() => {
 /* ── reading it ──────────────────────────────────────────────────────────── */
 
 describe("the log", () => {
-  it("shows both sides of a gift and what each side got", async () => {
+  it("shows both sides of a treasure and what each side got", async () => {
     render(<GiftLog />)
 
     expect(await screen.findByText("Royal Crown")).toBeInTheDocument()
@@ -197,7 +197,7 @@ describe("filtering", () => {
     expect(await screen.findByRole("button", { name: /Clear/ })).toBeInTheDocument()
   })
 
-  it("says no gifts match, rather than that none exist, when a filter is on", async () => {
+  it("says no treasures match, rather than that none exist, when a filter is on", async () => {
     render(<GiftLog />)
     await screen.findByText("Royal Crown")
 
@@ -207,7 +207,7 @@ describe("filtering", () => {
     await user.type(screen.getByLabelText("Member"), "nobody")
     await user.click(screen.getByRole("button", { name: /Apply/ }))
 
-    expect(await screen.findByText("No gifts match these filters")).toBeInTheDocument()
+    expect(await screen.findByText("No treasures match these filters")).toBeInTheDocument()
   })
 
   it("says none have been sent when nothing is filtered", async () => {
@@ -215,7 +215,7 @@ describe("filtering", () => {
       log({ data: [], totals: { gifts: 0, cost: 0, creatorAmount: 0, exact: true } }),
     )
     render(<GiftLog />)
-    expect(await screen.findByText("No gifts have been sent yet")).toBeInTheDocument()
+    expect(await screen.findByText("No treasures have been sent yet")).toBeInTheDocument()
   })
 })
 
@@ -258,7 +258,7 @@ describe("when it cannot load", () => {
     expect(await screen.findByText("Royal Crown")).toBeInTheDocument()
   })
 
-  it("still renders when the gift picker cannot load its options", async () => {
+  it("still renders when the treasure picker cannot load its options", async () => {
     // The catalogue is a convenience for the filter; the log does not depend on it.
     catalogMock.mockRejectedValue(new Error("nope"))
     render(<GiftLog />)

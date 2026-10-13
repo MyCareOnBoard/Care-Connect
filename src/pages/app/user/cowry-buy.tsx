@@ -241,7 +241,7 @@ export default function CowryBuyPage() {
         }
       >
         {credited && settled?.purchase && (
-          <>{formatCowries(settled.purchase.creditedCowries)} Cowries are in your purchased balance, ready to send as gifts.</>
+          <>{formatCowries(settled.purchase.creditedCowries)} Cowries are in your purchased balance, ready to send as treasures.</>
         )}
         {stillPending &&
           "Your bank has the payment. This usually takes a few seconds — we'll add your Cowries as soon as it clears, even if you close this page."}
@@ -281,7 +281,7 @@ export default function CowryBuyPage() {
     <div className="p-5 animate-fade-in-up space-y-7 sm:p-8">
       <CowryPageHeader
         title="Buy Cowries"
-        subtitle="Bought Cowries are for sending gifts. They can also go toward mobile data, with a fee."
+        subtitle="Bought Cowries are for sending treasures. They can also go toward mobile data, with a fee."
       />
 
       <section>

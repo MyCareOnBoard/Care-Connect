@@ -49,11 +49,11 @@ beforeEach(() => {
   mocked.mockResolvedValue(board())
 })
 
-describe("gift activity", () => {
-  it("counts every gift sent, and labels the rest as the biggest only", async () => {
+describe("treasure activity", () => {
+  it("counts every treasure sent, and labels the rest as the biggest only", async () => {
     render(<AdminGiftAnalytics />)
     expect(await screen.findByText("240")).toBeInTheDocument()
-    expect(screen.getAllByText("Among the 3 biggest gifts in this window").length).toBeGreaterThan(0)
+    expect(screen.getAllByText("Among the 3 biggest treasures in this window").length).toBeGreaterThan(0)
     // The most given leads with the gift sent most often.
     expect(screen.getByText("×2")).toBeInTheDocument()
   })
@@ -75,6 +75,6 @@ describe("gift activity", () => {
   it("says plainly when nothing was sent", async () => {
     mocked.mockResolvedValue(board({ scanned: 0, gifts: [] }))
     render(<AdminGiftAnalytics />)
-    expect(await screen.findByText("No gifts were sent in this window.")).toBeInTheDocument()
+    expect(await screen.findByText("No treasures were sent in this window.")).toBeInTheDocument()
   })
 })

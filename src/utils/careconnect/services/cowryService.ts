@@ -619,6 +619,8 @@ export type CowryWithdrawalRefusal =
   | "daily_limit_reached"
   | "invalid_destination"
   | "wallet_not_withdrawable"
+  | "payout_account_unusable"
+  | "withdrawal_not_confirmed"
 
 export interface CowryBankDestination {
   /** Ten digits. */
@@ -680,10 +682,125 @@ export async function getWithdrawalQuote(cowries: number): Promise<CowryWithdraw
   return data.data
 }
 
-/** Cash out Purchased Cowries. Reward and Creator Cowries cannot be withdrawn. */
+/* ── where a withdrawal is paid ──────────────────────────────────────────── */
+
+export type CowryPayoutRail = "ng_bank" | "mobile_money"
+export type CowryPayoutAccountStatus = "pending" | "verified" | "rejected"
+
+export interface CowryPayoutAccount {
+  id: string
+  rail: CowryPayoutRail
+  label: string | null
+  /**
+   * Only a verified account can be paid.
+   *
+   * `pending` means the check could not be run, which is not the same as failing it — the
+   * screen must not tell someone their account was refused when nobody reached the bank.
+   */
+  status: CowryPayoutAccountStatus
+  /** The name the bank holds. It is what proves whose account it is. */
+  resolvedName: string | null
+  bankCode: string | null
+  bankName: string | null
+  network: string | null
+  currency: string | null
+  /** Last four digits — what a confirmation screen is actually read for. */
+  masked: string
+  isDefault: boolean
+  rejectionReason: string | null
+}
+
+export type CowryPayoutAccountInput =
+  | { rail: "ng_bank"; accountNumber: string; bankCode: string; label?: string }
+  | { rail: "mobile_money"; msisdn: string; network: string; currency: string; label?: string }
+
+export interface CowryPayoutAccountResult {
+  ok: boolean
+  reason?: string
+  /** On a name mismatch, what the bank actually returned — which is how a member spots a typo. */
+  resolvedName?: string | null
+  message?: string | null
+  account?: CowryPayoutAccount
+}
+
+/** The caller's saved accounts, rejected and unverified ones included. */
+export async function listPayoutAccounts(): Promise<CowryPayoutAccount[]> {
+  const { data } = await axiosClient.get("/careconnectCowry/withdraw/accounts")
+  return data.data
+}
+
+/**
+ * Save an account, after the server has proved it belongs to the member.
+ *
+ * A refusal comes back as `ok: false` with a reason rather than as an HTTP error: a name
+ * that does not match is an outcome the member can act on, not a fault.
+ */
+export async function addPayoutAccount(
+  input: CowryPayoutAccountInput,
+): Promise<CowryPayoutAccountResult> {
+  const { data } = await axiosClient.post("/careconnectCowry/withdraw/accounts", input)
+  return data
+}
+
+export async function removePayoutAccount(id: string): Promise<void> {
+  await axiosClient.delete(`/careconnectCowry/withdraw/accounts/${id}`)
+}
+
+export async function setDefaultPayoutAccount(id: string): Promise<void> {
+  await axiosClient.put(`/careconnectCowry/withdraw/accounts/${id}/default`)
+}
+
+/**
+ * The banks an account can be opened at.
+ *
+ * Fetched rather than shipped in the client. Nigerian bank codes change, and a list baked
+ * into the app is wrong exactly when someone needs the bank that is missing from it.
+ */
+export async function listPayoutBanks(): Promise<{ code: string; name: string }[]> {
+  const { data } = await axiosClient.get("/careconnectCowry/withdraw/banks")
+  return data.data?.banks ?? []
+}
+
+/* ── confirming it is really them ────────────────────────────────────────── */
+
+export interface CowryWithdrawalChallenge {
+  ok: boolean
+  challengeId?: string
+  expiresAt?: string
+  /** The member's email, masked, so they know which inbox to open. */
+  sentTo?: string
+  attemptsAllowed?: number
+  reason?: string
+  detail?: string
+  limit?: number
+}
+
+/**
+ * Ask for a code confirming one specific withdrawal.
+ *
+ * The code the server emails is bound to this amount and this account. A code fetched for
+ * one withdrawal will not authorise another, which is what stops someone being talked into
+ * reading a code out over the phone.
+ */
+export async function requestWithdrawalCode(input: {
+  cowries: number
+  payoutAccountId: string
+}): Promise<CowryWithdrawalChallenge> {
+  const { data } = await axiosClient.post("/careconnectCowry/withdraw/confirm", input)
+  return data
+}
+
+/**
+ * Cash out Purchased Cowries. Reward and Creator Cowries cannot be withdrawn.
+ *
+ * Names a saved account rather than carrying bank details, and carries the code. The code
+ * is spent by this call whether or not the payout succeeds, so a retry needs a new one.
+ */
 export async function requestWithdrawal(input: {
   cowries: number
-  destination: CowryBankDestination
+  payoutAccountId: string
+  challengeId: string
+  code: string
   idempotencyKey?: string
 }): Promise<CowryWithdrawalResult> {
   const { data } = await axiosClient.post("/careconnectCowry/withdraw", input)

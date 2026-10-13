@@ -6,7 +6,6 @@ import {
   ArrowRight,
   ArrowUpRight,
   Clock,
-  Gift,
   History,
   Landmark,
   ShoppingCart,
@@ -14,6 +13,7 @@ import {
   Sparkles,
   type LucideIcon,
 } from "lucide-react"
+import { TreasureChest } from "@/components/cowry/TreasureChest"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CowryIcon } from "@/components/cowry/CowryIcon"
@@ -87,7 +87,7 @@ const WALLET_STYLE: Record<
     action: { label: "Buy more", to: Routes.app.user.cowryBuy },
   },
   creator: {
-    icon: Gift,
+    icon: TreasureChest,
     chip: "bg-[#fbe8f4] text-[#c0438f]",
     bar: "from-[#ec8cc4] to-[#c0438f]",
     action: { label: "Creator earnings", to: Routes.app.user.cowryCreator },
@@ -97,8 +97,8 @@ const WALLET_STYLE: Record<
 const QUICK_ACTIONS: Array<{ label: string; hint: string; to: string; icon: LucideIcon; tint: string }> = [
   { label: "Earn", hint: "What pays today", to: Routes.app.user.cowryEarn, icon: Sparkles, tint: "bg-[#fff4df] text-[#c8963e]" },
   { label: "Get data", hint: "MTN, Airtel, Glo, 9mobile", to: Routes.app.user.cowryRedeem, icon: Smartphone, tint: "bg-[#e6f8f8] text-[#00868a]" },
-  { label: "Buy", hint: "For sending gifts", to: Routes.app.user.cowryBuy, icon: ShoppingCart, tint: "bg-[#e0f2ff] text-[#0d8de0]" },
-  { label: "Gifts", hint: "What you've received", to: Routes.app.user.cowryCreator, icon: Gift, tint: "bg-[#fbe8f4] text-[#c0438f]" },
+  { label: "Buy", hint: "For sending treasures", to: Routes.app.user.cowryBuy, icon: ShoppingCart, tint: "bg-[#e0f2ff] text-[#0d8de0]" },
+  { label: "Treasures", hint: "What you've received", to: Routes.app.user.cowryCreator, icon: TreasureChest, tint: "bg-[#fbe8f4] text-[#c0438f]" },
   { label: "Cash out", hint: "Bought Cowries to bank", to: Routes.app.user.cowryWithdraw, icon: Landmark, tint: "bg-[#eceef1] text-[#565656]" },
   { label: "History", hint: "Every movement", to: Routes.app.user.cowryHistory, icon: History, tint: "bg-[#eceef1] text-[#565656]" },
 ]

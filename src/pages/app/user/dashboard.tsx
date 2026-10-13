@@ -366,7 +366,7 @@ export default function DashboardPage() {
   )
 
   const peopleSection = people.length > 0 && (
-    <ConnectionsSection title="Professionals you may be interested in" items={people} actionLabel="Connect" activeLabel="Pending" relation="connect" targetType="individual" onFollowChange={markFollowing(setPeople)} viewAllHref={`${Routes.app.user.network}?tab=connections`} />
+    <ConnectionsSection title="Professionals you may be interested in" items={people} actionLabel="Linkup" activeLabel="Pending" relation="connect" targetType="individual" onFollowChange={markFollowing(setPeople)} viewAllHref={`${Routes.app.user.network}?tab=connections`} />
   )
 
   // Badges count only what is actionable: jobs still new, suggestions not yet followed.

@@ -40,7 +40,7 @@ function show(gift: GiftSplashData) {
   return onDone
 }
 
-describe("the gift card", () => {
+describe("the treasure card", () => {
   it("closes from its × after a legendary arrival", async () => {
     const onDone = show(data("Blooming Rose", 10000))
     // The full-screen moment first; a tap skips it.
@@ -59,7 +59,7 @@ describe("the gift card", () => {
     expect(onDone).toHaveBeenCalledTimes(1)
   })
 
-  it("closes from its × for an ordinary gift", async () => {
+  it("closes from its × for an ordinary treasure", async () => {
     const onDone = show(data("Clap", 15))
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }))
     await act(async () => {

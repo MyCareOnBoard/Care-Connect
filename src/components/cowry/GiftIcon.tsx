@@ -3,6 +3,7 @@ import { Crown } from "lucide-react"
 import { CowryIcon } from "@/components/cowry/CowryIcon"
 import { EagleArt } from "@/components/cowry/EagleArt"
 import { LionArt } from "@/components/cowry/LionArt"
+import { TreasureArt } from "@/components/cowry/TreasureArt"
 import { resolveGiftIcon, type GiftIconRule, type GiftLike } from "@/components/cowry/giftIcons"
 import { cn } from "@/lib/utils"
 
@@ -140,6 +141,16 @@ export function GiftIcon({
       <span className={cn("relative inline-flex shrink-0 items-center justify-center", className)} style={box} aria-hidden="true">
         {rule.legendary && <span className="legendary-aura absolute inset-[-12%] rounded-full" />}
         <Pearl size={size} />
+        <GroundShadow size={size} />
+      </span>
+    )
+  }
+  if (rule.icon === "art") {
+    // A Premium Treasure, drawn in gold, on the top tier's warm glow.
+    return (
+      <span className={cn("relative inline-flex shrink-0 items-center justify-center", className)} style={box} aria-hidden="true">
+        {rule.legendary && <span className="legendary-aura absolute inset-[-12%] rounded-full" />}
+        <TreasureArt kind={rule.art ?? "timeless-treasure"} size={size * 1.02} className="relative" />
         <GroundShadow size={size} />
       </span>
     )

@@ -66,7 +66,7 @@ describe("toGiftLogQuery", () => {
     expect(query.recipientId).toBeUndefined()
   })
 
-  it("passes the gift through and omits it when unset", () => {
+  it("passes the treasure through and omits it when unset", () => {
     expect(toGiftLogQuery(filters({ giftId: "royal_crown" }), 0, 50).giftId).toBe("royal_crown")
     expect(toGiftLogQuery(filters(), 0, 50).giftId).toBeUndefined()
   })

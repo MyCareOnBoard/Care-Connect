@@ -50,7 +50,7 @@ export default function WelcomePage() {
         </div>
         <h1 className="mt-6 text-[26px] font-medium leading-none">You&apos;re all set, {firstName}!</h1>
         <p className="mt-3 max-w-md text-sm text-[#565656]">
-          Your profile is ready to go. Head over to your dashboard to explore jobs, connect with agencies, and
+          Your profile is ready to go. Head over to your dashboard to explore jobs, link up with agencies, and
           grow your career.
         </p>
         <Button

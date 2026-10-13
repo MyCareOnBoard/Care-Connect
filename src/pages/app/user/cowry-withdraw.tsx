@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react"
 import { Link, useNavigate } from "react-router"
 import { toast } from "sonner"
-import { ArrowLeft, Building2, Info, Landmark, Loader2 } from "lucide-react"
+import { ArrowLeft, Info, Landmark, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CowryAmount, CowryIcon } from "@/components/cowry/CowryIcon"
 import { CurrencyPicker, RateNote } from "@/components/cowry/CurrencyPicker"
 import { useCurrencyEquivalent } from "@/components/cowry/useCurrencyEquivalent"
@@ -24,15 +23,17 @@ import { isCowryPathEnabled } from "@/utils/careconnect/cowryPages"
 import {
   getWithdrawalQuote,
   requestWithdrawal,
+  requestWithdrawalCode,
+  type CowryPayoutAccount,
+  type CowryWithdrawalChallenge,
   type CowryWithdrawalQuote,
   type CowryWithdrawalResult,
 } from "@/utils/careconnect/services/cowryService"
+import { PayoutAccountPicker } from "@/components/cowry/PayoutAccountPicker"
 import {
-  NIGERIAN_BANKS,
   WITHDRAWAL_REFUSAL_MESSAGES,
   formatCowries,
   formatNaira,
-  isValidAccountNumber,
 } from "@/utils/careconnect/cowry"
 
 /**
@@ -47,10 +48,10 @@ import {
  * its own line. Someone cashing out should not have to subtract to learn what they get.
  */
 
-type Step = "amount" | "confirm" | "result"
+type Step = "amount" | "confirm" | "code" | "result"
 
-const STEPS = ["Amount", "Confirm", "Done"]
-const STEP_INDEX: Record<Step, number> = { amount: 0, confirm: 1, result: 2 }
+const STEPS = ["Amount", "Confirm", "Code", "Done"]
+const STEP_INDEX: Record<Step, number> = { amount: 0, confirm: 1, code: 2, result: 3 }
 
 /** Debounce on the quote, so typing an amount does not hammer the endpoint. */
 const QUOTE_DEBOUNCE_MS = 400
@@ -78,9 +79,13 @@ export default function CowryWithdrawPage() {
   const [quote, setQuote] = useState<CowryWithdrawalQuote | null>(null)
   const [quoting, setQuoting] = useState(false)
 
-  const [accountNumber, setAccountNumber] = useState("")
-  const [bankCode, setBankCode] = useState("")
-  const [accountName, setAccountName] = useState("")
+  const [payoutAccount, setPayoutAccount] = useState<CowryPayoutAccount | null>(null)
+  const payoutAccountId = payoutAccount?.id ?? null
+
+  /** The code step. Issued for this exact amount and account, and spent once. */
+  const [challenge, setChallenge] = useState<CowryWithdrawalChallenge | null>(null)
+  const [code, setCode] = useState("")
+  const [sendingCode, setSendingCode] = useState(false)
 
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<CowryWithdrawalResult | null>(null)
@@ -152,15 +157,70 @@ export default function CowryWithdrawPage() {
     }
   }, [amount, initial?.rateSet])
 
+  /**
+   * Ask for the code, then move to the step that takes it.
+   *
+   * Separate from submitting, because the server checks eligibility before sending — so a
+   * withdrawal that was never going to be allowed is refused here rather than after the
+   * member has gone to fetch a code.
+   */
+  async function sendCode() {
+    if (!quote || !payoutAccountId) return
+    setSendingCode(true)
+    try {
+      const issued = await requestWithdrawalCode({
+        cowries: quote.cowries,
+        payoutAccountId,
+      })
+
+      if (!issued.ok) {
+        toast.error(
+          issued.reason === "challenge_too_many_requests"
+            ? "You've asked for too many codes. Try again in an hour."
+            : issued.reason === "challenge_no_email"
+              ? "We don't have an email address for you to send a code to."
+              : issued.reason === "challenge_send_failed"
+                ? "We couldn't send your code. Try again in a moment."
+                : (WITHDRAWAL_REFUSAL_MESSAGES[issued.reason ?? ""] ??
+                  "We couldn't start this withdrawal."),
+        )
+        return
+      }
+
+      setChallenge(issued)
+      setCode("")
+      setStep("code")
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    } finally {
+      setSendingCode(false)
+    }
+  }
+
   async function submit() {
-    if (!quote) return
+    if (!quote || !payoutAccountId || !challenge?.challengeId) return
     setSubmitting(true)
     try {
       const outcome = await requestWithdrawal({
         cowries: quote.cowries,
-        destination: { accountNumber, bankCode, accountName },
-        idempotencyKey: `${quote.cowries}_${accountNumber}_${Date.now()}`,
+        payoutAccountId,
+        challengeId: challenge.challengeId,
+        code,
+        // The challenge id, not the clock: a retry of the same tap must be the same
+        // request, and a timestamp would make every retry a new withdrawal.
+        idempotencyKey: challenge.challengeId,
       })
+
+      if (!outcome.ok && outcome.reason === "withdrawal_not_confirmed") {
+        // The code is spent on a wrong answer too, so this is a real dead end rather than
+        // something to retry in place — the member needs a fresh code.
+        toast.error("That code didn't work. Ask for a new one.")
+        setChallenge(null)
+        setCode("")
+        setStep("confirm")
+        return
+      }
+
       setResult(outcome)
       setStep("result")
     } catch (error) {
@@ -200,7 +260,7 @@ export default function CowryWithdrawPage() {
                 number we&apos;d have to change.
               </p>
               <p className="mt-2 text-sm leading-relaxed text-[#657080]">
-                Your bought Cowries are safe. You can send gifts with them, or put them
+                Your bought Cowries are safe. You can send treasures with them, or put them
                 toward mobile data, today.
               </p>
             </div>
@@ -272,7 +332,7 @@ export default function CowryWithdrawPage() {
           }
         >
           {paid &&
-            `${money(result.withdrawal?.netNaira)} is on its way to your ${accountName || "bank"} account.`}
+            `${money(result.withdrawal?.netNaira)} is on its way to your ${payoutAccount?.bankName ?? "bank"} account ending ${payoutAccount?.masked ?? ""}.`}
           {pending &&
             "Your bank hasn't confirmed yet. If it doesn't go through, your Cowries come back automatically within half an hour."}
           {result.released &&
@@ -285,7 +345,6 @@ export default function CowryWithdrawPage() {
 
   /* ── confirm ──────────────────────────────────────────────────────────── */
   if (step === "confirm" && quote) {
-    const bank = NIGERIAN_BANKS.find((b) => b.code === bankCode)
     return (
       <div className="p-5 space-y-6 animate-fade-in-up sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -319,7 +378,9 @@ export default function CowryWithdrawPage() {
               )}
               <p className="flex flex-wrap items-center mt-3 text-sm gap-x-2 gap-y-1 text-white/80">
                 <Landmark className="size-4" aria-hidden="true" />
-                {accountName} · <span className="tabular-nums">{accountNumber}</span> · {bank?.name}
+                {payoutAccount?.resolvedName ?? "Your account"} ·{" "}
+                <span className="tabular-nums">{payoutAccount?.masked}</span> ·{" "}
+                {payoutAccount?.bankName ?? payoutAccount?.network}
               </p>
             </div>
           </div>
@@ -348,7 +409,97 @@ export default function CowryWithdrawPage() {
               )}
             </dl>
 
-            <Button className="w-full h-12 mt-6 text-base cowry-press" onClick={submit} disabled={submitting}>
+            <Button
+              className="w-full h-12 mt-6 text-base cowry-press"
+              onClick={() => void sendCode()}
+              disabled={sendingCode}
+            >
+              {sendingCode ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                  Sending your code…
+                </>
+              ) : (
+                "Email me a code to confirm"
+              )}
+            </Button>
+            <p className="mt-3 text-center text-xs text-[#8a94a3]">
+              We&apos;ll email a 6-digit code before anything is sent. Your money never moves on
+              a session alone.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  /* ── the code ─────────────────────────────────────────────────────────── */
+  if (step === "code" && quote) {
+    return (
+      <div className="p-5 space-y-6 animate-fade-in-up sm:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-[#657080] hover:text-[#141922]"
+            onClick={() => {
+              // Going back abandons the code rather than keeping it live. It is single-use
+              // and bound to this amount, so holding on to it buys nothing.
+              setChallenge(null)
+              setCode("")
+              setStep("confirm")
+            }}
+          >
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            Back
+          </button>
+          <CowrySteps steps={STEPS} current={STEP_INDEX.code} />
+        </div>
+
+        <div className="mx-auto w-full max-w-md overflow-hidden rounded-3xl bg-white ring-1 ring-[#e2e6ea]">
+          <div className="p-6">
+            <h1 className="text-lg font-bold">Enter your code</h1>
+            <p className="mt-1 text-sm text-[#657080]">
+              We sent a 6-digit code to{" "}
+              <span className="font-semibold text-[#141922]">{challenge?.sentTo}</span>. It expires
+              in 10 minutes.
+            </p>
+
+            <Label htmlFor="withdraw-code" className="sr-only">
+              Confirmation code
+            </Label>
+            <Input
+              id="withdraw-code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="000000"
+              className="mt-5 h-16 text-center text-3xl font-bold tracking-[0.4em] tabular-nums"
+              value={code}
+              // Digits only, and never trimmed to a number — a leading zero is part of the
+              // code, and 012345 read as a number is a different, shorter one.
+              onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+            />
+
+            <div className="mt-5 rounded-2xl bg-[#f7f9fb] p-4 text-sm">
+              <div className="flex justify-between gap-3">
+                <span className="text-[#657080]">You receive</span>
+                <span className="font-semibold tabular-nums text-[#141922]">
+                  {money(quote.netNaira)}
+                </span>
+              </div>
+              <div className="mt-1.5 flex justify-between gap-3">
+                <span className="text-[#657080]">Paid to</span>
+                <span className="tabular-nums text-[#565656]">
+                  {payoutAccount?.bankName ?? payoutAccount?.network} {payoutAccount?.masked}
+                </span>
+              </div>
+            </div>
+
+            <Button
+              className="w-full h-12 mt-6 text-base cowry-press"
+              onClick={submit}
+              disabled={code.length !== 6 || submitting}
+            >
               {submitting ? (
                 <>
                   <Loader2 className="size-4 animate-spin" aria-hidden="true" />
@@ -358,6 +509,11 @@ export default function CowryWithdrawPage() {
                 `Send ${money(quote.netNaira)}`
               )}
             </Button>
+
+            <p className="mt-4 rounded-xl bg-[#fff8ed] px-3 py-2.5 text-xs leading-relaxed text-[#8a6d3b]">
+              Nobody from Care Connect will ever ask you for this code. If someone has asked you
+              to read it out, stop — they are trying to take your money.
+            </p>
           </div>
         </div>
       </div>
@@ -369,8 +525,7 @@ export default function CowryWithdrawPage() {
   const affordable = Number.isFinite(cowries) && cowries > 0 && cowries <= initial.available
   const aboveMinimum = Number.isFinite(cowries) && cowries >= initial.minimumCowries
   const belowMinimumBalance = initial.available < initial.minimumCowries
-  const destinationReady =
-    isValidAccountNumber(accountNumber) && Boolean(bankCode) && accountName.trim().length > 1
+  const destinationReady = Boolean(payoutAccountId)
 
   const presets = [
     { label: "Minimum", value: initial.minimumCowries },
@@ -385,7 +540,7 @@ export default function CowryWithdrawPage() {
       : !quote
         ? "Getting your quote…"
         : !destinationReady
-          ? "Add the bank account to send it to."
+          ? "Choose the account to send it to."
           : null
 
   return (
@@ -503,69 +658,15 @@ export default function CowryWithdrawPage() {
           </div>
         </section>
 
-        <section className="space-y-4 rounded-3xl bg-white p-5 ring-1 ring-[#e2e6ea] sm:p-6">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-[#141922]">
-            <Building2 className="size-4 text-[#657080]" aria-hidden="true" />
-            Where should it go?
-          </h2>
-
-          <div>
-            <Label htmlFor="withdraw-bank">Bank</Label>
-            <Select value={bankCode} onValueChange={setBankCode}>
-              <SelectTrigger id="withdraw-bank" className="mt-2">
-                <SelectValue placeholder="Choose your bank" />
-              </SelectTrigger>
-              <SelectContent>
-                {NIGERIAN_BANKS.map((bank) => (
-                  <SelectItem key={bank.code} value={bank.code}>
-                    {bank.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="withdraw-account">Account number</Label>
-            <Input
-              id="withdraw-account"
-              inputMode="numeric"
-              maxLength={10}
-              placeholder="0123456789"
-              className={cn("mt-2 tabular-nums tracking-wider", isValidAccountNumber(accountNumber) && "border-[#1f9c4c]")}
-              value={accountNumber}
-              onChange={(event) => setAccountNumber(event.target.value.replace(/\D/g, ""))}
-            />
-            <p
-              className={cn(
-                "mt-1.5 text-xs",
-                accountNumber !== "" && !isValidAccountNumber(accountNumber) ? "text-[#b4372c]" : "text-[#8a94a3]",
-              )}
-            >
-              {accountNumber.length}/10 digits
-            </p>
-          </div>
-
-          <div>
-            <Label htmlFor="withdraw-name">Account name</Label>
-            <Input
-              id="withdraw-name"
-              autoComplete="name"
-              placeholder="As it appears on your account"
-              className="mt-2"
-              value={accountName}
-              onChange={(event) => setAccountName(event.target.value)}
-            />
-          </div>
-        </section>
+        <PayoutAccountPicker selectedId={payoutAccountId} onSelect={setPayoutAccount} />
       </div>
 
       <div data-floating-actions className="sticky bottom-[calc(var(--app-bottom-inset,0px)+1rem)] z-10 flex flex-wrap items-center gap-4 rounded-2xl bg-white/90 p-4 shadow-[0_12px_40px_-20px_rgba(16,20,26,0.5)] ring-1 ring-[#e2e6ea] backdrop-blur">
         <p className="min-w-0 flex-1 text-sm text-[#657080]">
           {blocker ?? (
             <>
-              Send <span className="font-semibold text-[#141922]">{money(quote?.netNaira)}</span> to{" "}
-              {accountName}
+              Send <span className="font-semibold text-[#141922]">{money(quote?.netNaira)}</span> to
+              your saved account
             </>
           )}
         </p>

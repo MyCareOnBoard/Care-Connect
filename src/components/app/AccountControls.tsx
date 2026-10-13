@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Link } from "react-router"
-import { Bell, CalendarClock, ChevronDown, ChevronRight, LogOut, Settings, UserRound } from "lucide-react"
+// TELEHEALTH PAUSED: add CalendarClock back to this import with the Availability item.
+import { Bell, ChevronDown, ChevronRight, LogOut, Settings, UserRound } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,8 +17,10 @@ import { ProfileModals } from "@/components/profile/ProfileModals"
 import { useAccountSettings } from "@/hooks/useAccountSettings"
 import { useNotifications } from "@/hooks/useNotifications"
 import { notificationTarget } from "@/utils/careconnect/notificationTarget"
-import { AvailabilityModal } from "@/components/professional/AvailabilityModal"
-import { useProfessionalMembership } from "@/utils/professional/useProfessionalMembership"
+// TELEHEALTH PAUSED
+// import { AvailabilityModal } from "@/components/professional/AvailabilityModal"
+// TELEHEALTH PAUSED
+// import { useProfessionalMembership } from "@/utils/professional/useProfessionalMembership"
 import type { CareFlow } from "./useCareFlow"
 import { ThemeMenuRow } from "./ThemeToggle"
 import { SoundMenuRow } from "./SoundToggle"
@@ -42,13 +45,15 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
     (isCompany ? (user?.profile?.organizationName as string | undefined) : undefined) ||
     (isCompany ? "Company" : "Professional")
 
-  const { isProfessional } = useProfessionalMembership()
+  // TELEHEALTH PAUSED — Availability sets the hours a professional can be booked for
+  // Telehealth, so it is hidden with it. Restore these with the Telehealth routes.
+  // const { isProfessional } = useProfessionalMembership()
   const soundOn = useSoundEnabled()
 
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [availabilityOpen, setAvailabilityOpen] = useState(false)
+  // const [availabilityOpen, setAvailabilityOpen] = useState(false)
 
   const {
     accountInfo,
@@ -234,6 +239,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
                 <ChevronRight className="size-4 text-[#8b97a8]" />
               </Link>
             </DropdownMenuItem>
+            {/* TELEHEALTH PAUSED
             {isProfessional ? (
               <DropdownMenuItem asChild className="rounded-lg hover:bg-[#edf3f5]">
                 <button type="button" onClick={() => setAvailabilityOpen(true)} className="flex items-center justify-between w-full gap-2 px-3 py-2 text-sm text-left rounded-xl">
@@ -245,6 +251,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
                 </button>
               </DropdownMenuItem>
             ) : null}
+            */}
             <DropdownMenuItem asChild className="rounded-lg hover:bg-[#edf3f5]">
               <button type="button" onClick={() => setSettingsOpen(true)} className="flex items-center justify-between w-full gap-2 px-3 py-2 text-sm text-left rounded-xl">
                 <span className="flex items-center gap-2">
@@ -343,9 +350,11 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
         newCertification={{ title: "", provider: "", date: "", endDate: "", file: "" }}
         onNewCertificationChange={() => {}}
       />
+      {/* TELEHEALTH PAUSED
       {isProfessional ? (
         <AvailabilityModal open={availabilityOpen} onOpenChange={setAvailabilityOpen} />
       ) : null}
+      */}
     </div>
   )
 }

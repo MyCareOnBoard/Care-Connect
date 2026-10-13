@@ -9,7 +9,7 @@ export function MarketplacePromoCard({ marketplaceHref }: { marketplaceHref: str
         <span className="absolute inset-y-0 w-1/2 pointer-events-none animate-shimmer -left-1/2 bg-linear-to-r from-transparent via-white/40 to-transparent" />
         <h2 className="text-2xl font-bold leading-tight text-[#2a0c4a]">Turn your equipment into opportunity</h2>
         <p className="mt-3 text-sm leading-5 text-[#321c47]">
-          Have medical equipment or supplies to sell? List them and connect with the right people
+          Have medical equipment or supplies to sell? List them and link up with the right people
         </p>
         <Button
           asChild

@@ -221,7 +221,7 @@ export default function AgencyDashboardPage() {
   )
 
   const peopleSection = people.length > 0 && (
-    <ConnectionsSection title="Professionals you may be interested in" items={people} actionLabel="Connect" activeLabel="Pending" relation="connect" targetType="individual" onFollowChange={markFollowing(setPeople)} viewAllHref={`${Routes.app.agency.network}?tab=connections`} />
+    <ConnectionsSection title="Professionals you may be interested in" items={people} actionLabel="Linkup" activeLabel="Pending" relation="connect" targetType="individual" onFollowChange={markFollowing(setPeople)} viewAllHref={`${Routes.app.agency.network}?tab=connections`} />
   )
 
   const leftRail: RailItem[] = [

@@ -79,7 +79,7 @@ beforeEach(() => {
 })
 
 describe("TopGiftsBoard", () => {
-  it("shows the gifts in the order the backend ranked them", async () => {
+  it("shows the treasures in the order the backend ranked them", async () => {
     // The ranking happens server-side; re-sorting here would quietly undo it.
     mocked.mockResolvedValue(board())
     renderBoard()
@@ -118,7 +118,7 @@ describe("TopGiftsBoard", () => {
     expect(screen.getByRole("button", { name: "Today" })).toHaveAttribute("aria-pressed", "false")
   })
 
-  it("names both sides of the gift", async () => {
+  it("names both sides of the treasure", async () => {
     mocked.mockResolvedValue(board())
     renderBoard()
 
@@ -157,7 +157,7 @@ describe("TopGiftsBoard", () => {
     mocked.mockResolvedValue(board({ scanCapped: true, scanned: 300 }))
     renderBoard()
 
-    await waitFor(() => expect(screen.getByText(/300 most recent gifts/)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/300 most recent treasures/)).toBeInTheDocument())
   })
 
   it("stays quiet about the scan when it saw the whole window", async () => {
@@ -165,14 +165,14 @@ describe("TopGiftsBoard", () => {
     renderBoard()
 
     await waitFor(() => expect(screen.getByText("Royal Crown")).toBeInTheDocument())
-    expect(screen.queryByText(/most recent gifts/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/most recent treasures/)).not.toBeInTheDocument()
   })
 
   it("suggests a longer window when a short one is empty", async () => {
     mocked.mockResolvedValue(board({ gifts: [], scanned: 0, window: "24h" }))
     renderBoard({ initialWindow: "24h" })
 
-    await waitFor(() => expect(screen.getByText("No gifts in this window yet")).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText("No treasures in this window yet")).toBeInTheDocument())
     expect(screen.getByText(/Try a longer one/)).toBeInTheDocument()
   })
 
@@ -180,7 +180,7 @@ describe("TopGiftsBoard", () => {
     mocked.mockResolvedValue(board({ gifts: [], scanned: 0, window: "all" }))
     renderBoard({ initialWindow: "all" })
 
-    await waitFor(() => expect(screen.getByText("No gifts in this window yet")).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText("No treasures in this window yet")).toBeInTheDocument())
     expect(screen.queryByText(/Try a longer one/)).not.toBeInTheDocument()
   })
 

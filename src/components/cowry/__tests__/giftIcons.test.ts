@@ -8,8 +8,8 @@ function keyOf(gift: Parameters<typeof resolveGiftIcon>[0]) {
   return resolved.kind === "rule" ? resolved.rule.key : `emoji:${resolved.emoji}`
 }
 
-describe("gift icons", () => {
-  it("matches a gift by the words in its name", () => {
+describe("treasure icons", () => {
+  it("matches a treasure by the words in its name", () => {
     expect(keyOf({ label: "Cowry Shell" })).toBe("cowry")
     expect(keyOf({ label: "Water Drop" })).toBe("drop")
     // The catalogue's own Bouquet rule wins over the general flower words.
@@ -33,7 +33,7 @@ describe("gift icons", () => {
     expect(keyOf({ label: "Celebration" })).toBe("party")
   })
 
-  it("falls back to the gift box for a name it does not know", () => {
+  it("falls back to the treasure box for a name it does not know", () => {
     expect(keyOf({ label: "Mystery" })).toBe("gift")
     expect(keyOf(null)).toBe("gift")
   })
@@ -61,7 +61,7 @@ describe("gift icons", () => {
     expect(giftArrivalFor({ label: "Water Drop" }, "received")).toBe("rain")
   })
 
-  it("keeps a legendary gift's arrival whatever icon it was given", () => {
+  it("keeps a legendary treasure's arrival whatever icon it was given", () => {
     // An override changes the picture only. Earth Harvest given a sprout or an emoji is
     // still Earth Harvest, and still arrives with its video.
     for (const icon of ["sprout", "leaf", "flower", "🌱"]) {
@@ -70,7 +70,7 @@ describe("gift icons", () => {
     expect(resolveGiftIcon({ label: "Earth Harvest", icon: "flower" })).toMatchObject({ kind: "rule", rule: { key: "flower" } })
   })
 
-  it("goes by the name over an old id — a renamed gift keeps the id it was saved with", () => {
+  it("goes by the name over an old id — a renamed treasure keeps the id it was saved with", () => {
     // In the catalogue, Earth Harvest was once Cowry Throne, and an id cannot change.
     expect(giftArrivalFor({ id: "cowry_throne", label: "Earth Harvest" }, "received")).toBe("earth-harvest")
     expect(resolveGiftIcon({ id: "cowry_throne", label: "Earth Harvest" })).toMatchObject({ rule: { key: "earth-harvest" } })
@@ -78,7 +78,7 @@ describe("gift icons", () => {
     expect(resolveGiftIcon({ id: "golden_eagle", label: "Gift 7" })).toMatchObject({ rule: { key: "eagle" } })
   })
 
-  it("lets a gift with no moment of its own borrow one through its icon", () => {
+  it("lets a treasure with no moment of its own borrow one through its icon", () => {
     expect(giftArrivalFor({ label: "Garden Rain", icon: "earth-harvest" }, "received")).toBe("earth-harvest")
     // An ordinary icon on an ordinary gift is still just an icon.
     expect(giftArrivalFor({ label: "Clap", icon: "flower" }, "received")).toBe("rain")

@@ -32,8 +32,8 @@ export const WALLET_LABELS: Record<CowryWalletType, string> = {
 /** What each balance is for, in the user's terms rather than the ledger's. */
 export const WALLET_BLURBS: Record<CowryWalletType, string> = {
   reward: "Earned by taking part. Redeem these for mobile data.",
-  purchased: "Bought with money. Use these to send gifts.",
-  creator: "Received through gifts. Redeem these for mobile data.",
+  purchased: "Bought with money. Use these to send treasures.",
+  creator: "Received through treasures. Redeem these for mobile data.",
 }
 
 /** Activity names as the user would say them, not as the engine stores them. */
@@ -52,7 +52,7 @@ export const ACTIVITY_LABELS: Record<string, string> = {
 export const TRANSACTION_LABELS: Record<CowryTransactionType, string> = {
   earn: "Earned",
   buy: "Purchased",
-  gift: "Gift",
+  gift: "Treasure",
   redeem: "Redeemed",
   reserve: "Held for redemption",
   release: "Returned to your balance",
@@ -247,11 +247,11 @@ export function roundTripValue(
  * than losing the gift.
  */
 export const GIFT_REFUSAL_MESSAGES: Record<string, string> = {
-  unknown_gift: "That gift isn't available any more.",
-  self_gift: "You can't send a gift to yourself.",
-  same_device: "Gifts can't be sent between accounts that share a device.",
-  insufficient_cowries: "You don't have enough bought Cowries for this gift yet.",
-  recipient_suspended: "This account can't receive gifts at the moment.",
+  unknown_gift: "That treasure isn't available any more.",
+  self_gift: "You can't send a treasure to yourself.",
+  same_device: "Treasures can't be sent between accounts that share a device.",
+  insufficient_cowries: "You don't have enough bought Cowries for this treasure yet.",
+  recipient_suspended: "This account can't receive treasures at the moment.",
   // Reachable by tapping a gift on a card for a post whose author deleted it while the
   // feed was open. Without its own line this fell through to the generic message, which
   // gave no hint that refreshing would explain it.

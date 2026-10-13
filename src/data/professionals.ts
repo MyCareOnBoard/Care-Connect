@@ -36,7 +36,7 @@ const professionals: Record<string, ProfessionalProfile> = {
     avatarClassName: "bg-[#ffc95c]",
     about: "Registered nurse with a focus on psychiatric and behavioral health units. Advocates for destigmatizing mental health care within the nursing profession.",
     metrics: [
-      { label: "Connections", value: "212" },
+      { label: "Linkups", value: "212" },
       { label: "Profile views", value: "1.8K" },
       { label: "Match rate", value: "87%" },
       { label: "Career score", value: "79" },
@@ -75,7 +75,7 @@ const professionals: Record<string, ProfessionalProfile> = {
     avatarClassName: "bg-[#d193ce]",
     about: "Family medicine physician with 12 years of experience providing primary care to patients across all ages, with a special interest in preventive care.",
     metrics: [
-      { label: "Connections", value: "340" },
+      { label: "Linkups", value: "340" },
       { label: "Profile views", value: "4.2K" },
       { label: "Match rate", value: "95%" },
       { label: "Career score", value: "91" },
@@ -113,7 +113,7 @@ const professionals: Record<string, ProfessionalProfile> = {
     avatarClassName: "bg-[#ffc33d]",
     about: "Licensed professional counsellor specializing in trauma-informed care and grief counselling for individuals and families.",
     metrics: [
-      { label: "Connections", value: "158" },
+      { label: "Linkups", value: "158" },
       { label: "Profile views", value: "980" },
       { label: "Match rate", value: "82%" },
       { label: "Career score", value: "74" },
@@ -138,7 +138,7 @@ const professionals: Record<string, ProfessionalProfile> = {
     avatarClassName: "bg-[#cdbeb5]",
     about: "Board-certified psychiatrist providing outpatient care with a focus on mood disorders and medication management.",
     metrics: [
-      { label: "Connections", value: "265" },
+      { label: "Linkups", value: "265" },
       { label: "Profile views", value: "2.6K" },
       { label: "Match rate", value: "89%" },
       { label: "Career score", value: "85" },
@@ -163,7 +163,7 @@ const professionals: Record<string, ProfessionalProfile> = {
     avatarClassName: "bg-[linear-gradient(135deg,#ffd08a,#67a6d9)]",
     about: "Registered nurse and mental health advocate writing openly about burnout and compassion fatigue in healthcare.",
     metrics: [
-      { label: "Connections", value: "1.2K" },
+      { label: "Linkups", value: "1.2K" },
       { label: "Profile views", value: "9.4K" },
       { label: "Match rate", value: "93%" },
       { label: "Career score", value: "88" },
@@ -216,7 +216,7 @@ export function getProfessionalProfile(id: string): ProfessionalProfile {
       avatarClassName: "bg-[#8a8f98]",
       about: "This professional hasn't added a bio yet.",
       metrics: [
-        { label: "Connections", value: "—" },
+        { label: "Linkups", value: "—" },
         { label: "Profile views", value: "—" },
         { label: "Match rate", value: "—" },
         { label: "Career score", value: "—" },

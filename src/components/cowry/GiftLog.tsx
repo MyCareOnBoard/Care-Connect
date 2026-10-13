@@ -177,9 +177,9 @@ export function GiftLog() {
   return (
     <section className="space-y-5">
       <div>
-        <h2 className="text-lg font-semibold text-[#10141a]">Gifts sent</h2>
+        <h2 className="text-lg font-semibold text-[#10141a]">Treasures sent</h2>
         <p className="mt-1 text-sm text-[#4f4f4f]">
-          Every gift members have sent, newest first. Totals cover everything matching the
+          Every treasure members have sent, newest first. Totals cover everything matching the
           filters, not just this page.
         </p>
       </div>
@@ -197,7 +197,7 @@ export function GiftLog() {
                 value={filters.party}
                 onValueChange={(value) => setFilters((f) => ({ ...f, party: value as GiftLogParty }))}
               >
-                <SelectTrigger className="w-32 shrink-0" aria-label="Which side of the gift">
+                <SelectTrigger className="w-32 shrink-0" aria-label="Which side of the treasure">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -219,7 +219,7 @@ export function GiftLog() {
 
           <div>
             <label htmlFor="log-gift" className="text-xs font-semibold text-[#10141a]">
-              Gift
+              Treasure
             </label>
             <Select
               value={filters.giftId || "all"}
@@ -229,7 +229,7 @@ export function GiftLog() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Any gift</SelectItem>
+                <SelectItem value="all">Any treasure</SelectItem>
                 {giftOptions.map((option) => (
                   <SelectItem key={option.id} value={option.id}>
                     {option.label}
@@ -285,7 +285,7 @@ export function GiftLog() {
 
       {totals && (
         <div className="grid gap-3 sm:grid-cols-3">
-          <Total label="Gifts" value={totals.gifts} cowries={false} />
+          <Total label="Treasures" value={totals.gifts} cowries={false} />
           <Total label="Members spent" value={totals.cost} hint="Purchased Cowries" />
           <Total
             label="Creators earned"
@@ -322,12 +322,12 @@ export function GiftLog() {
       ) : rows.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[#d7dde3] p-10 text-center">
           <p className="text-sm font-semibold text-[#4f5862]">
-            {hasAnyGiftLogFilter(applied) ? "No gifts match these filters" : "No gifts have been sent yet"}
+            {hasAnyGiftLogFilter(applied) ? "No treasures match these filters" : "No treasures have been sent yet"}
           </p>
           <p className="mt-1 text-sm text-[#8b95a1]">
             {hasAnyGiftLogFilter(applied)
               ? "Try a wider date range, or clear the filters."
-              : "Gifts appear here as members send them."}
+              : "Treasures appear here as members send them."}
           </p>
         </div>
       ) : (
@@ -337,7 +337,7 @@ export function GiftLog() {
               <thead>
                 <tr className="border-b border-[#eef1f3] text-xs uppercase tracking-wide text-[#8b95a1]">
                   <th scope="col" className="p-3 font-semibold">When</th>
-                  <th scope="col" className="p-3 font-semibold">Gift</th>
+                  <th scope="col" className="p-3 font-semibold">Treasure</th>
                   <th scope="col" className="p-3 font-semibold">From and to</th>
                   <th scope="col" className="p-3 text-right font-semibold">Spent / earned</th>
                   <th scope="col" className="p-3 font-semibold">Creator share</th>

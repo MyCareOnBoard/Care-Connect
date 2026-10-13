@@ -101,3 +101,13 @@ export function originOf(element: Element | null | undefined) {
     y: (rect.top + rect.height / 2) / window.innerHeight,
   }
 }
+
+/**
+ * A burst in a given palette — a Treasure's own category colours rather than the Cowry
+ * ivory and gold — for the spotlight and the themed scenes.
+ */
+export function celebrateInColors(colors: string[], origin = { x: 0.5, y: 0.5 }, particleCount = 90) {
+  if (typeof window === "undefined") return
+  fire({ colors, particleCount, spread: 100, startVelocity: 42, scalar: 1, origin })
+  window.setTimeout(() => fire({ colors, particleCount: Math.round(particleCount / 2), spread: 140, startVelocity: 26, origin }), 220)
+}
