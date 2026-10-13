@@ -221,7 +221,7 @@ export default function AgencyDashboardPage() {
   )
 
   const peopleSection = people.length > 0 && (
-    <ConnectionsSection title="Professionals you may be interested in" items={people} actionLabel="Linkup" activeLabel="Pending" relation="connect" targetType="individual" onFollowChange={markFollowing(setPeople)} viewAllHref={`${Routes.app.agency.network}?tab=connections`} />
+    <ConnectionsSection title="Professionals you may be interested in" items={people} actionLabel="Linkup" activeLabel="Pending" relation="connect" targetType="individual" onFollowChange={markFollowing(setPeople)} viewAllHref={`${Routes.app.agency.network}?tab=suggestions`} />
   )
 
   const leftRail: RailItem[] = [
@@ -277,7 +277,7 @@ export default function AgencyDashboardPage() {
     >
       {/* The same soft wash of brand colour as the member homepage. */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(60%_60%_at_20%_0%,rgba(0,180,184,0.14),transparent_70%),radial-gradient(50%_50%_at_85%_10%,rgba(167,130,216,0.14),transparent_70%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-105 bg-[radial-gradient(60%_60%_at_20%_0%,rgba(0,180,184,0.14),transparent_70%),radial-gradient(50%_50%_at_85%_10%,rgba(167,130,216,0.14),transparent_70%)]"
         aria-hidden="true"
       />
 

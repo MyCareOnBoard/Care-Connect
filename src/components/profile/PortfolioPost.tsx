@@ -471,7 +471,7 @@ export function PortfolioPost({
     >
       <Heart
         key={liked ? "on" : "off"}
-        className={cn("size-[18px] transition-transform group-hover:scale-110", liked && "animate-heart-pop")}
+        className={cn("size-4.5 transition-transform group-hover:scale-110", liked && "animate-heart-pop")}
         fill={liked ? LIKE_RED : "none"}
         aria-hidden="true"
       />
@@ -485,7 +485,7 @@ export function PortfolioPost({
         {likeCount > 0 && (
           <>
             <span
-              className="flex size-[18px] items-center justify-center rounded-full"
+              className="flex size-4.5 items-center justify-center rounded-full"
               style={{ backgroundColor: LIKE_RED }}
               aria-hidden="true"
             >
@@ -561,7 +561,15 @@ export function PortfolioPost({
           }}
         />
       </div>
-      <Button type="button" size="sm" onClick={submitComment}>
+      {/* Its own colour, not the theme's primary: that is unset in some shells, which left
+          a white "Post" on a white card. */}
+      <Button
+        type="button"
+        size="sm"
+        onClick={submitComment}
+        disabled={!commentText.trim()}
+        className="shrink-0 rounded-full bg-[#00b4b8] px-5 text-white hover:bg-[#00a3a7] hover:opacity-100 disabled:bg-[#b8e3e4] disabled:opacity-100"
+      >
         Post
       </Button>
     </div>
@@ -653,7 +661,7 @@ export function PortfolioPost({
       <div className="relative mt-4">
         <div
           ref={textRef}
-          className={cn("space-y-2 overflow-hidden text-sm leading-6 text-[#20242c]", collapsed && "max-h-[104px]")}
+          className={cn("space-y-2 overflow-hidden text-sm leading-6 text-[#20242c]", collapsed && "max-h-26")}
           style={
             collapsed
               ? { maskImage: "linear-gradient(to bottom, black 60%, transparent)", WebkitMaskImage: "linear-gradient(to bottom, black 60%, transparent)" }
@@ -725,7 +733,7 @@ export function PortfolioPost({
           aria-expanded={showComments}
           className={cn(actionButton, showComments && "text-[#00898c]")}
         >
-          <MessageSquare className="size-[18px] transition-transform group-hover:scale-110" aria-hidden="true" />
+          <MessageSquare className="size-4.5 transition-transform group-hover:scale-110" aria-hidden="true" />
           Comment
         </button>
 
@@ -748,7 +756,7 @@ export function PortfolioPost({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button type="button" className={cn(actionButton, reposted && "text-[#0f8a4d]")}>
-              <Share2 className="size-[18px] transition-transform group-hover:scale-110" aria-hidden="true" />
+              <Share2 className="size-4.5 transition-transform group-hover:scale-110" aria-hidden="true" />
               Share
             </button>
           </DropdownMenuTrigger>

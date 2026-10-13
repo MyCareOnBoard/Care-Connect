@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SidePanel } from "@/components/app/SidePanel"
 import { useCareFlow } from "@/components/app/useCareFlow"
 import { FileDropzone } from "@/components/auth/FileDropzone"
 import { AddressAutocomplete } from "@/components/maps/AddressAutocomplete"
 import { Routes } from "@/routes/constants"
+import { cn } from "@/lib/utils"
 import { getAuthErrorMessage } from "@/utils/auth"
 import {
   createProduct,
@@ -31,6 +33,36 @@ const FILTERS = ["All", ...CATEGORIES]
 
 // Infinite scroll: how many products are revealed at a time (two 4-col rows).
 const PRODUCTS_PAGE_SIZE = 8
+
+/*
+ * Price bands for the filter. Listings are priced in USD, GBP or EUR, and these compare the
+ * number alone — close enough to narrow a list, which is all a band is for — so the labels
+ * carry no currency sign.
+ */
+type PriceBand = "any" | "under-25" | "25-100" | "100-500" | "500-plus"
+const PRICE_BANDS: { key: PriceBand; label: string; min?: number; max?: number }[] = [
+  { key: "any", label: "Any price" },
+  { key: "under-25", label: "Under 25", max: 25 },
+  { key: "25-100", label: "25 – 100", min: 25, max: 100 },
+  { key: "100-500", label: "100 – 500", min: 100, max: 500 },
+  { key: "500-plus", label: "500+", min: 500 },
+]
+
+function inBand(price: number, key: PriceBand): boolean {
+  const band = PRICE_BANDS.find((item) => item.key === key)
+  if (!band) return true
+  return (band.min === undefined || price >= band.min) && (band.max === undefined || price < band.max)
+}
+
+type SortOrder = "newest" | "price-asc" | "price-desc"
+const SORT_LABELS: Record<SortOrder, string> = {
+  newest: "Newest",
+  "price-asc": "Price: low to high",
+  "price-desc": "Price: high to low",
+}
+
+/** Two-up on phones, so the pictures lead; more columns as the screen widens. */
+const GRID = "grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4"
 
 const CURRENCY_SYMBOLS: Record<string, string> = { USD: "$", GBP: "£", EUR: "€" }
 function priceLabel(price: number, currency: string): string {
@@ -121,25 +153,34 @@ function ProductCard({ product, onOpen, owner }: { product: Product; onOpen: () 
       className="group cursor-pointer overflow-hidden rounded-2xl border border-[#eef1f3] bg-white shadow-[0_1px_3px_rgba(16,20,26,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(16,20,26,0.1)]"
     >
       <div className="relative">
-        <ProductImage category={product.category} imageUrl={product.imageUrl} className="w-full h-40 transition-transform duration-300 group-hover:scale-105" />
-        <span className={`absolute right-3 top-3 rounded-full px-3 py-1 text-xs font-semibold ${CATEGORY_STYLES[product.category] ?? "bg-white text-[#141922]"}`}>
+        <ProductImage
+          category={product.category}
+          imageUrl={product.imageUrl}
+          className="aspect-square w-full transition-transform duration-300 group-hover:scale-105 sm:aspect-auto sm:h-40"
+        />
+        <span
+          className={cn(
+            "absolute right-2 top-2 rounded-full px-2 py-0.5 text-[11px] font-semibold sm:right-3 sm:top-3 sm:px-3 sm:py-1 sm:text-xs",
+            CATEGORY_STYLES[product.category] ?? "bg-white text-[#141922]",
+          )}
+        >
           {product.category}
         </span>
         {owner && (
-          <span className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_STYLES[product.status]}`}>
+          <span className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[11px] font-semibold sm:left-3 sm:top-3 sm:px-2.5 sm:py-1 sm:text-xs ${STATUS_STYLES[product.status]}`}>
             {STATUS_LABELS[product.status]}
           </span>
         )}
       </div>
-      <div className="p-4">
-        <h3 className="font-bold leading-snug truncate">{product.name}</h3>
+      <div className="p-3 sm:p-4">
+        <h3 className="truncate text-sm font-bold leading-snug sm:text-base">{product.name}</h3>
         {product.sellerLocation && (
           <p className="mt-1 flex items-center gap-1 truncate text-xs text-[#8a8f98]">
             <MapPin className="size-3 shrink-0" />
             {product.sellerLocation}
           </p>
         )}
-        <p className="mt-1 truncate text-sm text-[#657080]">
+        <p className="mt-1 hidden truncate text-sm text-[#657080] sm:block">
           {excerpt}
           {isLong && (
             <button
@@ -154,17 +195,17 @@ function ProductCard({ product, onOpen, owner }: { product: Product; onOpen: () 
             </button>
           )}
         </p>
-        <div className="flex items-center justify-between mt-3">
+        <div className="mt-2 flex items-center justify-between sm:mt-3">
           <span className="font-bold text-[#00b4b8]">{priceLabel(product.price, product.currency)}</span>
           {!owner && (
-            <span className="flex size-8 items-center justify-center rounded-lg border border-[#00b4b8]/30 text-[#00b4b8]">
+            <span className="flex size-7 items-center justify-center rounded-lg border border-[#00b4b8]/30 text-[#00b4b8] sm:size-8">
               <ShoppingBag className="size-4" />
             </span>
           )}
         </div>
 
         {owner && (
-          <div className="mt-4 flex items-center gap-2 border-t border-[#eef1f3] pt-3" onClick={(event) => event.stopPropagation()}>
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#eef1f3] pt-3 sm:mt-4" onClick={(event) => event.stopPropagation()}>
             <Button type="button" size="sm" variant="outline" className="h-8 gap-1 px-2.5" onClick={owner.onEdit}>
               <Pencil className="size-3.5" />
               Edit
@@ -174,7 +215,7 @@ function ProductCard({ product, onOpen, owner }: { product: Product; onOpen: () 
               Delete
             </Button>
             <Select value={product.status} onValueChange={(value) => owner.onSetStatus(value as ProductStatus)}>
-              <SelectTrigger className="h-8 ml-auto w-28">
+              <SelectTrigger className="h-8 w-full sm:ml-auto sm:w-28">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -369,9 +410,9 @@ function MarketplaceSkeleton() {
   return (
     <div className="p-5 space-y-6 sm:p-8">
       <Skeleton className="w-full h-10 max-w-md" />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className={GRID}>
         {Array.from({ length: 8 }).map((_, index) => (
-          <Skeleton key={index} className="h-64 rounded-xl" />
+          <Skeleton key={index} className="h-56 rounded-xl sm:h-64" />
         ))}
       </div>
     </div>
@@ -394,6 +435,8 @@ export default function MarketplacePage() {
   const [myLoaded, setMyLoaded] = useState(false)
 
   const [activeFilter, setActiveFilter] = useState("All")
+  const [priceBand, setPriceBand] = useState<PriceBand>("any")
+  const [sort, setSort] = useState<SortOrder>("newest")
   const [search, setSearch] = useState("")
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -447,7 +490,7 @@ export default function MarketplacePage() {
   // Reset how many cards are revealed whenever the tab/filter/search changes the underlying list.
   useEffect(() => {
     setVisibleCount(PRODUCTS_PAGE_SIZE)
-  }, [view, activeFilter, search])
+  }, [view, activeFilter, search, priceBand, sort])
 
   // Infinite scroll: a single long-lived observer, attached/detached from the sentinel
   // via a callback ref as it mounts/unmounts (it only renders while more cards remain).
@@ -541,8 +584,13 @@ export default function MarketplacePage() {
       [product.name, product.description, product.seller, product.sellerLocation].some((value) =>
         String(value ?? "").toLowerCase().includes(term),
       )
-    return matchesCategory && matchesSearch
+    return matchesCategory && matchesSearch && inBand(product.price, priceBand)
   })
+  // The list arrives newest first, so "Newest" keeps it as it is.
+  if (sort !== "newest") {
+    visibleProducts.sort((a, b) => (sort === "price-asc" ? a.price - b.price : b.price - a.price))
+  }
+  const filtering = activeFilter !== "All" || priceBand !== "any" || term.length > 0
   const shownProducts = visibleProducts.slice(0, visibleCount)
   const hasMore = visibleCount < visibleProducts.length
 
@@ -607,17 +655,74 @@ export default function MarketplacePage() {
         </div>
       </div>
 
+      <div className="-mt-2 flex flex-wrap items-center gap-2">
+        <div className="scrollbar-hide -mx-5 flex flex-1 gap-2 overflow-x-auto px-5 sm:mx-0 sm:px-0" role="group" aria-label="Price">
+          {PRICE_BANDS.map((band) => (
+            <button
+              key={band.key}
+              type="button"
+              aria-pressed={priceBand === band.key}
+              onClick={() => setPriceBand(band.key)}
+              className={cn(
+                "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition active:scale-95",
+                priceBand === band.key
+                  ? "bg-[#151922] text-white"
+                  : "bg-white text-[#4f5862] ring-1 ring-[#e2e6ea] hover:ring-[#00b4b8]",
+              )}
+            >
+              {band.label}
+            </button>
+          ))}
+        </div>
+        <Select value={sort} onValueChange={(value) => setSort(value as SortOrder)}>
+          <SelectTrigger className="h-9 w-44 shrink-0" aria-label="Sort">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(SORT_LABELS) as SortOrder[]).map((option) => (
+              <SelectItem key={option} value={option}>
+                {SORT_LABELS[option]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {view === "mine" && myLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className={GRID}>
           {Array.from({ length: 4 }).map((_, index) => (
             <Skeleton key={index} className="h-72 rounded-xl" />
           ))}
         </div>
       ) : visibleProducts.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-[#e2e2e2] p-10 text-center text-sm text-[#657080]">{emptyMessage}</p>
+        filtering && source.length > 0 ? (
+          <EmptyState
+            icon={<ShoppingBag className="size-9 text-[#9aa4b2]" aria-hidden="true" />}
+            title="Nothing matches those filters"
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                onClick={() => {
+                  setActiveFilter("All")
+                  setPriceBand("any")
+                  setSearch("")
+                }}
+              >
+                Clear filters
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState icon={<ShoppingBag className="size-9 text-[#9aa4b2]" aria-hidden="true" />} title={view === "mine" ? "Your inventory is empty" : "No products listed yet"}>
+            {emptyMessage}
+          </EmptyState>
+        )
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className={GRID}>
             {shownProducts.map((product) => (
               <ProductCard
                 key={product.id}
@@ -640,9 +745,9 @@ export default function MarketplacePage() {
               page. No "Load more" button; it only renders while more cards remain. */}
           {hasMore && (
             <div ref={sentinelRef} aria-hidden className="flex justify-center py-4">
-              <div className="grid w-full gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className={cn(GRID, "w-full")}>
                 {Array.from({ length: Math.min(PRODUCTS_PAGE_SIZE, visibleProducts.length - visibleCount) }).map((_, index) => (
-                  <Skeleton key={index} className="h-72 rounded-xl" />
+                  <Skeleton key={index} className="h-56 rounded-xl sm:h-72" />
                 ))}
               </div>
             </div>
