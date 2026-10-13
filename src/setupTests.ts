@@ -30,6 +30,21 @@ global.ResizeObserver = class ResizeObserver {
   disconnect() { }
 };
 
+// Pointer capture and scrollIntoView, which jsdom does not implement.
+//
+// Radix's Select calls these while opening, so without them any test that opens one dies
+// on "target.hasPointerCapture is not a function" rather than on anything it meant to
+// assert. Stubs rather than implementations: nothing under test depends on what they do,
+// only on their existing.
+if (!Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.setPointerCapture = () => { };
+  Element.prototype.releasePointerCapture = () => { };
+}
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => { };
+}
+
 // Clean up after each test
 afterEach(() => {
   cleanup();
