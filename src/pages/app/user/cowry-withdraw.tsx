@@ -141,7 +141,7 @@ export default function CowryWithdrawPage() {
     setQuoting(true)
     const timer = setTimeout(async () => {
       try {
-        const next = await getWithdrawalQuote(cowries)
+        const next = await getWithdrawalQuote(cowries, payoutAccountId)
         if (active) setQuote(next)
       } catch {
         // A failed quote clears the figures rather than leaving a stale one on screen,
@@ -155,7 +155,9 @@ export default function CowryWithdrawPage() {
       active = false
       clearTimeout(timer)
     }
-  }, [amount, initial?.rateSet])
+    // payoutAccountId is a dependency because the answer depends on it: the same Cowries
+    // are a naira figure to a bank and a cedi one to a Ghanaian wallet.
+  }, [amount, payoutAccountId, initial?.rateSet])
 
   /**
    * Ask for the code, then move to the step that takes it.
@@ -164,6 +166,23 @@ export default function CowryWithdrawPage() {
    * withdrawal that was never going to be allowed is refused here rather than after the
    * member has gone to fetch a code.
    */
+  /**
+   * What lands, in the currency it lands in.
+   *
+   * Defined once and used on every screen that states the amount, so the confirm screen,
+   * the code screen and the receipt cannot drift from each other — and so none of them can
+   * quietly state naira for a payout that will not arrive as naira.
+   */
+  function arriving(): string {
+    if (quote?.destinationAmount && quote.destinationCurrency) {
+      return `${quote.destinationAmount.toLocaleString("en", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })} ${quote.destinationCurrency}`
+    }
+    return money(quote?.netNaira)
+  }
+
   async function sendCode() {
     if (!quote || !payoutAccountId) return
     setSendingCode(true)
@@ -332,7 +351,7 @@ export default function CowryWithdrawPage() {
           }
         >
           {paid &&
-            `${money(result.withdrawal?.netNaira)} is on its way to your ${payoutAccount?.bankName ?? "bank"} account ending ${payoutAccount?.masked ?? ""}.`}
+            `${arriving()} is on its way to your ${payoutAccount?.bankName ?? payoutAccount?.networkLabel ?? "bank"} account ending ${payoutAccount?.masked ?? ""}.`}
           {pending &&
             "Your bank hasn't confirmed yet. If it doesn't go through, your Cowries come back automatically within half an hour."}
           {result.released &&
@@ -364,8 +383,16 @@ export default function CowryWithdrawPage() {
             <div className="relative">
               <p className="text-xs tracking-wide uppercase text-white/60">You receive</p>
               <p key={fx.currency} className="mt-1 text-4xl font-bold animate-fadeIn tabular-nums">
-                {money(quote.netNaira)}
+                {arriving()}
               </p>
+              {quote.destinationAmount != null && (
+                // The naira behind it, and the rate. Shown rather than hidden because a
+                // member comparing this against their Cowry balance needs the working.
+                <p className="mt-1 text-sm tabular-nums text-white/75">
+                  {money(quote.netNaira)}
+                  {quote.rate ? ` · 1 ${quote.destinationCurrency} ≈ ${money(quote.rate)}` : ""}
+                </p>
+              )}
               {nairaNote(quote.netNaira) && (
                 <p className="mt-1 text-sm font-semibold tabular-nums text-white/75">
                   Sent as {nairaNote(quote.netNaira)}
@@ -380,12 +407,19 @@ export default function CowryWithdrawPage() {
                 <Landmark className="size-4" aria-hidden="true" />
                 {payoutAccount?.resolvedName ?? "Your account"} ·{" "}
                 <span className="tabular-nums">{payoutAccount?.masked}</span> ·{" "}
-                {payoutAccount?.bankName ?? payoutAccount?.network}
+                {payoutAccount?.bankName ?? payoutAccount?.networkLabel ?? payoutAccount?.network}
               </p>
             </div>
           </div>
 
           <div className="p-6">
+            {quote.rateUnavailable && (
+              <p className="mb-4 rounded-xl bg-[#fdecea] px-3 py-2.5 text-sm text-[#b4372c]">
+                We couldn&apos;t get an exchange rate just now, so we can&apos;t tell you what
+                would arrive. Try again in a moment — we won&apos;t send anything until we can
+                say what you&apos;ll get.
+              </p>
+            )}
             <h1 className="text-lg font-bold">Confirm your withdrawal</h1>
             <p className="mt-1 text-sm text-[#657080]">
               Check the account number. A transfer to the wrong account can&apos;t be recalled.
@@ -400,7 +434,7 @@ export default function CowryWithdrawPage() {
                 {money(quote.feeNaira)}
               </ReceiptRow>
               <ReceiptRow label="You receive" strong>
-                {money(quote.netNaira)}
+                {arriving()}
               </ReceiptRow>
               {nairaNote(quote.netNaira) && (
                 <ReceiptRow label="Paid to your bank as">
@@ -412,7 +446,7 @@ export default function CowryWithdrawPage() {
             <Button
               className="w-full h-12 mt-6 text-base cowry-press"
               onClick={() => void sendCode()}
-              disabled={sendingCode}
+              disabled={sendingCode || quote.rateUnavailable === true}
             >
               {sendingCode ? (
                 <>
@@ -483,14 +517,12 @@ export default function CowryWithdrawPage() {
             <div className="mt-5 rounded-2xl bg-[#f7f9fb] p-4 text-sm">
               <div className="flex justify-between gap-3">
                 <span className="text-[#657080]">You receive</span>
-                <span className="font-semibold tabular-nums text-[#141922]">
-                  {money(quote.netNaira)}
-                </span>
+                <span className="font-semibold tabular-nums text-[#141922]">{arriving()}</span>
               </div>
               <div className="mt-1.5 flex justify-between gap-3">
                 <span className="text-[#657080]">Paid to</span>
                 <span className="tabular-nums text-[#565656]">
-                  {payoutAccount?.bankName ?? payoutAccount?.network} {payoutAccount?.masked}
+                  {payoutAccount?.bankName ?? payoutAccount?.networkLabel} {payoutAccount?.masked}
                 </span>
               </div>
             </div>
@@ -506,7 +538,7 @@ export default function CowryWithdrawPage() {
                   Sending…
                 </>
               ) : (
-                `Send ${money(quote.netNaira)}`
+                `Send ${arriving()}`
               )}
             </Button>
 
