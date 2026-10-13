@@ -161,6 +161,17 @@ export default function CowryBuyPage() {
   }, [returningPurchaseId, checkReturn])
 
   const selected = packages?.find((pkg) => pkg.id === selectedId)
+  /**
+   * The pack to point at: the one crediting the most Cowries per naira, or — when every
+   * pack is priced at the same rate — the middle one, a sensible first buy either way.
+   */
+  const recommendedId = (() => {
+    if (!packages || packages.length < 2) return null
+    const rates = packages.map((pkg) => (pkg.pricing.nairaPrice > 0 ? pkg.pricing.credited / pkg.pricing.nairaPrice : 0))
+    const best = Math.max(...rates)
+    const allSame = rates.every((rate) => Math.abs(rate - best) < 1e-9)
+    return allSame ? packages[Math.floor((packages.length - 1) / 2)].id : packages[rates.indexOf(best)].id
+  })()
 
   async function buy() {
     if (!selected) return
@@ -289,7 +300,14 @@ export default function CowryBuyPage() {
         <div className="grid gap-3 cowry-stagger sm:grid-cols-2 lg:grid-cols-4">
           {packages.map((pkg, index) => (
             <ChoiceCard key={pkg.id} selected={pkg.id === selectedId} onSelect={() => setSelectedId(pkg.id)}>
-              <ShellStack count={Math.min(4, index + 1)} />
+              <span className="flex items-start justify-between gap-2">
+                <ShellStack count={Math.min(4, index + 1)} />
+                {pkg.id === recommendedId && (
+                  <span className="rounded-full bg-[linear-gradient(135deg,#d3f2f2,#a5e8e9)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#00686b]">
+                    Recommended
+                  </span>
+                )}
+              </span>
               <span className="mt-3 block text-2xl font-bold tabular-nums text-[#141922]">
                 {formatCowries(pkg.pricing.credited)}
               </span>
@@ -297,6 +315,13 @@ export default function CowryBuyPage() {
               <span className="mt-3 inline-block rounded-full bg-[#eef1f3] px-3 py-1 text-sm font-bold tabular-nums text-[#141922]">
                 {formatNaira(pkg.pricing.nairaPrice)}
               </span>
+              {/* The price is the whole charge; the fee comes out of the Cowries. Said on
+                  every card, so nobody meets it for the first time at checkout. */}
+              {pkg.pricing.fee > 0 && (
+                <span className="mt-1.5 block text-[11px] text-[#8a94a3]">
+                  All in · {formatCowries(pkg.pricing.fee)} Cowry fee taken
+                </span>
+              )}
             </ChoiceCard>
           ))}
         </div>
