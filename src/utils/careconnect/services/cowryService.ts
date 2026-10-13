@@ -642,6 +642,19 @@ export interface CowryWithdrawalQuote {
   available: number
   /** False until finance sets the Cowry value. Every withdrawal is refused while false. */
   rateSet: boolean
+  /**
+   * What actually arrives, when the destination is not paid in naira.
+   *
+   * Null for a bank account, where netNaira already is the amount that arrives. Present
+   * for a mobile money wallet in another currency, because "you receive ₦5,000" is the
+   * wrong sentence to show someone whose money will land as 120.19 GHS.
+   */
+  destinationAmount: number | null
+  destinationCurrency: string | null
+  /** Naira per unit of the destination currency, for showing the working. */
+  rate: number | null
+  /** True when a rate was needed and could not be had. */
+  rateUnavailable?: boolean
 }
 
 export interface CowryWithdrawal {
@@ -675,9 +688,14 @@ export interface CowryWithdrawalResult {
 }
 
 /** What a number of Cowries is worth, and whether it can be taken out at all. */
-export async function getWithdrawalQuote(cowries: number): Promise<CowryWithdrawalQuote> {
+export async function getWithdrawalQuote(
+  cowries: number,
+  payoutAccountId?: string | null,
+): Promise<CowryWithdrawalQuote> {
   const { data } = await axiosClient.get("/careconnectCowry/withdraw/quote", {
-    params: { cowries },
+    // Sent when an account has been chosen, because the answer depends on it: the same
+    // Cowries are a naira figure to a bank and a cedi one to a Ghanaian wallet.
+    params: payoutAccountId ? { cowries, payoutAccountId } : { cowries },
   })
   return data.data
 }
@@ -685,7 +703,7 @@ export async function getWithdrawalQuote(cowries: number): Promise<CowryWithdraw
 /* ── where a withdrawal is paid ──────────────────────────────────────────── */
 
 export type CowryPayoutRail = "ng_bank" | "mobile_money"
-export type CowryPayoutAccountStatus = "pending" | "verified" | "rejected"
+export type CowryPayoutAccountStatus = "pending" | "verified" | "rejected" | "awaiting_code"
 
 export interface CowryPayoutAccount {
   id: string
@@ -696,6 +714,11 @@ export interface CowryPayoutAccount {
    *
    * `pending` means the check could not be run, which is not the same as failing it — the
    * screen must not tell someone their account was refused when nobody reached the bank.
+   *
+   * `awaiting_code` is waiting on the member rather than on us: a code has been texted to
+   * a mobile money number and nobody has entered it. "We couldn't reach your bank" and
+   * "type the code we just sent you" call for completely different actions, so they are
+   * not the same state.
    */
   status: CowryPayoutAccountStatus
   /** The name the bank holds. It is what proves whose account it is. */
@@ -703,6 +726,8 @@ export interface CowryPayoutAccount {
   bankCode: string | null
   bankName: string | null
   network: string | null
+  /** The network's own name, so a screen never has to print `mtn_gh`. */
+  networkLabel: string | null
   currency: string | null
   /** Last four digits — what a confirmation screen is actually read for. */
   masked: string
@@ -712,7 +737,14 @@ export interface CowryPayoutAccount {
 
 export type CowryPayoutAccountInput =
   | { rail: "ng_bank"; accountNumber: string; bankCode: string; label?: string }
-  | { rail: "mobile_money"; msisdn: string; network: string; currency: string; label?: string }
+  /**
+   * No currency. It is decided by the network, server-side.
+   *
+   * It used to be sent from here, and that was a hole: the payout refuses a currency it
+   * has no exchange rate for, so a client that could name the currency could name that
+   * guard away.
+   */
+  | { rail: "mobile_money"; msisdn: string; network: string; label?: string }
 
 export interface CowryPayoutAccountResult {
   ok: boolean
@@ -761,6 +793,48 @@ export async function listPayoutBanks(): Promise<{ code: string; name: string }[
   return data.data?.banks ?? []
 }
 
+export interface CowryMomoNetwork {
+  key: string
+  label: string
+  currency: string
+  /** The country code the member's number has to start with. */
+  dialCode: string
+}
+
+/**
+ * The mobile money networks a payout can be sent to.
+ *
+ * `available` is false when the server has no way to send a verification code. A network
+ * nobody can prove they hold is a network nobody can be paid on, so the option is shown as
+ * unavailable rather than offered and then refused at the end.
+ */
+export async function listPayoutNetworks(): Promise<{
+  available: boolean
+  networks: CowryMomoNetwork[]
+}> {
+  const { data } = await axiosClient.get("/careconnectCowry/withdraw/networks")
+  return { available: data.available === true, networks: data.networks ?? [] }
+}
+
+/**
+ * Spend the code texted to a mobile money number.
+ *
+ * This is the only thing on that rail that proves the number belongs to the member — there
+ * is no name to resolve the way a bank resolves an account number. A wrong code leaves the
+ * account alone so it can be tried again; a burnt one removes it, because a half-saved
+ * account that cannot be finished is worse than none.
+ */
+export async function confirmPayoutAccount(
+  id: string,
+  code: string,
+): Promise<CowryPayoutAccountResult> {
+  const { data } = await axiosClient.post(
+    `/careconnectCowry/withdraw/accounts/${id}/confirm`,
+    { code },
+  )
+  return data
+}
+
 /* ── confirming it is really them ────────────────────────────────────────── */
 
 export interface CowryWithdrawalChallenge {
@@ -770,6 +844,14 @@ export interface CowryWithdrawalChallenge {
   /** The member's email, masked, so they know which inbox to open. */
   sentTo?: string
   attemptsAllowed?: number
+  /**
+   * The converted figure this code approves, fixed when the email was sent.
+   *
+   * The payout sends exactly this, so what lands is what the email promised rather than a
+   * number that moved while the member went to find their phone.
+   */
+  destinationAmount?: number | null
+  destinationCurrency?: string | null
   reason?: string
   detail?: string
   limit?: number
