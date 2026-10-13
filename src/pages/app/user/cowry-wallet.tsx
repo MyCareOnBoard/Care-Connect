@@ -29,7 +29,8 @@ import { celebrateOnce } from "@/components/cowry/celebrate"
 import { cn } from "@/lib/utils"
 import { Routes } from "@/routes/constants"
 import { getAuthErrorMessage } from "@/utils/auth"
-import { formatRelative } from "@/utils/careconnect/types"
+import { formatRelative, toDate } from "@/utils/careconnect/types"
+import { PayoutAccountPicker } from "@/components/cowry/PayoutAccountPicker"
 import { isCowryPathEnabled } from "@/utils/careconnect/cowryPages"
 import {
   getWallet,
@@ -70,6 +71,17 @@ import {
 
 const WALLET_ORDER: CowryWalletType[] = ["reward", "purchased", "creator"]
 
+/**
+ * What "pending" means on each balance — they clear for different reasons, so one word
+ * would mislead. Rewards clear a day after they land; treasures after the chargeback hold;
+ * a purchase once the payment settles.
+ */
+const PENDING_HINT: Record<CowryWalletType, string> = {
+  reward: "Spendable within a day",
+  creator: "Spendable once the hold ends",
+  purchased: "Spendable once the payment clears",
+}
+
 const WALLET_STYLE: Record<
   CowryWalletType,
   { icon: LucideIcon; chip: string; bar: string; action?: { label: string; to: string } }
@@ -99,7 +111,7 @@ const QUICK_ACTIONS: Array<{ label: string; hint: string; to: string; icon: Luci
   { label: "Get data", hint: "MTN, Airtel, Glo, 9mobile", to: Routes.app.user.cowryRedeem, icon: Smartphone, tint: "bg-[#e6f8f8] text-[#00868a]" },
   { label: "Buy", hint: "For sending treasures", to: Routes.app.user.cowryBuy, icon: ShoppingCart, tint: "bg-[#e0f2ff] text-[#0d8de0]" },
   { label: "Treasures", hint: "What you've received", to: Routes.app.user.cowryCreator, icon: TreasureChest, tint: "bg-[#fbe8f4] text-[#c0438f]" },
-  { label: "Cash out", hint: "Bought Cowries to bank", to: Routes.app.user.cowryWithdraw, icon: Landmark, tint: "bg-[#eceef1] text-[#565656]" },
+  { label: "Cash out", hint: "To bank or mobile money", to: Routes.app.user.cowryWithdraw, icon: Landmark, tint: "bg-[#eceef1] text-[#565656]" },
   { label: "History", hint: "Every movement", to: Routes.app.user.cowryHistory, icon: History, tint: "bg-[#eceef1] text-[#565656]" },
 ]
 
@@ -111,12 +123,12 @@ function WalletSkeleton() {
     <div className="space-y-6 p-5 sm:p-8">
       <Skeleton className="h-8 w-48" />
       <Skeleton className="h-52 rounded-3xl" />
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+      <div className="grid grid-cols-3 gap-3 lg:grid-cols-6">
         {Array.from({ length: 6 }).map((_, i) => (
           <Skeleton key={i} className="h-24 rounded-2xl" />
         ))}
       </div>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3">
         <Skeleton className="h-44 rounded-2xl" />
         <Skeleton className="h-44 rounded-2xl" />
         <Skeleton className="h-44 rounded-2xl" />
@@ -153,14 +165,17 @@ function BalanceCard({ type, bucket }: { type: CowryWalletType; bucket: CowryBuc
       {(bucket.pending > 0 || bucket.reserved > 0) && (
         <dl className="mt-3 space-y-1 border-t border-[#eef1f3] pt-3 text-xs">
           {bucket.pending > 0 && (
-            <div className="flex justify-between">
-              <dt className="inline-flex items-center gap-1 text-[#657080]">
-                <Clock className="size-3" aria-hidden="true" />
-                Pending
-              </dt>
-              <dd className="font-medium tabular-nums text-[#565656]">
-                {formatCowries(bucket.pending)}
-              </dd>
+            <div>
+              <div className="flex justify-between">
+                <dt className="inline-flex items-center gap-1 text-[#657080]">
+                  <Clock className="size-3" aria-hidden="true" />
+                  Pending
+                </dt>
+                <dd className="font-medium tabular-nums text-[#565656]">
+                  {formatCowries(bucket.pending)}
+                </dd>
+              </div>
+              <p className="mt-0.5 text-[11px] text-[#a8793f]">{PENDING_HINT[type]}</p>
             </div>
           )}
           {bucket.reserved > 0 && (
@@ -188,6 +203,21 @@ function BalanceCard({ type, bucket }: { type: CowryWalletType; bucket: CowryBuc
     </div>
   )
 }
+
+/** "Today", "Yesterday", "This week" or "Earlier": how far back an entry is, for grouping. */
+function dayGroup(entry: CowryLedgerEntry, now = new Date()): string {
+  const at = toDate(entry.createdAt ?? null)
+  if (!at) return "Earlier"
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const day = 24 * 60 * 60 * 1000
+  if (at.getTime() >= startOfToday) return "Today"
+  if (at.getTime() >= startOfToday - day) return "Yesterday"
+  if (at.getTime() >= startOfToday - 6 * day) return "This week"
+  return "Earlier"
+}
+
+/** A treasure sent or received — shown with its chest rather than a plain arrow. */
+const isTreasure = (entry: CowryLedgerEntry) => entry.type === "gift" || Boolean(entry.giftSku)
 
 const DIRECTION_STYLE = {
   in: { icon: ArrowDownLeft, chip: "bg-[#e2f7e8] text-[#1f9c4c]", text: "text-[#1f9c4c]" },
@@ -251,6 +281,8 @@ export default function CowryWalletPage() {
   const progress = Math.min(100, (redeemable / CHEAPEST_PACKAGE_COWRIES) * 100)
   const actions = QUICK_ACTIONS.filter((action) => isCowryPathEnabled(action.to))
   const redeemEnabled = isCowryPathEnabled(Routes.app.user.cowryRedeem)
+  const pendingTotal = WALLET_ORDER.reduce((sum, type) => sum + (wallet[type]?.pending ?? 0), 0)
+  const cashOutEnabled = isCowryPathEnabled(Routes.app.user.cowryWithdraw)
 
   return (
     <div className="animate-fade-in-up space-y-7 p-5 sm:p-8">
@@ -284,6 +316,13 @@ export default function CowryWalletPage() {
             <span className="font-semibold text-white">{formatCowries(wallet.lifetimeEarned)}</span>
             {" "}· this never goes down, so spending costs you no standing.
           </p>
+          {pendingTotal > 0 && (
+            <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1 text-xs font-medium text-white/90 ring-1 ring-white/20">
+              <Clock className="size-3.5" aria-hidden="true" />
+              <span className="font-semibold tabular-nums text-white">{formatCowries(pendingTotal)}</span> pending —
+              on its way to spendable
+            </p>
+          )}
 
           <div className="mt-6 rounded-2xl bg-white/10 p-4 backdrop-blur-sm">
             <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
@@ -318,7 +357,7 @@ export default function CowryWalletPage() {
       </section>
 
       {actions.length > 0 && (
-        <nav aria-label="Cowry actions" className="cowry-stagger grid grid-cols-3 gap-3 sm:grid-cols-6">
+        <nav aria-label="Cowry actions" className="cowry-stagger grid grid-cols-3 gap-3 lg:grid-cols-6">
           {actions.map(({ label, hint, to, icon: Icon, tint }) => (
             <Link
               key={to}
@@ -329,7 +368,7 @@ export default function CowryWalletPage() {
                 <Icon className="cowry-wobble size-5" aria-hidden="true" />
               </span>
               <span className="text-sm font-semibold text-[#141922]">{label}</span>
-              <span className="hidden text-[11px] leading-tight text-[#8a94a3] sm:block">{hint}</span>
+              <span className="hidden text-[11px] leading-tight text-[#8a94a3] md:block">{hint}</span>
             </Link>
           ))}
         </nav>
@@ -337,7 +376,7 @@ export default function CowryWalletPage() {
 
       <section>
         <h2 className="mb-4 text-lg font-bold">Your balances</h2>
-        <div className="cowry-stagger grid gap-4 sm:grid-cols-3">
+        <div className="cowry-stagger grid gap-4 md:grid-cols-3">
           {WALLET_ORDER.map((type) => (
             <BalanceCard key={type} type={type} bucket={wallet[type]} />
           ))}
@@ -365,35 +404,58 @@ export default function CowryWalletPage() {
               : "No Cowry movements on this account yet."}
           </CowryEmpty>
         ) : (
-          <ul className="cowry-stagger divide-y divide-[#eef1f3] overflow-hidden rounded-2xl bg-white ring-1 ring-[#e2e6ea]">
-            {recent.map((entry) => {
-              const direction = DIRECTION_STYLE[entryDirection(entry)]
-              const DirectionIcon = direction.icon
-              return (
-                <li
-                  key={entry.id}
-                  className="flex items-center gap-3 p-4 transition-colors hover:bg-[#f9fafb]"
-                >
-                  <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", direction.chip)}>
-                    <DirectionIcon className="size-4" aria-hidden="true" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-[#141922]">
-                      {entryDescription(entry)}
-                    </p>
-                    <p className="mt-0.5 text-xs text-[#657080]">
-                      {WALLET_LABELS[entry.walletType]} · {formatRelative(entry.createdAt)}
-                    </p>
-                  </div>
-                  <span className={cn("shrink-0 text-sm font-bold tabular-nums", direction.text)}>
-                    {signedAmount(entry)}
-                  </span>
-                </li>
-              )
-            })}
-          </ul>
+          <div className="cowry-stagger space-y-4">
+            {Object.entries(
+              recent.reduce<Record<string, CowryLedgerEntry[]>>((groups, entry) => {
+                const group = dayGroup(entry)
+                ;(groups[group] ??= []).push(entry)
+                return groups
+              }, {}),
+            ).map(([group, entries]) => (
+              <div key={group}>
+                <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-[#8a94a3]">{group}</h3>
+                <ul className="divide-y divide-[#eef1f3] overflow-hidden rounded-2xl bg-white ring-1 ring-[#e2e6ea]">
+                  {entries.map((entry) => {
+                    const direction = DIRECTION_STYLE[entryDirection(entry)]
+                    const treasure = isTreasure(entry)
+                    const DirectionIcon = treasure ? TreasureChest : direction.icon
+                    return (
+                      <li
+                        key={entry.id}
+                        className="flex items-center gap-3 p-4 transition-colors hover:bg-[#f9fafb]"
+                      >
+                        <span
+                          className={cn(
+                            "flex size-9 shrink-0 items-center justify-center rounded-full",
+                            treasure ? "bg-[#fbe8f4] text-[#c0438f]" : direction.chip,
+                          )}
+                        >
+                          <DirectionIcon className="size-4" aria-hidden="true" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-[#141922]">
+                            {entryDescription(entry)}
+                          </p>
+                          <p className="mt-0.5 text-xs text-[#657080]">
+                            {WALLET_LABELS[entry.walletType]} · {formatRelative(entry.createdAt)}
+                          </p>
+                        </div>
+                        <span className={cn("shrink-0 text-sm font-bold tabular-nums", direction.text)}>
+                          {signedAmount(entry)}
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            ))}
+          </div>
         )}
       </section>
+
+      {/* Payout accounts, managed ahead of time, so cashing out is a single step rather
+          than a detour to add and check an account against a reservation timer. */}
+      {cashOutEnabled && <PayoutAccountPicker manage />}
 
       {/* Replaces the old "Coming next" note, which described earning, redeeming and
           buying as future work after those screens had shipped. */}

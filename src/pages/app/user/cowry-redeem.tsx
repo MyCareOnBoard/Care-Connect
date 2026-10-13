@@ -54,12 +54,23 @@ const STEP_INDEX: Record<Step, number> = { choose: 0, confirm: 1, result: 2 }
 /** Wallets that can pay, in the order they should be offered. */
 const WALLET_ORDER: CowryWalletType[] = ["reward", "creator", "purchased"]
 
-/** Brand colours, as a dot beside each network's name. */
+/** Brand colours, for each network's badge. */
 const NETWORK_COLORS: Record<CowryNetwork, string> = {
   mtn: "#ffcc00",
   airtel: "#e40000",
   glo: "#50b651",
   "9mobile": "#006e53",
+}
+
+/**
+ * A badge in each network's colours with its initials — recognisable at a glance without
+ * using the networks' own logos, which are their trademarks.
+ */
+const NETWORK_BADGE: Record<CowryNetwork, { text: string; ink: string }> = {
+  mtn: { text: "MTN", ink: "#1a1a1a" },
+  airtel: { text: "A", ink: "#ffffff" },
+  glo: { text: "G", ink: "#ffffff" },
+  "9mobile": { text: "9", ink: "#ffffff" },
 }
 
 /**
@@ -167,6 +178,17 @@ export default function CowryRedeemPage() {
   }
 
   const networkLabel = catalog.networks.find((n) => n.id === network)?.label
+  // The package giving the most data per Cowry at this wallet's prices. Only marked when
+  // there is a real choice between packages.
+  const bestValueId =
+    catalog.packages.length > 1
+      ? catalog.packages.reduce<{ id: string; perMb: number } | null>((best, pkg) => {
+          const total = pkg.pricing?.[walletType]?.total ?? pkg.cowryCost
+          if (!pkg.megabytes || !total) return best
+          const perMb = total / pkg.megabytes
+          return !best || perMb < best.perMb ? { id: pkg.id, perMb } : best
+        }, null)?.id ?? null
+      : null
 
   /* ── result ───────────────────────────────────────────────────────────── */
   if (step === "result" && result) {
@@ -380,6 +402,7 @@ export default function CowryRedeemPage() {
           {catalog.packages.map((pkg) => {
             const cost = pkg.pricing?.[walletType]
             const total = cost?.total ?? pkg.cowryCost
+            const bestValue = pkg.id === bestValueId
             const canAfford = cost ? balance >= cost.total : false
             const reach = total > 0 ? Math.min(100, (balance / total) * 100) : 0
             const size = dataSize(pkg)
@@ -390,7 +413,15 @@ export default function CowryRedeemPage() {
                 onSelect={() => setPackageId(pkg.id)}
                 muted={!canAfford}
               >
-                <Wifi className="size-5 text-[#00b4b8]" aria-hidden="true" />
+                <span className="flex items-start justify-between gap-2">
+                  <Wifi className="size-5 text-[#00b4b8]" aria-hidden="true" />
+                  {bestValue && (
+                    // The most data for each Cowry, priced for the wallet being spent.
+                    <span className="rounded-full bg-[linear-gradient(135deg,#fff1c7,#f3c969)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#7a5310]">
+                      Best value
+                    </span>
+                  )}
+                </span>
                 <span className="mt-2 block text-3xl font-bold text-[#141922]">
                   {size.value}
                   <span className="ml-1 text-base font-semibold text-[#657080]">{size.unit}</span>
@@ -429,17 +460,25 @@ export default function CowryRedeemPage() {
                   onClick={() => setNetwork(option.id)}
                   aria-pressed={active}
                   className={cn(
-                    "cowry-press inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 text-sm font-semibold transition",
+                    "cowry-press inline-flex items-center gap-2 rounded-full border-2 py-1.5 pl-1.5 pr-4 text-sm font-semibold transition",
                     active
                       ? "border-[#00b4b8] bg-[#effbfb] text-[#141922]"
                       : "border-[#e2e6ea] bg-white text-[#565656] hover:border-[#c8cdd4]",
                   )}
                 >
                   <span
-                    className={cn("size-3 rounded-full transition-transform", active && "scale-125")}
-                    style={{ background: NETWORK_COLORS[option.id] ?? "#9aa4b2" }}
+                    className={cn(
+                      "flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold tracking-tight shadow-sm transition-transform",
+                      active && "scale-110",
+                    )}
+                    style={{
+                      background: NETWORK_COLORS[option.id] ?? "#9aa4b2",
+                      color: NETWORK_BADGE[option.id]?.ink ?? "#ffffff",
+                    }}
                     aria-hidden="true"
-                  />
+                  >
+                    {NETWORK_BADGE[option.id]?.text ?? option.label.slice(0, 1)}
+                  </span>
                   {option.label}
                 </button>
               )
