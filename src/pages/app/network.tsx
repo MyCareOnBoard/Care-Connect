@@ -298,6 +298,18 @@ export default function NetworkPage() {
     [agencies, agencySearch],
   )
 
+  // `#profile-viewers` (the dashboard's Profile views tile): scroll to that card once the
+  // page has loaded, since the browser's own jump happens before it exists.
+  useEffect(() => {
+    if (loading || window.location.hash !== "#profile-viewers") return
+    if (tab === "agencies") setTabState("invitations")
+    requestAnimationFrame(() =>
+      document.getElementById("profile-viewers")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    )
+    // Only on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading])
+
   if (loading) return <NetworkSkeleton />
 
   const tabCount = (key: NetworkTab) =>
@@ -362,7 +374,10 @@ export default function NetworkPage() {
               />
             )
           ) : (
-            <section className="rounded-2xl border border-white/60 bg-white/85 p-4 shadow-[0_4px_20px_rgba(16,20,26,0.05)] backdrop-blur-md">
+            <section
+              id="profile-viewers"
+              className="scroll-mt-24 rounded-2xl border border-white/60 bg-white/85 p-4 shadow-[0_4px_20px_rgba(16,20,26,0.05)] backdrop-blur-md"
+            >
               <h2 className="mb-4 text-base font-bold">People who viewed your profile</h2>
               <div className="space-y-4">
                 {viewers.length === 0 ? (
