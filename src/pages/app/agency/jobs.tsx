@@ -2,6 +2,8 @@ import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router"
 import { toast } from "sonner"
 import { ChevronLeft, Search, Plus, Check, MoreVertical, X } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -648,7 +650,6 @@ export default function AgencyJobsPage() {
   const [postings, setPostings] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
-  const [selectedPostingId, setSelectedPostingId] = useState<string | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [editingJob, setEditingJob] = useState<Job | null>(null)
 
@@ -656,6 +657,30 @@ export default function AgencyJobsPage() {
   // then leaves the address clean so a refresh does not reopen it.
   const [searchParams, setSearchParams] = useSearchParams()
   const wantsNew = searchParams.get("new") === "1"
+
+  /*
+   * The list's state lives in the address, so the dashboard's tiles can link straight to
+   * what they count: `?job=<id>` opens a posting, `?status=open|closed|draft` narrows the
+   * list, `?sort=applications|views` puts the busiest first. Back and refresh keep it too.
+   */
+  const selectedPostingId = searchParams.get("job")
+  const statusParam = searchParams.get("status")
+  const statusFilter: JobStatus | null =
+    statusParam === "open" || statusParam === "closed" || statusParam === "draft" ? statusParam : null
+  const sortParam = searchParams.get("sort")
+  const sortBy: "applications" | "views" | null =
+    sortParam === "applications" || sortParam === "views" ? sortParam : null
+  const setParam = (key: string, value: string | null, replace = false) =>
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        if (value) next.set(key, value)
+        else next.delete(key)
+        return next
+      },
+      { replace },
+    )
+  const setSelectedPostingId = (id: string | null) => setParam("job", id)
   useEffect(() => {
     if (!wantsNew) return
     setEditingJob(null)
@@ -856,9 +881,25 @@ export default function AgencyJobsPage() {
     )
   }
 
-  const visiblePostings = search
-    ? postings.filter((posting) => posting.title.toLowerCase().includes(search.toLowerCase()))
-    : postings
+  const visiblePostings = postings.filter(
+    (posting) =>
+      (!search || posting.title.toLowerCase().includes(search.toLowerCase())) &&
+      (!statusFilter || posting.status === statusFilter),
+  )
+  if (sortBy === "applications") visiblePostings.sort((a, b) => b.applicationsCount - a.applicationsCount)
+  if (sortBy === "views") visiblePostings.sort((a, b) => b.viewsCount - a.viewsCount)
+
+  const statusChips: { key: JobStatus | null; label: string }[] = [
+    { key: null, label: "All" },
+    { key: "open", label: "Open" },
+    { key: "closed", label: "Closed" },
+    { key: "draft", label: "Draft" },
+  ]
+  const chipClass = (on: boolean) =>
+    cn(
+      "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition active:scale-95",
+      on ? "bg-[#10141a] text-white shadow-sm" : "bg-white text-[#4a5260] ring-1 ring-[#e2e6ea] hover:ring-[#c8cdd4]",
+    )
 
   return (
     <div className="p-5 space-y-6 animate-fade-in-up sm:p-8">
@@ -885,10 +926,67 @@ export default function AgencyJobsPage() {
         </Button>
       </div>
 
+      {postings.length > 0 && (
+        <div className="scrollbar-hide -mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1">
+          {statusChips.map((chip) => {
+            const count = chip.key ? postings.filter((posting) => posting.status === chip.key).length : postings.length
+            return (
+              <button
+                key={chip.label}
+                type="button"
+                aria-pressed={statusFilter === chip.key}
+                onClick={() => setParam("status", chip.key, true)}
+                className={chipClass(statusFilter === chip.key)}
+              >
+                {chip.label}
+                <span className="tabular-nums opacity-70">{count}</span>
+              </button>
+            )
+          })}
+          <span className="mx-1 h-5 w-px shrink-0 bg-[#e2e6ea]" aria-hidden="true" />
+          <button
+            type="button"
+            aria-pressed={sortBy === "applications"}
+            onClick={() => setParam("sort", sortBy === "applications" ? null : "applications", true)}
+            className={chipClass(sortBy === "applications")}
+          >
+            Most applications
+          </button>
+          <button
+            type="button"
+            aria-pressed={sortBy === "views"}
+            onClick={() => setParam("sort", sortBy === "views" ? null : "views", true)}
+            className={chipClass(sortBy === "views")}
+          >
+            Most viewed
+          </button>
+        </div>
+      )}
+
       {visiblePostings.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-[#e2e2e2] p-10 text-center text-sm text-[#657080]">
-          You haven&apos;t posted any jobs yet. Click &quot;Post job here&quot; to create your first listing.
-        </p>
+        postings.length > 0 ? (
+          <EmptyState
+            title={`No ${statusFilter ?? ""} postings${search ? " match that search" : ""}`.replace("  ", " ")}
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                onClick={() => {
+                  setSearch("")
+                  setParam("status", null, true)
+                }}
+              >
+                Show all postings
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState title="You haven't posted any jobs yet">
+            Click &quot;Post job here&quot; to create your first listing.
+          </EmptyState>
+        )
       ) : (
         <div className="grid gap-4 py-8 sm:grid-cols-2 xl:grid-cols-4">
           {visiblePostings.map((posting) => (

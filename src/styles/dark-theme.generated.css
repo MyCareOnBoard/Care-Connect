@@ -14,12 +14,14 @@ html.dark .bg-\[\#ddf3ff\] { background-color: #1b3747; }
 html.dark .bg-\[\#e0ecff\] { background-color: #1a2b45; }
 html.dark .bg-\[\#e0f2ff\] { background-color: #1a3345; }
 html.dark .bg-\[\#e2e2e2\] { background-color: #353535; }
+html.dark .bg-\[\#e2e6ea\] { background-color: #33373b; }
 html.dark .bg-\[\#e2f7e8\] { background-color: #253f2d; }
 html.dark .bg-\[\#e2f7ef\] { background-color: #253f35; }
 html.dark .bg-\[\#e3f8f8\] { background-color: #243e3e; }
 html.dark .bg-\[\#e3f8f8\]\/40 { background-color: color-mix(in srgb, #243e3e 40%, transparent); }
 html.dark .bg-\[\#e3f8f8\]\/60 { background-color: color-mix(in srgb, #243e3e 60%, transparent); }
 html.dark .bg-\[\#e5ecf5\] { background-color: #28303c; }
+html.dark .bg-\[\#e6d3df\] { background-color: #3e3139; }
 html.dark .bg-\[\#e6f7ef\] { background-color: #253c31; }
 html.dark .bg-\[\#e6f8f8\] { background-color: #243c3c; }
 html.dark .bg-\[\#e7b8c9\] { background-color: #4c303a; }
@@ -36,6 +38,7 @@ html.dark .bg-\[\#eaf2ff\] { background-color: #18273f; }
 html.dark .bg-\[\#eaf4ff\] { background-color: #182b3f; }
 html.dark .bg-\[\#eafaf1\] { background-color: #213a2c; }
 html.dark .bg-\[\#eceef1\] { background-color: #2d3034; }
+html.dark .bg-\[\#eef0ff\] { background-color: #171c3d; }
 html.dark .bg-\[\#eef1f3\] { background-color: #2b3032; }
 html.dark .bg-\[\#eef4f6\] { background-color: #273134; }
 html.dark .bg-\[\#eef7f1\] { background-color: #26352b; }
@@ -73,6 +76,7 @@ html.dark .bg-\[\#fdecea\] { background-color: #3d1f1c; }
 html.dark .bg-\[\#fdf0f6\] { background-color: #381c29; }
 html.dark .bg-\[\#fdf3e3\] { background-color: #42331d; }
 html.dark .bg-\[\#fdf4e0\] { background-color: #44381d; }
+html.dark .bg-\[\#fdf6fa\] { background-color: #331c29; }
 html.dark .bg-\[\#feeaee\] { background-color: #3e1a21; }
 html.dark .bg-\[\#ffdfe8\] { background-color: #461a27; }
 html.dark .bg-\[\#ffe0dd\] { background-color: #471f1b; }
@@ -88,6 +92,7 @@ html.dark .bg-\[\#fff1f3\] { background-color: #3b161c; }
 html.dark .bg-\[\#fff1f4\] { background-color: #3b161e; }
 html.dark .bg-\[\#fff2f0\] { background-color: #3c1c17; }
 html.dark .bg-\[\#fff4df\] { background-color: #46371a; }
+html.dark .bg-\[\#fff4e0\] { background-color: #45361a; }
 html.dark .bg-\[\#fff4e5\] { background-color: #423119; }
 html.dark .bg-\[\#fff4f2\] { background-color: #3b1c16; }
 html.dark .bg-\[\#fff5f7\] { background-color: #39161d; }
@@ -181,6 +186,7 @@ html.dark .disabled\:bg-\[\#e2e2e2\]:disabled { background-color: #353535; }
 html.dark .disabled\:bg-\[\#e7eef0\]:disabled { background-color: #2e3638; }
 html.dark .disabled\:bg-\[\#f4f4f5\]:disabled { background-color: #2b2b2d; }
 html.dark .disabled\:border-\[\#e2e2e2\]:disabled { border-color: #3d3d3d; }
+html.dark .disabled\:hover\:ring-\[\#e2e6ea\]:disabled:hover { --tw-ring-color: #393c3f; }
 html.dark .disabled\:text-\[\#8a8a8a\]:disabled { color: #adadad; }
 html.dark .disabled\:text-\[\#8a8f98\]:disabled { color: #aeb0b4; }
 html.dark .divide-\[\#eef1f3\] > :not(:last-child) { border-color: #35393b; }
@@ -213,6 +219,7 @@ html.dark .hover\:bg-\[\#f8fbff\]:hover { background-color: #181e25; }
 html.dark .hover\:bg-\[\#f9fafb\]:hover { background-color: #24272b; }
 html.dark .hover\:bg-\[\#fde3e1\]:hover { background-color: #43201d; }
 html.dark .hover\:bg-\[\#fdeaea\]:hover { background-color: #3d1c1c; }
+html.dark .hover\:bg-\[\#fdf6fa\]:hover { background-color: #331c29; }
 html.dark .hover\:bg-\[\#fff1f0\]:hover { background-color: #3c1917; }
 html.dark .hover\:bg-\[\#fff1f4\]:hover { background-color: #3b161e; }
 html.dark .hover\:bg-\[\#fff4df\]:hover { background-color: #46371a; }
@@ -247,6 +254,7 @@ html.dark .ring-\[\#eefbfb\] { --tw-ring-color: #2d4141; }
 html.dark .ring-\[\#f0dcae\] { --tw-ring-color: #524936; }
 html.dark .ring-\[\#f3dfb3\] { --tw-ring-color: #514834; }
 html.dark .ring-\[\#f5d2ae\] { --tw-ring-color: #534333; }
+html.dark .ring-\[\#f6e1ee\] { --tw-ring-color: #43303c; }
 html.dark .ring-gray-200 { --tw-ring-color: #393a3d; }
 html.dark .ring-white { --tw-ring-color: #333333; }
 html.dark .ring-white\/60 { --tw-ring-color: color-mix(in srgb, #333333 60%, transparent); }
@@ -305,6 +313,7 @@ html.dark .text-\[\#6b5a8a\] { color: #9c94ac; }
 html.dark .text-\[\#6b7280\] { color: #9da0a7; }
 html.dark .text-\[\#737780\] { color: #a1a3a7; }
 html.dark .text-\[\#7a5310\] { color: #ac8239; }
+html.dark .text-\[\#7a5a1f\] { color: #9f8046; }
 html.dark .text-\[\#808081\] { color: #a7a7a8; }
 html.dark .text-\[\#8a1c30\] { color: #a44153; }
 html.dark .text-\[\#8a2f26\] { color: #a2534b; }
@@ -324,6 +333,7 @@ html.dark .text-\[\#a8793f\] { color: #b29572; }
 html.dark .text-\[\#b24a86\] { color: #b47e9d; }
 html.dark .text-\[\#b4232a\] { color: #bd575c; }
 html.dark .text-\[\#b4372c\] { color: #bb6962; }
+html.dark .text-\[\#b7791f\] { color: #c09453; }
 html.dark .text-\[\#b86a1e\] { color: #c18953; }
 html.dark .text-\[\#c0392b\] { color: #c07068; }
 html.dark .text-\[\#c2334d\] { color: #c07280; }

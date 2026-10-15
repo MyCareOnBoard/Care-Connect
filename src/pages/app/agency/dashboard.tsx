@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react"
 import { Link } from "react-router"
 import { toast } from "sonner"
-import { BarChart3, Briefcase, Building2, Store, Users } from "lucide-react"
+import { ArrowUpRight, BarChart3, Briefcase, Building2, Eye, FileText, Store, Users, type LucideIcon } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ViewAllLink } from "@/components/app/ViewAllLink"
 import { PostComposer } from "@/components/app/PostComposer"
@@ -36,10 +36,44 @@ function toConnection(profile: CareConnectProfile, index: number): Connection {
   }
 }
 
+/** A number you can tap: it opens the list the number was counted from. */
+function StatLinkTile({
+  to,
+  icon: Icon,
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  to: string
+  icon: LucideIcon
+  label: string
+  value: number
+  hint: string
+  tone: string
+}) {
+  return (
+    <Link
+      to={to}
+      className="group relative block rounded-xl bg-[#f7fafb] px-3 py-2.5 ring-1 ring-transparent transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_10px_24px_-14px_rgba(16,20,26,0.35)] hover:ring-[#00b4b8]/30 active:scale-[0.98]"
+    >
+      <span className="flex items-center justify-between">
+        <span className={cn("flex size-6 items-center justify-center rounded-lg", tone)}>
+          <Icon className="size-3.5" aria-hidden="true" />
+        </span>
+        <ArrowUpRight className="size-3.5 text-[#b4bcc6] transition group-hover:text-[#00898c]" aria-hidden="true" />
+      </span>
+      <span className="mt-2 block text-xl font-bold tabular-nums text-[#151922]">{value}</span>
+      <span className="block text-[11px] font-medium text-[#4a5260]">{label}</span>
+      <span className="block truncate text-[10px] text-[#8a94a3]">{hint}</span>
+    </Link>
+  )
+}
+
 function JobOverviewCard({ job, style }: { job: Job; style?: CSSProperties }) {
   return (
     <Link
-      to={Routes.app.agency.jobs}
+      to={`${Routes.app.agency.jobs}?job=${encodeURIComponent(job.id)}`}
       style={style}
       className="animate-fade-in-up group block rounded-2xl border border-white/60 bg-white/85 p-4 shadow-[0_4px_16px_rgba(16,20,26,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#00b4b8]/30 hover:shadow-[0_12px_28px_rgba(0,180,184,0.12)]"
     >
@@ -113,6 +147,8 @@ export default function AgencyDashboardPage() {
   const { user } = useAuthUser()
   const uid = user?.uid
   const [postings, setPostings] = useState<Job[]>([])
+  // Every posting, for the totals; `postings` is just the three shown in the overview.
+  const [allJobs, setAllJobs] = useState<Job[]>([])
   const [companies, setCompanies] = useState<Connection[]>([])
   const [people, setPeople] = useState<Connection[]>([])
   const [profileViews, setProfileViews] = useState(0)
@@ -133,6 +169,7 @@ export default function AgencyDashboardPage() {
         ])
         if (!active) return
         const followed = new Set(connections.map((connection) => connection.targetId))
+        setAllJobs(myJobs)
         setPostings(myJobs.slice(0, 3))
         setCompanies(
           companyProfiles.map((profile, index) => ({ ...toConnection(profile, index), isFollowing: followed.has(profile.uid) })),
@@ -174,18 +211,48 @@ export default function AgencyDashboardPage() {
 
   /* Each side section is built once and shown in two places: in its full column, and in the
      focus-mode strip's panel. One definition keeps the two from drifting apart. */
+  const jobsPath = Routes.app.agency.jobs
+  const openPostings = allJobs.filter((job) => job.status === "open").length
+  const totalApplications = allJobs.reduce((sum, job) => sum + (job.applicationsCount ?? 0), 0)
+  const totalJobViews = allJobs.reduce((sum, job) => sum + (job.viewsCount ?? 0), 0)
+
   const statsSection = (
     <section className="rounded-2xl border border-white/60 bg-white/85 p-5 shadow-[0_4px_20px_rgba(16,20,26,0.05)] backdrop-blur-md">
       <h2 className="text-base font-bold text-[#151922]">Your reach</h2>
+      {/* Each number opens the list behind it, filtered or sorted to match. */}
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <div className="rounded-xl bg-[#f7fafb] px-3 py-2.5">
-          <p className="text-[11px] text-[#657080]">Profile views</p>
-          <p className="mt-0.5 text-xl font-bold tabular-nums text-[#151922]">{profileViews}</p>
-        </div>
-        <div className="rounded-xl bg-[#f7fafb] px-3 py-2.5">
-          <p className="text-[11px] text-[#657080]">Application views</p>
-          <p className="mt-0.5 text-xl font-bold tabular-nums text-[#151922]">{applicationViews}</p>
-        </div>
+        <StatLinkTile
+          to={`${jobsPath}?status=open`}
+          icon={Briefcase}
+          label="Open postings"
+          value={openPostings}
+          hint="See them"
+          tone="bg-[#e3f8f8] text-[#00898c]"
+        />
+        <StatLinkTile
+          to={`${jobsPath}?sort=applications`}
+          icon={FileText}
+          label="Applications"
+          value={totalApplications}
+          hint="Busiest postings first"
+          tone="bg-[#e9f9f0] text-[#0f8a4d]"
+        />
+        <StatLinkTile
+          to={`${jobsPath}?sort=views`}
+          icon={Eye}
+          label="Job views"
+          value={totalJobViews}
+          hint="Most viewed first"
+          tone="bg-[#eef0ff] text-[#5b5bd6]"
+        />
+        <StatLinkTile
+          to={`${Routes.app.agency.network}#profile-viewers`}
+          icon={Users}
+          label="Profile views"
+          value={profileViews}
+          hint={applicationViews > 0 ? `${applicationViews} application views` : "Who looked"}
+          tone="bg-[#fff4e0] text-[#b7791f]"
+        />
       </div>
     </section>
   )

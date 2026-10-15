@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useSearchParams } from "react-router"
 import { toast } from "sonner"
-import { Search, Heart, Bookmark, Briefcase, CheckCircle2, Eye, Link2, MapPin, SlidersHorizontal, Users, Wallet, X } from "lucide-react"
+import { Search, Heart, Bookmark, BookmarkPlus, Briefcase, CheckCircle2, Eye, History, Link2, MapPin, SlidersHorizontal, Users, Wallet, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -12,6 +12,15 @@ import { avatarColor } from "@/components/app/avatarColor"
 import { haptic } from "@/lib/haptics"
 import { playSound } from "@/lib/sound"
 import { cn, getInitials } from "@/lib/utils"
+import { EmptyState } from "@/components/ui/empty-state"
+import {
+  MAX_SAVED_SEARCHES,
+  describeSearch,
+  loadSavedSearches,
+  sameSearch,
+  storeSavedSearches,
+  type SavedJobSearch,
+} from "@/utils/careconnect/savedJobSearches"
 import {
   getJob,
   listJobs,
@@ -228,6 +237,27 @@ export default function UserJobsPage() {
   const [paidOnly, setPaidOnly] = useState(false)
   const [newOnly, setNewOnly] = useState(false)
   const [savedOnly, setSavedOnly] = useState(false)
+  const [savedSearches, setSavedSearches] = useState<SavedJobSearch[]>(loadSavedSearches)
+
+  // Phones: an Apply bar pinned to the bottom while reading a job, once the job's own Apply
+  // button has scrolled away. Watched with observers rather than on every scroll event.
+  const [detailEl, setDetailEl] = useState<HTMLElement | null>(null)
+  const [actionsEl, setActionsEl] = useState<HTMLElement | null>(null)
+  const [detailInView, setDetailInView] = useState(false)
+  const [actionsInView, setActionsInView] = useState(true)
+  useEffect(() => {
+    if (!detailEl || !actionsEl || typeof IntersectionObserver === "undefined") return
+    const detail = new IntersectionObserver(([entry]) => setDetailInView(entry.isIntersecting))
+    const actions = new IntersectionObserver(([entry]) => setActionsInView(entry.isIntersecting), {
+      rootMargin: "-64px 0px 0px 0px", // under the app header counts as out of view
+    })
+    detail.observe(detailEl)
+    actions.observe(actionsEl)
+    return () => {
+      detail.disconnect()
+      actions.disconnect()
+    }
+  }, [detailEl, actionsEl])
 
   // `?job=<id>` opens that job — how the homepage's "Jobs for you" cards link here. The
   // param follows the selection, so the address can be copied and shared as it stands.
@@ -401,8 +431,36 @@ export default function UserJobsPage() {
 
   const applied = selectedJob ? appliedJobIds.has(selectedJob.id) : false
 
+  const currentSearch = { search, typeFilter, paidOnly, newOnly, savedOnly }
+  const alreadySaved = savedSearches.some((saved) => sameSearch(saved, currentSearch))
+
+  const saveCurrentSearch = () => {
+    if (alreadySaved) return
+    const entry: SavedJobSearch = { id: `${Date.now()}`, name: describeSearch(currentSearch), ...currentSearch }
+    const next = [entry, ...savedSearches].slice(0, MAX_SAVED_SEARCHES)
+    setSavedSearches(next)
+    storeSavedSearches(next)
+    toast.success("Search saved")
+  }
+
+  const applySavedSearch = (saved: SavedJobSearch) => {
+    setSearch(saved.search)
+    setTypeFilter(saved.typeFilter)
+    setPaidOnly(saved.paidOnly)
+    setNewOnly(saved.newOnly)
+    setSavedOnly(saved.savedOnly)
+  }
+
+  const removeSavedSearch = (id: string) => {
+    const next = savedSearches.filter((saved) => saved.id !== id)
+    setSavedSearches(next)
+    storeSavedSearches(next)
+  }
+
+  const showApplyBar = Boolean(selectedJob) && !applied && detailInView && !actionsInView
+
   return (
-    <div className="animate-fade-in-up grid grid-cols-1 gap-5 p-5 sm:p-8 xl:grid-cols-[400px_minmax(0,1fr)]">
+    <div className="animate-fade-in-up grid grid-cols-1 gap-5 p-5 pb-24 sm:p-8 sm:pb-24 xl:grid-cols-[400px_minmax(0,1fr)] xl:pb-8">
       <aside className="space-y-3">
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
@@ -439,6 +497,16 @@ export default function UserJobsPage() {
               {EMPLOYMENT_TYPE_LABELS[type] ?? type}
             </button>
           ))}
+          {(filtersOn || term) && !alreadySaved && (
+            <button
+              type="button"
+              onClick={saveCurrentSearch}
+              className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-2 text-xs font-semibold text-[#00868a] hover:underline"
+            >
+              <BookmarkPlus className="size-3.5" aria-hidden="true" />
+              Save search
+            </button>
+          )}
           {filtersOn && (
             <button
               type="button"
@@ -456,17 +524,46 @@ export default function UserJobsPage() {
           )}
         </div>
 
+        {/* Searches saved on this device: one tap puts every filter back. */}
+        {savedSearches.length > 0 && (
+          <div className="scrollbar-hide -mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1">
+            <History className="size-4 shrink-0 text-[#8a94a3]" aria-label="Saved searches" />
+            {savedSearches.map((saved) => {
+              const on = sameSearch(saved, currentSearch)
+              return (
+                <span
+                  key={saved.id}
+                  className={cn(
+                    "inline-flex h-8 shrink-0 items-center rounded-full text-xs font-semibold transition",
+                    on ? "bg-[#e3f8f8] text-[#00898c] ring-1 ring-[#00b4b8]/40" : "bg-[#f3f6f8] text-[#4a5260]",
+                  )}
+                >
+                  <button type="button" onClick={() => applySavedSearch(saved)} className="max-w-48 truncate pl-3 pr-1.5">
+                    {saved.name}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeSavedSearch(saved.id)}
+                    aria-label={`Remove saved search ${saved.name}`}
+                    className="mr-1 flex size-6 items-center justify-center rounded-full hover:bg-black/5"
+                  >
+                    <X className="size-3" aria-hidden="true" />
+                  </button>
+                </span>
+              )
+            })}
+          </div>
+        )}
+
         <p className="px-1 text-xs text-[#8a94a3]">
           {visibleJobs.length} job{visibleJobs.length === 1 ? "" : "s"}
           {filtersOn || term ? " match" : " open"}
         </p>
 
         {visibleJobs.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[#d7dde3] bg-white/60 p-8 text-center">
-            <Briefcase className="mx-auto size-8 text-[#9aa4b2]" aria-hidden="true" />
-            <p className="mt-3 text-sm font-semibold text-[#151922]">No jobs match</p>
-            <p className="mt-1 text-sm text-[#657080]">Try fewer filters or a different search.</p>
-          </div>
+          <EmptyState icon={<Briefcase className="size-8 text-[#9aa4b2]" aria-hidden="true" />} title="No jobs match" className="py-8">
+            Try fewer filters or a different search.
+          </EmptyState>
         ) : (
           <div className="cowry-stagger space-y-3">
             {visibleJobs.map((job) => {
@@ -576,7 +673,7 @@ export default function UserJobsPage() {
       </aside>
 
       {selectedJob && (
-        <main id="job-detail" key={selectedJob.id} className="animate-fade-in-up scroll-mt-24 space-y-5 self-start rounded-3xl xl:sticky xl:top-22">
+        <main ref={setDetailEl} id="job-detail" key={selectedJob.id} className="animate-fade-in-up scroll-mt-24 space-y-5 self-start rounded-3xl xl:sticky xl:top-22">
           {/* The job at a glance: who, what, where, how much — then what to do about it. */}
           <section className="overflow-hidden rounded-3xl bg-white ring-1 ring-[#e2e6ea]">
             <div className="h-20 bg-[linear-gradient(120deg,#0c2a33_0%,#0b5f68_55%,#00a3a7_100%)]" aria-hidden="true" />
@@ -625,7 +722,7 @@ export default function UserJobsPage() {
                 )}
               </div>
 
-              <div className="mt-5 flex flex-wrap items-center gap-2">
+              <div ref={setActionsEl} className="mt-5 flex flex-wrap items-center gap-2">
                 {applied ? (
                   <span className="animate-cowry-pop inline-flex h-11 items-center gap-2 rounded-full bg-[#e2f7e8] px-5 text-sm font-bold text-[#1f9c4c]">
                     <CheckCircle2 className="size-5" aria-hidden="true" />
@@ -701,6 +798,43 @@ export default function UserJobsPage() {
             )}
           </section>
         </main>
+      )}
+
+      {/* Phones and tablets only: on wide screens the details stay in view beside the list. */}
+      {selectedJob && (
+        <div
+          aria-hidden={!showApplyBar}
+          className={cn(
+            "fixed inset-x-0 bottom-[var(--app-bottom-inset,0px)] z-30 border-t border-[#e2e6ea] bg-white/95 px-4 py-3 shadow-[0_-8px_24px_-12px_rgba(16,20,26,0.25)] backdrop-blur-md transition-all duration-300 xl:hidden",
+            showApplyBar ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-full opacity-0",
+          )}
+        >
+          <div className="mx-auto flex max-w-2xl items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-[#151922]">{selectedJob.title}</p>
+              <p className="truncate text-xs text-[#657080]">
+                {formatSalary(selectedJob) || selectedJob.company}
+              </p>
+            </div>
+            <button
+              type="button"
+              tabIndex={showApplyBar ? 0 : -1}
+              onClick={() => toggleSaved(selectedJob.id)}
+              aria-label={savedJobIds.has(selectedJob.id) ? "Remove from saved" : "Save job"}
+              className="flex size-11 shrink-0 items-center justify-center rounded-full ring-1 ring-[#e2e6ea] active:scale-90"
+            >
+              <Bookmark className={cn("size-4", savedJobIds.has(selectedJob.id) && "fill-[#00b4b8] text-[#00b4b8]")} />
+            </button>
+            <Button
+              type="button"
+              tabIndex={showApplyBar ? 0 : -1}
+              className="h-11 shrink-0 rounded-full bg-linear-to-r from-[#00b4b8] to-[#2dd4d8] px-6 shadow-[0_8px_20px_-8px_rgba(0,180,184,0.7)] active:scale-95"
+              onClick={() => setIsApplyOpen(true)}
+            >
+              Apply now
+            </Button>
+          </div>
+        </div>
       )}
 
       <QuickScreeningPanel
