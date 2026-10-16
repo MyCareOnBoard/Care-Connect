@@ -7,12 +7,14 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SidePanel } from "@/components/app/SidePanel"
+import { PullToRefresh } from "@/components/app/PullToRefresh"
 import { getAuthErrorMessage } from "@/utils/auth"
 import { avatarColor } from "@/components/app/avatarColor"
 import { haptic } from "@/lib/haptics"
 import { playSound } from "@/lib/sound"
 import { cn, getInitials } from "@/lib/utils"
 import { EmptyState } from "@/components/ui/empty-state"
+import { FilterChip, FilterChipRow } from "@/components/ui/filter-chip"
 import {
   MAX_SAVED_SEARCHES,
   describeSearch,
@@ -342,6 +344,28 @@ export default function UserJobsPage() {
 
   if (loading) return <JobsSkeleton />
 
+  /** Pull down to refresh: fetch the list again and keep whatever is selected, if it is still there. */
+  const refreshJobs = async () => {
+    try {
+      const [fetchedJobs, saved, applications] = await Promise.all([
+        listJobs(),
+        listSavedJobs().catch(() => []),
+        listMyApplications()
+          .then((result) => result.applications)
+          .catch(() => []),
+      ])
+      setJobs((current) => {
+        // Keep a linked job that is not in the open list, as the first load does.
+        const extra = current.filter((job) => job.id === selectedJobId && !fetchedJobs.some((item) => item.id === job.id))
+        return [...extra, ...fetchedJobs]
+      })
+      setSavedJobIds(new Set(saved.map((job) => job.id)))
+      setAppliedJobIds(new Set(applications.map((application) => application.jobId)))
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error))
+    }
+  }
+
   const NEW_DAYS = 7
   const isNew = (job: Job) => {
     const posted = toDate(job.createdAt ?? null)
@@ -414,12 +438,6 @@ export default function UserJobsPage() {
     }
   }
 
-  const chipClass = (on: boolean) =>
-    cn(
-      "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition active:scale-95",
-      on ? "bg-[#10141a] text-white shadow-sm" : "bg-white text-[#4a5260] ring-1 ring-[#e2e6ea] hover:ring-[#c8cdd4]",
-    )
-
   const copyJobLink = async (id: string) => {
     try {
       await navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?job=${encodeURIComponent(id)}`)
@@ -460,7 +478,8 @@ export default function UserJobsPage() {
   const showApplyBar = Boolean(selectedJob) && !applied && detailInView && !actionsInView
 
   return (
-    <div className="animate-fade-in-up grid grid-cols-1 gap-5 p-5 pb-24 sm:p-8 sm:pb-24 xl:grid-cols-[400px_minmax(0,1fr)] xl:pb-8">
+    <div className="animate-fade-in-up relative grid grid-cols-1 gap-5 p-5 pb-24 sm:p-8 sm:pb-24 xl:grid-cols-[400px_minmax(0,1fr)] xl:pb-8">
+      <PullToRefresh onRefresh={refreshJobs} />
       <aside className="space-y-3">
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#8a8f98]" />
@@ -473,29 +492,27 @@ export default function UserJobsPage() {
         </div>
 
         {/* Quick filters, as chips: one tap each, and obvious when they are on. */}
-        <div className="scrollbar-hide -mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1">
+        <FilterChipRow label="Filters">
           <SlidersHorizontal className="size-4 shrink-0 text-[#8a94a3]" aria-hidden="true" />
-          <button type="button" aria-pressed={newOnly} onClick={() => setNewOnly((on) => !on)} className={chipClass(newOnly)}>
+          <FilterChip active={newOnly} onClick={() => setNewOnly((on) => !on)}>
             New this week
-          </button>
-          <button type="button" aria-pressed={paidOnly} onClick={() => setPaidOnly((on) => !on)} className={chipClass(paidOnly)}>
+          </FilterChip>
+          <FilterChip active={paidOnly} onClick={() => setPaidOnly((on) => !on)}>
             <Wallet className="size-3.5" aria-hidden="true" />
             Shows pay
-          </button>
-          <button type="button" aria-pressed={savedOnly} onClick={() => setSavedOnly((on) => !on)} className={chipClass(savedOnly)}>
+          </FilterChip>
+          <FilterChip active={savedOnly} onClick={() => setSavedOnly((on) => !on)}>
             <Bookmark className="size-3.5" aria-hidden="true" />
             Saved
-          </button>
+          </FilterChip>
           {typesPresent.map((type) => (
-            <button
+            <FilterChip
               key={type}
-              type="button"
-              aria-pressed={typeFilter === type}
+              active={typeFilter === type}
               onClick={() => setTypeFilter((current) => (current === type ? "all" : type))}
-              className={chipClass(typeFilter === type)}
             >
               {EMPLOYMENT_TYPE_LABELS[type] ?? type}
-            </button>
+            </FilterChip>
           ))}
           {(filtersOn || term) && !alreadySaved && (
             <button
@@ -522,7 +539,7 @@ export default function UserJobsPage() {
               Clear
             </button>
           )}
-        </div>
+        </FilterChipRow>
 
         {/* Searches saved on this device: one tap puts every filter back. */}
         {savedSearches.length > 0 && (
@@ -804,6 +821,7 @@ export default function UserJobsPage() {
       {selectedJob && (
         <div
           aria-hidden={!showApplyBar}
+          inert={!showApplyBar}
           className={cn(
             "fixed inset-x-0 bottom-[var(--app-bottom-inset,0px)] z-30 border-t border-[#e2e6ea] bg-white/95 px-4 py-3 shadow-[0_-8px_24px_-12px_rgba(16,20,26,0.25)] backdrop-blur-md transition-all duration-300 xl:hidden",
             showApplyBar ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-full opacity-0",

@@ -18,6 +18,7 @@ type SwipeAction = {
  * A list row with swipe actions, for touch screens. Swiping left uncovers `left` (a button
  * that stays out until tapped or the row is swiped back); swiping right past the threshold
  * runs `right` straight away and springs back. A mouse never swipes, so desktop is unchanged.
+ * From the keyboard, the Delete key on the row runs the left action.
  */
 export function SwipeRow({
   children,
@@ -104,6 +105,12 @@ export function SwipeRow({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerEnd}
         onPointerCancel={onPointerEnd}
+        onKeyDown={(event) => {
+          if (left && event.key === "Delete") {
+            event.preventDefault()
+            left.onAction()
+          }
+        }}
         onClickCapture={(event) => {
           if (swallowClick.current) {
             swallowClick.current = false

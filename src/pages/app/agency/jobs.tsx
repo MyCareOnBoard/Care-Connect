@@ -2,8 +2,8 @@ import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router"
 import { toast } from "sonner"
 import { ChevronLeft, Search, Plus, Check, MoreVertical, X } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { EmptyState } from "@/components/ui/empty-state"
+import { FilterChip, FilterChipRow } from "@/components/ui/filter-chip"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -895,11 +895,6 @@ export default function AgencyJobsPage() {
     { key: "closed", label: "Closed" },
     { key: "draft", label: "Draft" },
   ]
-  const chipClass = (on: boolean) =>
-    cn(
-      "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition active:scale-95",
-      on ? "bg-[#10141a] text-white shadow-sm" : "bg-white text-[#4a5260] ring-1 ring-[#e2e6ea] hover:ring-[#c8cdd4]",
-    )
 
   return (
     <div className="p-5 space-y-6 animate-fade-in-up sm:p-8">
@@ -927,40 +922,28 @@ export default function AgencyJobsPage() {
       </div>
 
       {postings.length > 0 && (
-        <div className="scrollbar-hide -mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1">
-          {statusChips.map((chip) => {
-            const count = chip.key ? postings.filter((posting) => posting.status === chip.key).length : postings.length
-            return (
-              <button
-                key={chip.label}
-                type="button"
-                aria-pressed={statusFilter === chip.key}
-                onClick={() => setParam("status", chip.key, true)}
-                className={chipClass(statusFilter === chip.key)}
-              >
-                {chip.label}
-                <span className="tabular-nums opacity-70">{count}</span>
-              </button>
-            )
-          })}
+        <FilterChipRow label="Filter postings">
+          {statusChips.map((chip) => (
+            <FilterChip
+              key={chip.label}
+              active={statusFilter === chip.key}
+              count={chip.key ? postings.filter((posting) => posting.status === chip.key).length : postings.length}
+              onClick={() => setParam("status", chip.key, true)}
+            >
+              {chip.label}
+            </FilterChip>
+          ))}
           <span className="mx-1 h-5 w-px shrink-0 bg-[#e2e6ea]" aria-hidden="true" />
-          <button
-            type="button"
-            aria-pressed={sortBy === "applications"}
+          <FilterChip
+            active={sortBy === "applications"}
             onClick={() => setParam("sort", sortBy === "applications" ? null : "applications", true)}
-            className={chipClass(sortBy === "applications")}
           >
             Most applications
-          </button>
-          <button
-            type="button"
-            aria-pressed={sortBy === "views"}
-            onClick={() => setParam("sort", sortBy === "views" ? null : "views", true)}
-            className={chipClass(sortBy === "views")}
-          >
+          </FilterChip>
+          <FilterChip active={sortBy === "views"} onClick={() => setParam("sort", sortBy === "views" ? null : "views", true)}>
             Most viewed
-          </button>
-        </div>
+          </FilterChip>
+        </FilterChipRow>
       )}
 
       {visiblePostings.length === 0 ? (

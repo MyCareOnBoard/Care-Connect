@@ -99,6 +99,8 @@ export default function MessagesPage() {
   const [conversations, setConversations] = useState<CareConnectConversation[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  // Which conversation's messages have arrived; anything else is still loading.
+  const [loadedThreadId, setLoadedThreadId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   // Below lg, list and chat are mutually exclusive full-screen views; at lg+ both show side-by-side regardless.
   const [mobileView, setMobileView] = useState<"list" | "chat">("list")
@@ -203,6 +205,7 @@ export default function MessagesPage() {
           .map((doc) => mapMessage(doc.id, doc.data()))
           .reverse()
         setMessages(msgs)
+        setLoadedThreadId(selectedId)
         // A message may have arrived for the open thread — clear its unread.
         markRead(selectedId).catch(() => undefined)
       },
@@ -248,24 +251,32 @@ export default function MessagesPage() {
     }
   }
 
-  const handleSend = async (text: string) => {
-    if (!selectedId) return
+  // A failed send keeps what was written: the error carries a Retry that sends it again, to
+  // the same conversation even if another one has been opened since.
+  const handleSend = async (text: string, conversationId = selectedId) => {
+    if (!conversationId) return
     try {
-      await sendMessage(selectedId, { content: text })
+      await sendMessage(conversationId, { content: text })
       // Rendered by the messages onSnapshot.
     } catch (error) {
-      toast.error(getAuthErrorMessage(error))
+      toast.error("Couldn't send your message", {
+        description: getAuthErrorMessage(error),
+        action: { label: "Retry", onClick: () => void handleSend(text, conversationId) },
+      })
     }
   }
 
-  const handleAttach = async (file: File) => {
-    if (!selectedId) return
+  const handleAttach = async (file: File, conversationId = selectedId) => {
+    if (!conversationId) return
     try {
       const url = await uploadMessageAttachment(file)
       const type = file.type.startsWith("image/") ? "image" : "file"
-      await sendMessage(selectedId, { attachments: [{ type, url, name: file.name }] })
+      await sendMessage(conversationId, { attachments: [{ type, url, name: file.name }] })
     } catch (error) {
-      toast.error(getAuthErrorMessage(error))
+      toast.error(`Couldn't send ${file.name}`, {
+        description: getAuthErrorMessage(error),
+        action: { label: "Retry", onClick: () => void handleAttach(file, conversationId) },
+      })
     }
   }
 
@@ -364,10 +375,13 @@ export default function MessagesPage() {
       >
         {selected ? (
           <ChatThread
-            messages={messages}
-            onSend={handleSend}
-            onAttach={handleAttach}
+            // One thread per conversation: switching opens the new one at its latest message.
+            key={selected.id}
+            messages={loadedThreadId === selected.id ? messages : []}
+            onSend={(text) => void handleSend(text)}
+            onAttach={(file) => void handleAttach(file)}
             seen={seenByConversation[selected.id]}
+            loading={loadedThreadId !== selected.id}
             className="h-full"
             header={
               <header className="flex items-center justify-between border-b border-[#eef1f3] bg-white/60 p-4 backdrop-blur-sm">

@@ -66,6 +66,12 @@ export function ProfileCompletionCard({
             >
               {step.done && <Check className="size-3.5" aria-hidden="true" />}
               {step.label}
+              {step.done && (
+                <>
+                  {" "}
+                  <span className="sr-only">(done)</span>
+                </>
+              )}
             </button>
           </li>
         ))}
