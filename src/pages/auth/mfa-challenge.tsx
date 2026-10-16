@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { ButtonLoader, Loader } from "@/components/ui/loader"
 import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
 import { RecaptchaAnchor } from "@/components/auth/RecaptchaAnchor"
+import { OtpInput, type OtpInputHandle } from "@/components/auth/OtpInput"
 import { Routes } from "@/routes/constants"
 import { useAuth } from "@/utils/auth"
 import { getAuthErrorMessage } from "@/utils/auth/helpers/errorMessages"
@@ -40,7 +41,8 @@ export default function MfaChallengePage() {
   const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(""))
   const [resendSeconds, setResendSeconds] = useState(0)
   const [maskedPhone, setMaskedPhone] = useState("your phone")
-  const inputRefs = useRef<Array<HTMLInputElement | null>>([])
+  const otpRef = useRef<OtpInputHandle>(null)
+  const formRef = useRef<HTMLFormElement>(null)
   const autoSendStarted = useRef(false)
   const completedRef = useRef(false)
 
@@ -96,20 +98,16 @@ export default function MfaChallengePage() {
     return () => window.clearInterval(timer)
   }, [resendSeconds])
 
-  const updateDigit = (index: number, value: string) => {
-    const nextValue = value.replace(/\D/g, "").slice(-1)
-    setDigits((current) => current.map((digit, digitIndex) => (digitIndex === index ? nextValue : digit)))
-
-    if (nextValue && index < digits.length - 1) {
-      inputRefs.current[index + 1]?.focus()
-    }
-  }
+  // Ready for the code as soon as it has been sent.
+  useEffect(() => {
+    if (phase === "enter-code") requestAnimationFrame(() => otpRef.current?.focus(0))
+  }, [phase])
 
   const handleVerify = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const session = getMfaResolverSession()
     const code = digits.join("")
-    if (!session || !verificationId || code.length < CODE_LENGTH) return
+    if (!session || !verificationId || code.length < CODE_LENGTH || verifying) return
 
     completedRef.current = true
     setVerifying(true)
@@ -188,23 +186,15 @@ export default function MfaChallengePage() {
         )}
 
         {phase === "enter-code" && (
-          <form onSubmit={handleVerify}>
-            <div className="grid grid-cols-6 gap-2 sm:gap-4">
-              {digits.map((digit, index) => (
-                <input
-                  key={index}
-                  ref={(node) => {
-                    inputRefs.current[index] = node
-                  }}
-                  value={digit}
-                  onChange={(event) => updateDigit(index, event.target.value)}
-                  className="h-15.5 rounded-xl border border-[#d7d7d8] text-center text-3xl font-bold outline-none focus:border-[#00b4b8] focus:ring-2 focus:ring-[#00b4b8]/20"
-                  inputMode="numeric"
-                  aria-label={`Verification digit ${index + 1}`}
-                  required
-                />
-              ))}
-            </div>
+          <form ref={formRef} onSubmit={handleVerify}>
+            <OtpInput
+              ref={otpRef}
+              value={digits}
+              onChange={setDigits}
+              disabled={verifying}
+              // A pasted or autofilled code is sent straight away.
+              onComplete={() => requestAnimationFrame(() => formRef.current?.requestSubmit())}
+            />
 
             <Button type="submit" disabled={verifying} className="mt-6 h-11 w-full bg-[#00b4b8]">
               {verifying ? (
