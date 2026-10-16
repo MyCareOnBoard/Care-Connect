@@ -19,6 +19,8 @@ export interface MarketProduct {
   currency: string
   status?: ProductStatus
   imageUrl?: string
+  /** Every photo, when the listing has more than one. The page falls back to `imageUrl`. */
+  imageUrls?: string[]
 }
 
 export interface NewProductInput {

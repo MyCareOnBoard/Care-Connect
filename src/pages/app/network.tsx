@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router"
 import { Building2, Inbox, Search, Send, Sparkles, Users } from "lucide-react"
 import { toast } from "sonner"
@@ -12,6 +12,7 @@ import { avatarColor } from "@/components/app/avatarColor"
 import { InvitationRow } from "@/components/app/InvitationRow"
 import { NetworkConnectionRow } from "@/components/app/NetworkConnectionRow"
 import { MarketplacePromoCard } from "@/components/app/MarketplacePromoCard"
+import { PullToRefresh } from "@/components/app/PullToRefresh"
 import { useCareFlow } from "@/components/app/useCareFlow"
 import { Routes } from "@/routes/constants"
 import { cn, getInitials } from "@/lib/utils"
@@ -166,59 +167,67 @@ export default function NetworkPage() {
     return resolved.filter((item): item is ResolvedConnection => item != null)
   }
 
-  useEffect(() => {
-    let active = true
-    ;(async () => {
-      setLoading(true)
-      try {
-        const [connectRelations, subscribeRelations] = await Promise.all([
-          listConnections("connect").catch(() => []),
-          listConnections("subscribe").catch(() => []),
-        ])
-        if (!active) return
-        const followedIds = new Set([...connectRelations, ...subscribeRelations].map((c) => c.targetId))
+  // Loads everything on the page. The first load shows the skeleton; pulling down to refresh
+  // (`quiet`) keeps the page up and swaps the lists in when they arrive.
+  const loadSeq = useRef(0)
+  const load = useCallback(async (quiet = false) => {
+    const seq = ++loadSeq.current
+    const isActive = () => seq === loadSeq.current
+    if (!quiet) setLoading(true)
+    try {
+      const [connectRelations, subscribeRelations] = await Promise.all([
+        listConnections("connect").catch(() => []),
+        listConnections("subscribe").catch(() => []),
+      ])
+      if (!isActive()) return
+      const followedIds = new Set([...connectRelations, ...subscribeRelations].map((c) => c.targetId))
 
-        const [resolvedConnections, resolvedSent, resolvedAgencies, individuals, companies, requests, viewerList] = await Promise.all([
-          resolveConnections(connectRelations.filter(isEstablished)),
-          resolveConnections(connectRelations.filter((relation) => !isEstablished(relation))),
-          resolveConnections(subscribeRelations),
-          // Ranked by shared skills/experience, with a reason per person. Falls back to
-          // the plain directory listing so the tab is never empty if suggestions fail.
-          listSuggestedPeople().catch(() => listProfiles({ type: "individual", limit: 8 }).catch(() => [])),
-          // Agencies keep the directory listing — org-to-org similarity is a different
-          // signal set and out of scope here.
-          listProfiles({ type: "company", limit: 8 }).catch(() => []),
-          listRequests().catch(() => []),
-          listProfileViewers().catch(() => []),
-        ])
-        if (!active) return
+      const [resolvedConnections, resolvedSent, resolvedAgencies, individuals, companies, requests, viewerList] = await Promise.all([
+        resolveConnections(connectRelations.filter(isEstablished)),
+        resolveConnections(connectRelations.filter((relation) => !isEstablished(relation))),
+        resolveConnections(subscribeRelations),
+        // Ranked by shared skills/experience, with a reason per person. Falls back to
+        // the plain directory listing so the tab is never empty if suggestions fail.
+        listSuggestedPeople().catch(() => listProfiles({ type: "individual", limit: 8 }).catch(() => [])),
+        // Agencies keep the directory listing — org-to-org similarity is a different
+        // signal set and out of scope here.
+        listProfiles({ type: "company", limit: 8 }).catch(() => []),
+        listRequests().catch(() => []),
+        listProfileViewers().catch(() => []),
+      ])
+      if (!isActive()) return
 
-        setConnections(resolvedConnections)
-        setSentRequests(resolvedSent)
-        setAgencies(resolvedAgencies)
-        setInvitations(requests)
-        setViewers(viewerList)
-        setSuggestedPeople(
-          individuals
-            .filter((profile) => !followedIds.has(profile.uid))
-            .map((profile, index) => toConnection(profile, index, viewProfile)),
-        )
-        setSuggestedAgencies(
-          companies
-            .filter((profile) => !followedIds.has(profile.uid))
-            .map((profile, index) => toConnection(profile, index, viewProfile)),
-        )
-      } catch (error) {
-        if (active) toast.error(getAuthErrorMessage(error))
-      } finally {
-        if (active) setLoading(false)
-      }
-    })()
-    return () => {
-      active = false
+      setConnections(resolvedConnections)
+      setSentRequests(resolvedSent)
+      setAgencies(resolvedAgencies)
+      setInvitations(requests)
+      setViewers(viewerList)
+      setSuggestedPeople(
+        individuals
+          .filter((profile) => !followedIds.has(profile.uid))
+          .map((profile, index) => toConnection(profile, index, viewProfile)),
+      )
+      setSuggestedAgencies(
+        companies
+          .filter((profile) => !followedIds.has(profile.uid))
+          .map((profile, index) => toConnection(profile, index, viewProfile)),
+      )
+    } catch (error) {
+      if (isActive()) toast.error(getAuthErrorMessage(error))
+    } finally {
+      if (isActive()) setLoading(false)
     }
+    // resolveConnections and viewProfile follow `flow`, which is the dependency here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flow])
+
+  useEffect(() => {
+    void load()
+    // A newer load supersedes this one; bumping the counter on unmount drops late results.
+    return () => {
+      loadSeq.current += 1
+    }
+  }, [load])
 
   const acceptInvitation = async (request: ConnectionRequest) => {
     setInvitations((current) => current.filter((item) => item.id !== request.id))
@@ -323,6 +332,7 @@ export default function NetworkPage() {
 
   return (
     <div className="p-5 sm:p-8">
+      <PullToRefresh onRefresh={() => load(true)} />
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
         {/* Below xl the sidebar sits after the list: the tab bar at the top of the list does
             its job there, and the extras should not push the list off the first screen. */}
@@ -425,6 +435,21 @@ export default function NetworkPage() {
           <div
             role="tablist"
             aria-label="Your network"
+            onKeyDown={(event) => {
+              // Arrow keys move between tabs, Home and End jump to the ends — the usual tablist keys.
+              const keys = ["ArrowRight", "ArrowLeft", "Home", "End"]
+              if (!keys.includes(event.key)) return
+              event.preventDefault()
+              const at = tabs.findIndex((item) => item.key === tab)
+              const next =
+                event.key === "Home"
+                  ? 0
+                  : event.key === "End"
+                    ? tabs.length - 1
+                    : (at + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length
+              setTab(tabs[next].key)
+              requestAnimationFrame(() => document.getElementById(`network-tab-${tabs[next].key}`)?.focus())
+            }}
             className="scrollbar-hide sticky top-16 z-10 -mx-5 mb-5 flex gap-2 overflow-x-auto bg-white/70 px-5 py-2 backdrop-blur-md sm:top-18 sm:-mx-8 sm:px-8 xl:hidden"
           >
             {tabs.map((item) => {
@@ -434,12 +459,15 @@ export default function NetworkPage() {
               return (
                 <button
                   key={item.key}
+                  id={`network-tab-${item.key}`}
                   type="button"
                   role="tab"
                   aria-selected={active}
+                  aria-controls="network-panel"
+                  tabIndex={active ? 0 : -1}
                   onClick={() => setTab(item.key)}
                   className={cn(
-                    "inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-95",
+                    "inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00b4b8] focus-visible:ring-offset-2",
                     active
                       ? "bg-[#00b4b8] text-white shadow-[0_6px_16px_-8px_rgba(0,180,184,0.8)]"
                       : "bg-white text-[#151922] ring-1 ring-[#e2e6ea] hover:bg-[#f2f6f8]",
@@ -447,6 +475,7 @@ export default function NetworkPage() {
                 >
                   {item.label}
                   <span
+                    aria-label={`${count}${item.key === "invitations" && count > 0 ? " waiting" : ""}`}
                     className={cn(
                       "min-w-5 rounded-full px-1.5 text-center text-xs font-bold leading-5",
                       active ? "bg-white/25 text-white" : waiting ? "bg-[#ff3e66] text-white" : "bg-[#eef1f3] text-[#657080]",
@@ -459,6 +488,7 @@ export default function NetworkPage() {
             })}
           </div>
 
+          <div id="network-panel" role="tabpanel" aria-labelledby={`network-tab-${tab}`}>
           {tab === "invitations" && (
             <>
               <div className="flex flex-wrap items-center justify-between gap-4">
@@ -632,6 +662,7 @@ export default function NetworkPage() {
               </div>
             </>
           )}
+          </div>
         </main>
 
         <div className="xl:hidden">

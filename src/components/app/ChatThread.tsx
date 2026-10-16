@@ -1,9 +1,10 @@
 import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react"
 import { createPortal } from "react-dom"
-import { Check, CheckCheck, FileText, Paperclip, Send, X } from "lucide-react"
+import { ArrowDown, Check, CheckCheck, FileText, Paperclip, Send, X } from "lucide-react"
 import { EmojiPicker } from "@/components/app/EmojiPicker"
 import { PostText } from "@/components/profile/PostText"
 import { cn } from "@/lib/utils"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export type ChatAttachment = {
   type: "image" | "file"
@@ -35,7 +36,12 @@ type ChatThreadProps = {
    * "Sent" when the conversation ends on something you said; leave it out to show neither.
    */
   seen?: boolean
+  /** True while the first messages are on their way: shows bubble placeholders, not the empty line. */
+  loading?: boolean
 }
+
+/** Further than this from the bottom counts as reading back, so new messages do not yank the view. */
+const NEAR_BOTTOM_PX = 160
 
 /** Messages this close together from the same person read as one run of bubbles. */
 const GROUP_GAP_MS = 5 * 60 * 1000
@@ -108,16 +114,44 @@ function AttachmentView({ attachment, onOpenPhoto }: { attachment: ChatAttachmen
   )
 }
 
-export function ChatThread({ messages, onSend, onAttach, header, className = "", emptyLabel = "No messages yet. Say hello 👋", seen }: ChatThreadProps) {
+export function ChatThread({ messages, onSend, onAttach, header, className = "", emptyLabel = "No messages yet. Say hello 👋", seen, loading = false }: ChatThreadProps) {
   const [draft, setDraft] = useState("")
   const [photo, setPhoto] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const firstScroll = useRef(true)
+  // Reading back through the thread: show "jump to latest" and stop following new messages.
+  const [readingBack, setReadingBack] = useState(false)
+  const readingBackRef = useRef(false)
+  const [unseen, setUnseen] = useState(0)
+  const lastCount = useRef(messages.length)
 
-  // Follow the newest message: a jump on first open, a glide after that.
+  const onScroll = () => {
+    const el = scrollRef.current
+    if (!el) return
+    const away = el.scrollHeight - el.scrollTop - el.clientHeight > NEAR_BOTTOM_PX
+    readingBackRef.current = away
+    setReadingBack(away)
+    if (!away) setUnseen(0)
+  }
+
+  const jumpToLatest = () => {
+    bottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" })
+    setUnseen(0)
+  }
+
+  // Follow the newest message — a jump on first open, a glide after that — unless the reader
+  // has scrolled back, in which case count what arrived for the jump button instead.
   useEffect(() => {
+    const added = messages.length - lastCount.current
+    lastCount.current = messages.length
+    const mineLast = messages[messages.length - 1]?.from === "me"
+    if (readingBackRef.current && !firstScroll.current && !mineLast) {
+      if (added > 0) setUnseen((count) => count + added)
+      return
+    }
     bottomRef.current?.scrollIntoView({ block: "end", behavior: firstScroll.current ? "auto" : "smooth" })
     if (messages.length) firstScroll.current = false
   }, [messages])
@@ -134,8 +168,19 @@ export function ChatThread({ messages, onSend, onAttach, header, className = "",
     <div className={cn("flex h-full flex-col", className)}>
       {header}
 
-      <div className="flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f7fafb_0%,#f2f7f8_100%)] px-3 py-4 sm:px-5">
-        {messages.length === 0 ? (
+      <div className="relative min-h-0 flex-1">
+      <div
+        ref={scrollRef}
+        onScroll={onScroll}
+        className="h-full overflow-y-auto bg-[linear-gradient(180deg,#f7fafb_0%,#f2f7f8_100%)] px-3 py-4 sm:px-5"
+      >
+        {loading && messages.length === 0 ? (
+          <div className="space-y-3" aria-label="Loading messages">
+            {["w-2/5", "ml-auto w-1/2", "w-1/3", "ml-auto w-2/5", "w-3/5"].map((width, index) => (
+              <Skeleton key={index} className={cn("h-10 rounded-2xl", width)} />
+            ))}
+          </div>
+        ) : messages.length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm text-[#8a8f98]">{emptyLabel}</div>
         ) : (
           messages.map((message, index) => {
@@ -232,6 +277,17 @@ export function ChatThread({ messages, onSend, onAttach, header, className = "",
           })
         )}
         <div ref={bottomRef} />
+      </div>
+      {readingBack && (
+        <button
+          type="button"
+          onClick={jumpToLatest}
+          className="animate-fade-in-up absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-[#00898c] shadow-[0_8px_24px_-8px_rgba(16,20,26,0.35)] ring-1 ring-[#e2e6ea] transition hover:bg-[#f2fbfb] active:scale-95"
+        >
+          <ArrowDown className="size-3.5" aria-hidden="true" />
+          {unseen > 0 ? `${unseen} new message${unseen === 1 ? "" : "s"}` : "Latest"}
+        </button>
+      )}
       </div>
 
       <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-[#eef1f3] bg-white/80 p-3 shadow-[0_-4px_16px_rgba(16,20,26,0.04)] backdrop-blur-sm">

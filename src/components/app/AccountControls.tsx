@@ -13,6 +13,7 @@ import {
 import { Routes } from "@/routes/constants"
 import { useAuth, useAuthUser } from "@/utils/auth"
 import { getInitials } from "@/lib/utils"
+import { Skeleton } from "@/components/ui/skeleton"
 import { ProfileModals } from "@/components/profile/ProfileModals"
 import { useAccountSettings } from "@/hooks/useAccountSettings"
 import { useNotifications } from "@/hooks/useNotifications"
@@ -131,7 +132,17 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
           </div>
 
           {loading && notifications.length === 0 ? (
-            <div className="px-1 py-5 text-center text-sm text-[#737780]">Loading…</div>
+            <div className="space-y-3 px-1 py-3" aria-label="Loading notifications">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="flex items-start gap-3">
+                  <Skeleton className="size-9 shrink-0 rounded-full" />
+                  <div className="flex-1 space-y-2 pt-1">
+                    <Skeleton className="h-3 w-4/5" />
+                    <Skeleton className="h-3 w-1/3" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : notifications.length === 0 ? (
             <div className="px-1 py-5 text-center text-sm text-[#737780]">No notifications</div>
           ) : (

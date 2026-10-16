@@ -1,20 +1,22 @@
 import { useEffect, useRef, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
-import { MapPin, Pencil, Plus, Search, ShoppingBag, Trash2 } from "lucide-react"
+import { MapPin, MessageCircle, Pencil, Plus, Search, ShoppingBag, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/ui/empty-state"
+import { FilterChip, FilterChipRow } from "@/components/ui/filter-chip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SidePanel } from "@/components/app/SidePanel"
+import { ProductGallery } from "@/components/app/ProductGallery"
 import { useCareFlow } from "@/components/app/useCareFlow"
 import { FileDropzone } from "@/components/auth/FileDropzone"
 import { AddressAutocomplete } from "@/components/maps/AddressAutocomplete"
 import { Routes } from "@/routes/constants"
 import { cn } from "@/lib/utils"
-import { getAuthErrorMessage } from "@/utils/auth"
+import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
 import {
   createProduct,
   deleteProduct,
@@ -108,6 +110,8 @@ type Product = {
   sellerId: string
   sellerLocation: string
   imageUrl?: string
+  /** All photos, first one first; empty when the listing has none. */
+  images: string[]
 }
 
 /** Map a backend marketplace product into the page's display shape. */
@@ -124,6 +128,7 @@ function toDisplayProduct(p: MarketProduct): Product {
     sellerId: p.sellerId,
     sellerLocation: p.sellerLocation || "",
     imageUrl: p.imageUrl,
+    images: p.imageUrls?.length ? p.imageUrls : p.imageUrl ? [p.imageUrl] : [],
   }
 }
 
@@ -233,15 +238,45 @@ function ProductCard({ product, onOpen, owner }: { product: Product; onOpen: () 
 
 function ProductDetailsPanel({ product, onClose, onEnquire }: { product: Product | null; onClose: () => void; onEnquire: () => void }) {
   const [expanded, setExpanded] = useState(false)
+  const { user } = useAuthUser()
 
   if (!product) return null
 
   const isLong = product.description.length > 70
+  const ownListing = Boolean(user?.uid) && user?.uid === product.sellerId
 
   return (
-    <SidePanel open onClose={onClose} title="Product details">
+    <SidePanel
+      open
+      onClose={onClose}
+      title="Product details"
+      // Pinned to the bottom of the panel, so messaging the seller is always one tap away,
+      // however long the description runs.
+      footer={
+        ownListing ? undefined : (
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-xl font-bold text-[#00b4b8]">{priceLabel(product.price, product.currency)}</p>
+              <p className="truncate text-xs text-[#657080]">Sold by {product.seller}</p>
+            </div>
+            <Button
+              type="button"
+              className="h-11 shrink-0 rounded-full bg-[#00b4b8] px-6 text-white hover:bg-[#00a3a7] hover:opacity-100"
+              onClick={onEnquire}
+            >
+              <MessageCircle className="size-4" aria-hidden="true" />
+              Message seller
+            </Button>
+          </div>
+        )
+      }
+    >
       <div className="space-y-5">
-        <ProductImage category={product.category} imageUrl={product.imageUrl} className="w-full h-48 rounded-xl" />
+        <ProductGallery
+          images={product.images}
+          alt={product.name}
+          fallback={<ProductImage category={product.category} className="aspect-[4/3] w-full rounded-xl" />}
+        />
         <div className="flex items-start justify-between gap-4">
           <h3 className="text-lg font-bold">{product.name}</h3>
           <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${CATEGORY_STYLES[product.category] ?? ""}`}>{product.category}</span>
@@ -260,12 +295,10 @@ function ProductDetailsPanel({ product, onClose, onEnquire }: { product: Product
             </button>
           )}
         </p>
-        <p className="text-2xl font-bold text-[#00b4b8]">{priceLabel(product.price, product.currency)}</p>
+        {ownListing && (
+          <p className="text-2xl font-bold text-[#00b4b8]">{priceLabel(product.price, product.currency)}</p>
+        )}
       </div>
-
-      <Button type="button" className="mt-8 w-full bg-[#00b4b8]" onClick={onEnquire}>
-        Enquire
-      </Button>
     </SidePanel>
   )
 }
@@ -656,24 +689,13 @@ export default function MarketplacePage() {
       </div>
 
       <div className="-mt-2 flex flex-wrap items-center gap-2">
-        <div className="scrollbar-hide -mx-5 flex flex-1 gap-2 overflow-x-auto px-5 sm:mx-0 sm:px-0" role="group" aria-label="Price">
+        <FilterChipRow label="Price" className="flex-1">
           {PRICE_BANDS.map((band) => (
-            <button
-              key={band.key}
-              type="button"
-              aria-pressed={priceBand === band.key}
-              onClick={() => setPriceBand(band.key)}
-              className={cn(
-                "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition active:scale-95",
-                priceBand === band.key
-                  ? "bg-[#151922] text-white"
-                  : "bg-white text-[#4f5862] ring-1 ring-[#e2e6ea] hover:ring-[#00b4b8]",
-              )}
-            >
+            <FilterChip key={band.key} active={priceBand === band.key} onClick={() => setPriceBand(band.key)}>
               {band.label}
-            </button>
+            </FilterChip>
           ))}
-        </div>
+        </FilterChipRow>
         <Select value={sort} onValueChange={(value) => setSort(value as SortOrder)}>
           <SelectTrigger className="h-9 w-44 shrink-0" aria-label="Sort">
             <SelectValue />

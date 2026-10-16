@@ -71,9 +71,25 @@ export default function ViewProfilePage() {
 
   if (loading) {
     return (
-      <div className="animate-fade-in-up px-7.5 pb-10 pt-4">
+      <div className="animate-fade-in-up px-4 pb-10 pt-4 sm:px-7.5" aria-label="Loading profile">
         <Skeleton className="h-9 w-24 rounded-full" />
-        <Skeleton className="mx-auto mt-4 h-80 max-w-250 rounded-[28px]" />
+        <div className="mx-auto mt-4 max-w-250 overflow-hidden rounded-[28px] bg-white ring-1 ring-[#e2e6ea]">
+          <Skeleton className="h-40 rounded-none sm:h-56" />
+          <div className="px-5 pb-6 sm:px-8">
+            <Skeleton className="-mt-14 size-28 rounded-full ring-4 ring-white sm:-mt-16 sm:size-32" />
+            <Skeleton className="mt-4 h-8 w-56" />
+            <Skeleton className="mt-3 h-4 w-80 max-w-full" />
+            <div className="mt-4 flex gap-2">
+              <Skeleton className="h-8 w-28 rounded-full" />
+              <Skeleton className="h-8 w-36 rounded-full" />
+            </div>
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <Skeleton key={index} className="h-16 rounded-2xl" />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
