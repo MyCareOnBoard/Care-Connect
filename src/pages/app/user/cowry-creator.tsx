@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState, type ComponentType, type KeyboardEvent } from "react"
 import { Link } from "react-router"
 import { toast } from "sonner"
-import { Lock, ShieldAlert, Smartphone } from "lucide-react"
+import { Hourglass, Lock, ShieldAlert, Smartphone, Trophy } from "lucide-react"
 import { TreasureChest } from "@/components/cowry/TreasureChest"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -20,6 +20,7 @@ import { Routes } from "@/routes/constants"
 import { getAuthErrorMessage } from "@/utils/auth"
 import { formatDate, formatRelative, toDate } from "@/utils/careconnect/types"
 import { isCowryPathEnabled } from "@/utils/careconnect/cowryPages"
+import { cn } from "@/lib/utils"
 import {
   getCreatorEarnings,
   listGifts,
@@ -63,6 +64,14 @@ function CreatorSkeleton() {
   )
 }
 
+type CreatorTab = "available" | "received" | "biggest"
+
+const TABS: Array<{ key: CreatorTab; label: string; icon: ComponentType<{ className?: string }> }> = [
+  { key: "available", label: "Becoming available", icon: Hourglass },
+  { key: "received", label: "Treasures you've received", icon: TreasureChest },
+  { key: "biggest", label: "Biggest treasures", icon: Trophy },
+]
+
 /** Days until a hold frees up, and how far through its window it is. */
 function holdCountdown(hold: CowryCreatorHold, holdDays: number) {
   const release = toDate(hold.releaseAt)
@@ -77,6 +86,10 @@ export default function CowryCreatorPage() {
   const [received, setReceived] = useState<CowryGift[]>([])
   const [loading, setLoading] = useState(true)
   const [attempt, setAttempt] = useState(0)
+  // Unset until chosen: the page opens on what is on hold when something is, otherwise on
+  // what came in.
+  const [chosenTab, setChosenTab] = useState<CreatorTab | null>(null)
+  const tabRefs = useRef<Record<CreatorTab, HTMLButtonElement | null>>({ available: null, received: null, biggest: null })
 
   useEffect(() => {
     let active = true
@@ -120,6 +133,23 @@ export default function CowryCreatorPage() {
     (a, b) => (toDate(a.releaseAt)?.getTime() ?? 0) - (toDate(b.releaseAt)?.getTime() ?? 0),
   )
   const nextRelease = holds[0] ? holdCountdown(holds[0], earnings.holdDays).daysLeft : null
+  const activeTab: CreatorTab = chosenTab ?? (holds.length > 0 ? "available" : "received")
+  const counts: Partial<Record<CreatorTab, number>> = { available: holds.length, received: received.length }
+
+  // Arrow keys, Home and End move between the tabs, as a tab list should.
+  const onTabKey = (event: KeyboardEvent<HTMLDivElement>) => {
+    const index = TABS.findIndex((tab) => tab.key === activeTab)
+    const next =
+      event.key === "ArrowRight" ? (index + 1) % TABS.length
+      : event.key === "ArrowLeft" ? (index - 1 + TABS.length) % TABS.length
+      : event.key === "Home" ? 0
+      : event.key === "End" ? TABS.length - 1
+      : null
+    if (next === null) return
+    event.preventDefault()
+    setChosenTab(TABS[next].key)
+    tabRefs.current[TABS[next].key]?.focus()
+  }
 
   return (
     <div className="animate-fade-in-up space-y-7 p-5 sm:p-8">
@@ -193,99 +223,152 @@ export default function CowryCreatorPage() {
         </div>
       </section>
 
-      {holds.length > 0 && (
-        <section>
-          <h2 className="text-lg font-bold">Becoming available</h2>
-          {/* Said once, plainly. The hold is a rule with a reason, not a withholding. */}
-          <p className="mt-1 max-w-2xl text-sm text-[#657080]">
-            Treasures are bought with a card, and a card payment can be reversed for up to{" "}
-            {earnings.holdDays} days. Each treasure&apos;s Cowries become yours once that window
-            closes — nothing needs doing to claim them.
-          </p>
+      <div>
+        <div
+          role="tablist"
+          aria-label="Your treasures"
+          onKeyDown={onTabKey}
+          className="scrollbar-hide flex gap-1 overflow-x-auto rounded-full bg-white p-1.5 shadow-sm ring-1 ring-[#e2e6ea]"
+        >
+          {TABS.map(({ key, label, icon: Icon }) => {
+            const active = activeTab === key
+            const count = counts[key]
+            return (
+              <button
+                key={key}
+                ref={(node) => {
+                  tabRefs.current[key] = node
+                }}
+                type="button"
+                role="tab"
+                id={`creator-tab-${key}`}
+                aria-selected={active}
+                aria-controls={`creator-panel-${key}`}
+                tabIndex={active ? 0 : -1}
+                onClick={() => setChosenTab(key)}
+                className={cn(
+                  "flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200",
+                  active ? "bg-[#00b3ad] text-white shadow" : "text-[#4f4f4f] hover:bg-gray-100",
+                )}
+              >
+                <Icon className="size-4" aria-hidden="true" />
+                {label}
+                {count !== undefined && count > 0 && (
+                  <span className={cn("rounded-full px-1.5 text-xs font-bold tabular-nums", active ? "bg-white/25 text-white" : "bg-[#eef1f3] text-[#565656]")}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
 
-          <ul className="cowry-stagger mt-4 space-y-3">
-            {holds.map((hold) => {
-              const { daysLeft, progress } = holdCountdown(hold, earnings.holdDays)
-              return (
-                <li key={hold.giftId} className="rounded-2xl bg-white p-4 ring-1 ring-[#e2e6ea]">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-[#141922]">
-                      <GiftIcon gift={{ id: hold.giftId, label: hold.giftLabel }} size={18} />
-                      {hold.giftLabel}
-                    </p>
-                    <p className="flex items-center gap-1 text-sm font-bold tabular-nums text-[#141922]">
-                      <CowryIcon size={16} />
-                      {formatCowries(hold.amount)}
-                    </p>
-                  </div>
-                  <CowryProgress
-                    value={progress}
-                    tone="gold"
-                    label={`${hold.giftLabel} hold progress`}
-                    className="mt-3 h-2"
-                  />
-                  <p className="mt-2 text-xs text-[#657080]">
-                    {daysLeft === null
-                      ? "Release date to follow"
-                      : daysLeft === 0
-                        ? `Available today · ${formatDate(hold.releaseAt)}`
-                        : `${daysLeft} day${daysLeft === 1 ? "" : "s"} to go · ${formatDate(hold.releaseAt)}`}
-                  </p>
-                </li>
-              )
-            })}
-          </ul>
-        </section>
-      )}
+        <div
+          role="tabpanel"
+          id={`creator-panel-${activeTab}`}
+          aria-labelledby={`creator-tab-${activeTab}`}
+          tabIndex={0}
+          className="mt-5 animate-fade-in-up focus-visible:outline-none"
+          key={activeTab}
+        >
+          {activeTab === "available" &&
+            (holds.length === 0 ? (
+              <CowryEmpty title="Nothing on hold">
+                Each treasure&apos;s Cowries wait {earnings.holdDays} days before they are yours. When
+                one is waiting, it shows here with the date it frees up.
+              </CowryEmpty>
+            ) : (
+              <>
+                {/* Said once, plainly. The hold is a rule with a reason, not a withholding. */}
+                <p className="mt-1 max-w-2xl text-sm text-[#657080]">
+                  Treasures are bought with a card, and a card payment can be reversed for up to{" "}
+                  {earnings.holdDays} days. Each treasure&apos;s Cowries become yours once that window
+                  closes — nothing needs doing to claim them.
+                </p>
 
-      <section>
-        <h2 className="mb-4 text-lg font-bold">Treasures you&apos;ve received</h2>
-        {received.length === 0 ? (
-          <CowryEmpty title="No treasures yet">
-            When someone sends you a treasure it appears here, along with the Cowries it earned you.
-          </CowryEmpty>
-        ) : (
-          <ul className="cowry-stagger divide-y divide-[#eef1f3] overflow-hidden rounded-2xl bg-white ring-1 ring-[#e2e6ea]">
-            {received.map((gift) => (
-              <li key={gift.id} className="flex items-center gap-3 p-4 transition-colors hover:bg-[#f9fafb]">
-                <span
-                  className={`flex size-10 shrink-0 items-center justify-center rounded-2xl ${
-                    SET_TINTS[gift.giftSet] ?? SET_TINTS.everyday
-                  }`}
-                  title={GIFT_SET_LABELS[gift.giftSet] ?? gift.giftSet}
-                >
-                  <GiftIcon gift={{ id: gift.giftId, label: gift.giftLabel, icon: gift.giftIcon }} size={22} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-[#141922]">
-                    {gift.giftLabel}
-                    <span className="ml-2 font-normal text-[#657080]">
-                      from {gift.senderName || "someone"}
-                    </span>
-                  </p>
-                  {gift.message && (
-                    <p className="mt-0.5 truncate text-sm italic text-[#565656]">
-                      &ldquo;{gift.message}&rdquo;
-                    </p>
-                  )}
-                  <p className="mt-0.5 text-xs text-[#657080]">{formatRelative(gift.createdAt)}</p>
-                </div>
-                <span className="inline-flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-[#1f9c4c]">
-                  +<CowryIcon size={14} />
-                  {formatCowries(gift.creatorAmount)}
-                </span>
-              </li>
+                <ul className="cowry-stagger mt-4 space-y-3">
+                  {holds.map((hold) => {
+                    const { daysLeft, progress } = holdCountdown(hold, earnings.holdDays)
+                    return (
+                      <li key={hold.giftId} className="rounded-2xl bg-white p-4 ring-1 ring-[#e2e6ea]">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="flex items-center gap-2 text-sm font-semibold text-[#141922]">
+                            <GiftIcon gift={{ id: hold.giftId, label: hold.giftLabel }} size={18} />
+                            {hold.giftLabel}
+                          </p>
+                          <p className="flex items-center gap-1 text-sm font-bold tabular-nums text-[#141922]">
+                            <CowryIcon size={16} />
+                            {formatCowries(hold.amount)}
+                          </p>
+                        </div>
+                        <CowryProgress
+                          value={progress}
+                          tone="gold"
+                          label={`${hold.giftLabel} hold progress`}
+                          className="mt-3 h-2"
+                        />
+                        <p className="mt-2 text-xs text-[#657080]">
+                          {daysLeft === null
+                            ? "Release date to follow"
+                            : daysLeft === 0
+                              ? `Available today · ${formatDate(hold.releaseAt)}`
+                              : `${daysLeft} day${daysLeft === 1 ? "" : "s"} to go · ${formatDate(hold.releaseAt)}`}
+                        </p>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </>
             ))}
-          </ul>
-        )}
-      </section>
 
-      {/*
-        Everyone's biggest gifts, under this creator's own. Here rather than on the feed
-        because this is the page where gifts are already the subject; putting it in front of
-        every member on the main screen is a product decision, not a placement one.
-      */}
-      <TopGiftsBoard limit={5} />
+          {activeTab === "received" &&
+            (received.length === 0 ? (
+              <CowryEmpty title="No treasures yet">
+                When someone sends you a treasure it appears here, along with the Cowries it earned you.
+              </CowryEmpty>
+            ) : (
+              <ul className="cowry-stagger divide-y divide-[#eef1f3] overflow-hidden rounded-2xl bg-white ring-1 ring-[#e2e6ea]">
+                {received.map((gift) => (
+                  <li key={gift.id} className="flex items-center gap-3 p-4 transition-colors hover:bg-[#f9fafb]">
+                    <span
+                      className={`flex size-10 shrink-0 items-center justify-center rounded-2xl ${
+                        SET_TINTS[gift.giftSet] ?? SET_TINTS.everyday
+                      }`}
+                      title={GIFT_SET_LABELS[gift.giftSet] ?? gift.giftSet}
+                    >
+                      <GiftIcon gift={{ id: gift.giftId, label: gift.giftLabel, icon: gift.giftIcon }} size={22} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-[#141922]">
+                        {gift.giftLabel}
+                        <span className="ml-2 font-normal text-[#657080]">
+                          from {gift.senderName || "someone"}
+                        </span>
+                      </p>
+                      {gift.message && (
+                        <p className="mt-0.5 truncate text-sm italic text-[#565656]">
+                          &ldquo;{gift.message}&rdquo;
+                        </p>
+                      )}
+                      <p className="mt-0.5 text-xs text-[#657080]">{formatRelative(gift.createdAt)}</p>
+                    </div>
+                    <span className="inline-flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-[#1f9c4c]">
+                      +<CowryIcon size={14} />
+                      {formatCowries(gift.creatorAmount)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ))}
+
+          {/*
+            Everyone's biggest gifts, beside this creator's own. Here rather than on the feed
+            because this is the page where gifts are already the subject; putting it in front
+            of every member on the main screen is a product decision, not a placement one.
+          */}
+          {activeTab === "biggest" && <TopGiftsBoard limit={5} showTitle={false} />}
+        </div>
+      </div>
     </div>
   )
 }

@@ -119,12 +119,15 @@ export function TopGiftsBoard({
   limit = 5,
   initialWindow = "7d",
   profileHref = Routes.app.user.viewProfile,
+  showTitle = true,
   className,
 }: {
   limit?: number
   initialWindow?: CowryGiftWindow
   /** Which profile route to link names to. The user flow by default. */
   profileHref?: (id: string) => string
+  /** Off where something else already names the board, such as the tab it sits in. */
+  showTitle?: boolean
   className?: string
 }) {
   const [activeWindow, setActiveWindow] = useState<CowryGiftWindow>(initialWindow)
@@ -154,11 +157,13 @@ export function TopGiftsBoard({
 
   return (
     <section className={className}>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-bold">
-          <Trophy className="size-5 text-[#f3c969]" aria-hidden="true" />
-          Biggest treasures
-        </h2>
+      <div className={cn("mb-4 flex flex-wrap items-center gap-3", showTitle ? "justify-between" : "justify-end")}>
+        {showTitle && (
+          <h2 className="flex items-center gap-2 text-lg font-bold">
+            <Trophy className="size-5 text-[#f3c969]" aria-hidden="true" />
+            Biggest treasures
+          </h2>
+        )}
 
         <div className="flex flex-wrap gap-1" role="group" aria-label="Time window">
           {WINDOWS.map((option) => (

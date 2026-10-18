@@ -14,6 +14,8 @@ export const ILLUSTRATION_KINDS = [
   "rhythm", "dancing-shadow", "voice", "painters-sun", "storyteller",
   // Human Connection
   "thank-you", "friendship-thread", "warm-embrace", "helping-hand", "welcome",
+  // Celebrations
+  "anniversary", "birthday", "new-baby", "new-home", "new-job", "graduation", "wedding",
 ] as const
 
 export type IllustrationKind = (typeof ILLUSTRATION_KINDS)[number]
