@@ -14,11 +14,6 @@ import { matchGiftByName, type GiftLike } from "@/components/cowry/giftIcons"
  *   4  700 – 1,999      a scene themed to its category, about three seconds
  *   5  2,000 and up     Premium: its own video when there is one, a gold scene until then
  *
- * From 400 up, every everyday Treasure — every category but Premium — plays a full-screen
- * scene of its own instead of 3 and 4 (moments/scene/treasureScenes.tsx; Human Connection's
- * are in HumanMoments.tsx). The spotlight and the category band are for a Treasure that has
- * no scene yet, so a new one is never left without an arrival.
- *
  * The receiver's screen only. A named legendary with a scene of its own (giftAnimations.ts)
  * keeps that scene whatever it costs.
  */
@@ -44,7 +39,6 @@ export type TreasureTheme =
   | "nature"
   | "music"
   | "human"
-  | "celebration"
   | "premium"
 
 /** What floats, falls or pulses through a themed scene. */
@@ -119,14 +113,6 @@ export const THEMES: Record<TreasureTheme, ThemeLook> = {
     colors: ["#fecdd3", "#fb7185", "#ffffff", "#fde68a"],
     sound: "pearl",
   },
-  celebration: {
-    label: "Celebrations",
-    backdrop: "linear-gradient(180deg,#4c0519 0%,#be185d 50%,#fbbf24 100%)",
-    particle: "sparkle",
-    drift: "down",
-    colors: ["#f472b6", "#fbbf24", "#38bdf8", "#a78bfa", "#ffffff"],
-    sound: "fanfare",
-  },
   premium: {
     label: "Premium",
     backdrop: "linear-gradient(180deg,#2b1a04 0%,#7a5310 45%,#f3c969 100%)",
@@ -152,7 +138,6 @@ export function themeFor(set: string | null | undefined, tier: TreasureTier): Tr
   if (/\b(music|expression)\b/.test(words)) return "music"
   if (/\b(human|connection|linkup)\b/.test(words)) return "human"
   if (/\b(wellness|emotion)\b/.test(words)) return "wellness"
-  if (/\b(celebrat\w*|anniversar\w*|birthdays?|weddings?|graduations?|milestones?)\b/.test(words)) return "celebration"
   return tier === 5 ? "premium" : "wellness"
 }
 

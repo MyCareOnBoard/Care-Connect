@@ -37,8 +37,6 @@ describe("category themes", () => {
     ["nature", "nature"],
     ["music_expression", "music"],
     ["human_connection", "human"],
-    ["celebrations", "celebration"],
-    ["Celebration", "celebration"],
     ["premium", "premium"],
   ])("%s is themed %s", (set, theme) => {
     expect(themeFor(set, 4)).toBe(theme)
@@ -76,58 +74,20 @@ describe("how each band arrives", () => {
     expect(document.querySelectorAll(".treasure-spark").length).toBeGreaterThan(0)
   })
 
-  // "The Kente Cloth" is not on the list of Treasures with a scene of their own, so it shows
-  // the price band's arrival — what any new Treasure gets until it is given a scene.
-  it("level 3 is a spotlight, then the card, for a treasure without a scene of its own", async () => {
-    show("The Kente Cloth", 500, "heritage")
-    expect(screen.getByRole("status", { name: "The Kente Cloth arrives" })).toBeInTheDocument()
+  it("level 3 is a spotlight, then the card", async () => {
+    show("The Talking Drum", 500, "heritage")
+    expect(screen.getByRole("status", { name: "The Talking Drum arrives" })).toBeInTheDocument()
     expect(screen.getByText("Congratulations on the 500 Treasure")).toBeInTheDocument()
-    expect(document.querySelector(".treasure-band")).toBeNull()
     await act(async () => {
-      screen.getByRole("status", { name: "The Kente Cloth arrives" }).click()
+      screen.getByRole("status", { name: "The Talking Drum arrives" }).click()
     })
-    expect(screen.getByText(/sent you The Kente Cloth/)).toBeInTheDocument()
+    expect(screen.getByText(/sent you The Talking Drum/)).toBeInTheDocument()
   })
 
-  it("level 4 is a band in its category's colours for a treasure without a scene of its own", () => {
-    show("The Kente Cloth", 1000, "heritage")
-    expect(screen.getByRole("status", { name: "The Kente Cloth arrives" })).toBeInTheDocument()
+  it("level 4 is a scene in its category's colours", () => {
+    show("The Golden Stool", 1000, "heritage")
+    expect(screen.getByRole("status", { name: "The Golden Stool arrives" })).toBeInTheDocument()
     expect(document.querySelector(".treasure-band")).not.toBeNull()
-  })
-
-  it.each([
-    ["The Talking Drum", 500, "heritage", ".scene-pulse"],
-    ["The First Rain", 450, "nature", ".scene-rain"],
-    ["The Breakthrough", 900, "achievement", ".scene-shard"],
-    ["The Rhythm", 950, "music_expression", ".treasure-eq"],
-    ["The Story Fire", 700, "heritage", ".scene-travel"],
-  ])("plays %s full screen as a scene of its own", (label, cost, set, part) => {
-    show(label, cost, set)
-    expect(screen.getByRole("status", { name: `${label} arrives` })).toBeInTheDocument()
-    expect(screen.getByText(`Congratulations on the ${cost} Treasure`)).toBeInTheDocument()
-    expect(document.querySelector(part)).not.toBeNull()
-    // Its own scene, not the category band.
-    expect(document.querySelector(".treasure-band")).toBeNull()
-  })
-
-  it.each([
-    ["Anniversary", "Happy Anniversary"],
-    ["Happy Birthday", "Happy Birthday"],
-    ["New Baby", "Welcome, little one"],
-    ["New Home", "Home Sweet Home"],
-    ["New Job", "New Beginnings"],
-    ["Graduation", "Congratulations, Graduate"],
-    ["Wedding", "Two hearts, one journey"],
-  ])("plays the Celebrations treasure %s full screen, with its words", (label, words) => {
-    show(label, 800, "celebrations")
-    expect(screen.getByRole("status", { name: `${label} arrives` })).toBeInTheDocument()
-    expect(screen.getByText(words, { selector: "p" })).toBeInTheDocument()
-  })
-
-  it("keeps the shower for a Celebrations treasure priced under 400", () => {
-    show("Happy Birthday", 150, "celebrations")
-    expect(screen.queryByText("Happy Birthday", { selector: "p.scene-words" })).toBeNull()
-    expect(screen.getByText(/sent you Happy Birthday/)).toBeInTheDocument()
   })
 
   it("is the sender's shower whatever it cost", () => {

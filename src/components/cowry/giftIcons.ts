@@ -195,16 +195,6 @@ export const GIFT_ICON_RULES: GiftIconRule[] = [
   { key: "helping-hand", match: ["helping hand"], icon: "art", art: "helping-hand", color: "#0d9488" },
   { key: "welcome", match: ["the welcome", "welcome"], icon: "art", art: "welcome", color: "#0ea5e9" },
 
-  // Celebrations — ahead of the general cake and party rules below, so "Happy Birthday" is
-  // the birthday cake Treasure rather than a plain cake icon.
-  { key: "anniversary", match: ["anniversary", "anniversaries"], icon: "art", art: "anniversary", color: "#e11d48" },
-  { key: "birthday", match: ["birthday", "happy birthday"], icon: "art", art: "birthday", color: "#ec4899" },
-  { key: "new-baby", match: ["new baby", "baby", "newborn", "new born"], icon: "art", art: "new-baby", color: "#38bdf8" },
-  { key: "new-home", match: ["new home", "new house", "housewarming", "house warming"], icon: "art", art: "new-home", color: "#14b8a6" },
-  { key: "new-job", match: ["new job", "new role", "new position", "promotion"], icon: "art", art: "new-job", color: "#b45309" },
-  { key: "graduation", match: ["graduation", "graduate", "graduating"], icon: "art", art: "graduation", color: "#334155" },
-  { key: "wedding", match: ["wedding", "marriage", "just married"], icon: "art", art: "wedding", color: "#f59e0b" },
-
   // Premium — drawn in gold (TreasureArt), with the gold rim and shine the top tier wears.
   { key: "golden-journey", match: ["golden journey"], icon: "art", art: "golden-journey", color: "#d4a017", legendary: true },
   { key: "54-horizons", match: ["54 horizons", "horizons"], icon: "art", art: "54-horizons", color: "#d4a017", legendary: true },
@@ -284,7 +274,7 @@ export const GIFT_ICON_RULES: GiftIconRule[] = [
   { key: "moon", match: ["moon"], icon: Moon, color: "#8b7fd8", form: "solid" },
   { key: "sparkle", match: ["sparkle", "glitter", "shine", "magic"], icon: Sparkles, color: "#e0a93a", form: "solid" },
   { key: "coffee", match: ["coffee", "tea", "cup", "latte"], icon: Coffee, color: "#8a5a2b" },
-  { key: "cake", match: ["cake", "cupcake"], icon: Cake, color: "#e879a6" },
+  { key: "cake", match: ["cake", "cupcake", "birthday"], icon: Cake, color: "#e879a6" },
   { key: "ice-cream", match: ["ice cream", "icecream", "gelato"], icon: IceCreamCone, color: "#f59ec4" },
   { key: "candy", match: ["candy", "sweet", "lollipop", "chocolate"], icon: Candy, color: "#ec4899" },
   { key: "apple", match: ["apple", "fruit"], icon: Apple, color: "#e0443a", form: "solid" },

@@ -3,8 +3,6 @@ import { resolveGiftIcon } from "@/components/cowry/giftIcons"
 import { giftArrivalFor } from "@/components/cowry/giftAnimations"
 import { isGoldTab, trayTabs } from "@/components/cowry/giftTraySelection"
 import { isIllustration } from "@/components/cowry/treasureIllustrationKinds"
-import { treasureSceneFor } from "@/components/cowry/moments/scene/treasureScenes"
-import { isHumanScene } from "@/components/cowry/treasureTiers"
 import type { CowryGiftCatalogItem } from "@/utils/careconnect/services/cowryService"
 
 /**
@@ -33,7 +31,6 @@ const TREASURES: Record<string, string[]> = {
   Nature: ["The Baobab", "The Golden Sunset", "The First Rain", "The Rising Moon", "The Golden Savannah", "The Ocean Breeze"],
   "Music & Expression": ["The Rhythm", "The Dancing Shadow", "The Voice", "The Painter's Sun", "The Storyteller"],
   "Human Connection": ["The Thank You", "The Friendship Thread", "The Warm Embrace", "The Helping Hand", "The Welcome"],
-  Celebrations: ["Anniversary", "Birthday", "New Baby", "New Home", "New Job", "Graduation", "Wedding"],
   Premium: [
     "The Golden Journey", "The 54 Horizons", "The Legacy Tree", "The Time Capsule", "The Golden Memory",
     "The Timeless Treasure",
@@ -75,31 +72,6 @@ describe("treasure icons", () => {
         }
       }
     }
-  })
-
-  it.each(Object.entries(TREASURES).flatMap(([category, labels]) => (category === "Premium" ? [] : labels)))(
-    "%s arrives as a scene of its own",
-    (label) => {
-      const resolved = resolveGiftIcon({ label })
-      const key = resolved.kind === "rule" ? resolved.rule.key : null
-      // Human Connection's scenes are in HumanMoments; every other everyday one is in treasureScenes.
-      expect(isHumanScene(key) || treasureSceneFor({ label }) !== null).toBe(true)
-    },
-  )
-
-  it("gives the Premium treasures no drawn scene of their own — they have their films", () => {
-    for (const label of TREASURES.Premium) expect(treasureSceneFor({ label })).toBeNull()
-  })
-
-  it("finds the Celebrations treasures however they are worded", () => {
-    expect(keyOf("Happy Birthday")).toBe("birthday")
-    expect(keyOf("The Birthday Cake")).toBe("birthday")
-    expect(keyOf("Happy Anniversary")).toBe("anniversary")
-    expect(keyOf("Our Wedding")).toBe("wedding")
-    expect(keyOf("Housewarming")).toBe("new-home")
-    expect(keyOf("The Graduate")).toBe("graduation")
-    // A cake that is not a birthday is still a cake.
-    expect(keyOf("Chocolate Cake")).toBe("cake")
   })
 
   it("does not mistake the Harvest Basket for Earth Harvest, or the Legacy Tree for the Legacy", () => {

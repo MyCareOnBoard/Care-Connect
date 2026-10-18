@@ -1,8 +1,6 @@
 @import "tailwindcss";
 /* Dark theme overrides, generated from the colour classes in src/ — see the script. */
 @import "./styles/dark-theme.generated.css";
-/* Each Treasure's own full-screen arrival — see components/cowry/moments/scene. */
-@import "./styles/treasure-scenes.css";
 
 /* `dark:` follows the toggle (a class on <html>), not the OS setting directly. The OS
    setting only decides the default before anyone has chosen — see src/lib/theme.ts. */
