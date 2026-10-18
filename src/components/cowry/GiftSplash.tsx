@@ -15,6 +15,8 @@ import { HarvestRain } from "@/components/cowry/moments/HarvestRain"
 import { VideoMoment } from "@/components/cowry/moments/VideoMoment"
 import { SparkleBurst, SpotlightMoment, ThemeMoment } from "@/components/cowry/moments/TreasureMoments"
 import { HumanConnectionMoment } from "@/components/cowry/moments/HumanMoments"
+import { TreasureSceneMoment } from "@/components/cowry/moments/TreasureSceneMoment"
+import { treasureSceneFor } from "@/components/cowry/moments/scene/treasureScenes"
 import { THEMES, humanSceneFor, isHumanScene, themeFor, treasureMeaningFor, treasureTier } from "@/components/cowry/treasureTiers"
 import { giftVideoFor, treasureVideoFor } from "@/components/cowry/giftVideos"
 import { OceanPearl } from "@/components/cowry/moments/OceanPearl"
@@ -142,22 +144,21 @@ export function GiftSplash({ data, onDone }: { data: GiftSplashData; onDone: () 
     const scene = (() => {
       if (tiered) {
         const arrives = `${label} arrives`
-        if (treasureVideo) {
-          // The film, with its price-band scene behind it in case it will not play.
-          const fallback =
-            tier >= 4 ? <ThemeMoment gift={data.gift} theme={theme} label={arrives} onDone={showCard} />
-            : <SpotlightMoment gift={data.gift} colors={THEMES[theme].colors} label={arrives} onDone={showCard} />
-          return <VideoMoment src={treasureVideo} label={arrives} onDone={showCard} fallback={fallback} />
-        }
-        // Human Connection: each Treasure a full-screen scene of what it means (HumanMoments.tsx).
-        const ruleKey = matchGiftByName(data.gift)?.key
-        if (theme === "human" || isHumanScene(ruleKey)) {
-          return <HumanConnectionMoment scene={humanSceneFor(ruleKey)} gift={data.gift} label={arrives} onDone={showCard} />
-        }
-        if (tier === 3) {
-          return <SpotlightMoment gift={data.gift} colors={THEMES[theme].colors} label={arrives} onDone={showCard} />
-        }
-        return <ThemeMoment gift={data.gift} theme={theme} label={arrives} onDone={showCard} />
+        const rule = matchGiftByName(data.gift)
+        // Premium — by its category, or by being one of the gold pieces — plays its film, and
+        // the gold scene until it has one. Every other Treasure has a scene of its own.
+        const premium = themeFor(data.set, 1) === "premium" || Boolean(rule?.legendary && rule.icon === "art")
+        const own = premium ? null : treasureSceneFor(data.gift)
+        const drawn =
+          own ? <TreasureSceneMoment scene={own} gift={data.gift} label={arrives} onDone={showCard} />
+          // Human Connection: each Treasure a full-screen scene of what it means (HumanMoments.tsx).
+          : theme === "human" || isHumanScene(rule?.key) ? <HumanConnectionMoment scene={humanSceneFor(rule?.key)} gift={data.gift} label={arrives} onDone={showCard} />
+          // A Treasure with no scene yet: its price band's arrival.
+          : tier === 3 ? <SpotlightMoment gift={data.gift} colors={THEMES[theme].colors} label={arrives} onDone={showCard} />
+          : <ThemeMoment gift={data.gift} theme={theme} label={arrives} onDone={showCard} />
+        // The film, with the drawn scene behind it in case it will not play.
+        if (treasureVideo) return <VideoMoment src={treasureVideo} label={arrives} onDone={showCard} fallback={drawn} />
+        return drawn
       }
       // Filmed where there is a video for it; the drawn scene otherwise, and as its fallback.
       const drawn =

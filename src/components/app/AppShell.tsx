@@ -54,6 +54,10 @@ const userNavItems: NavItem[] = [
     ],
   },
   { label: "Market place", href: Routes.app.user.marketplace, icon: Store },
+  // The Cowry pages are switched on individually — see cowryPages.ts. A page that is off
+  // loses its entry here and its route; the parent drops out entirely once nothing is
+  // left under it, rather than opening an empty dropdown.
+  ...cowryNavItem(),
   // TELEHEALTH PAUSED — one item, to the Coming Soon page, while Telehealth is paused. The
   // dropdown below is kept, commented, to restore with the routes (routes/index.tsx).
   { label: "Tele health", href: Routes.app.user.telehealth, icon: Stethoscope },
@@ -67,10 +71,6 @@ const userNavItems: NavItem[] = [
   //     { label: "Schedule", href: Routes.app.user.schedule },
   //   ],
   // },
-  // The Cowry pages are switched on individually — see cowryPages.ts. A page that is off
-  // loses its entry here and its route; the parent drops out entirely once nothing is
-  // left under it, rather than opening an empty dropdown.
-  ...cowryNavItem(),
 ]
 
 /** Exported for its own test: the empty case and the parent href are easy to get wrong. */
