@@ -17,13 +17,13 @@ import {
   ReceiptRow,
 } from "@/components/cowry/CowryUI"
 import { cn } from "@/lib/utils"
+import { NetworkLogo } from "@/components/cowry/NetworkLogo"
 import { Routes } from "@/routes/constants"
 import { getAuthErrorMessage } from "@/utils/auth"
 import {
   getRedemptionCatalog,
   redeemForData,
   type CowryDataPackage,
-  type CowryNetwork,
   type CowryRedeemResult,
   type CowryRedemptionCatalog,
   type CowryWalletType,
@@ -54,24 +54,6 @@ const STEP_INDEX: Record<Step, number> = { choose: 0, confirm: 1, result: 2 }
 /** Wallets that can pay, in the order they should be offered. */
 const WALLET_ORDER: CowryWalletType[] = ["reward", "creator", "purchased"]
 
-/** Brand colours, for each network's badge. */
-const NETWORK_COLORS: Record<CowryNetwork, string> = {
-  mtn: "#ffcc00",
-  airtel: "#e40000",
-  glo: "#50b651",
-  "9mobile": "#006e53",
-}
-
-/**
- * A badge in each network's colours with its initials — recognisable at a glance without
- * using the networks' own logos, which are their trademarks.
- */
-const NETWORK_BADGE: Record<CowryNetwork, { text: string; ink: string }> = {
-  mtn: { text: "MTN", ink: "#1a1a1a" },
-  airtel: { text: "A", ink: "#ffffff" },
-  glo: { text: "G", ink: "#ffffff" },
-  "9mobile": { text: "9", ink: "#ffffff" },
-}
 
 /**
  * The package label split into figure and unit, so the size can be the headline.
@@ -290,11 +272,7 @@ export default function CowryRedeemPage() {
                   <span className="ml-1 text-xl font-semibold text-white/80">{size.unit}</span>
                 </p>
                 <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-white/80">
-                  <span
-                    className="size-2.5 rounded-full"
-                    style={{ background: NETWORK_COLORS[network as CowryNetwork] ?? "#fff" }}
-                    aria-hidden="true"
-                  />
+                  <NetworkLogo network={network} label={networkLabel} size={20} className="ring-white/60" />
                   {networkLabel} · <span className="tabular-nums">{phoneNumber}</span>
                 </p>
               </div>
@@ -466,19 +444,11 @@ export default function CowryRedeemPage() {
                       : "border-[#e2e6ea] bg-white text-[#565656] hover:border-[#c8cdd4]",
                   )}
                 >
-                  <span
-                    className={cn(
-                      "flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold tracking-tight shadow-sm transition-transform",
-                      active && "scale-110",
-                    )}
-                    style={{
-                      background: NETWORK_COLORS[option.id] ?? "#9aa4b2",
-                      color: NETWORK_BADGE[option.id]?.ink ?? "#ffffff",
-                    }}
-                    aria-hidden="true"
-                  >
-                    {NETWORK_BADGE[option.id]?.text ?? option.label.slice(0, 1)}
-                  </span>
+                  <NetworkLogo
+                    network={option.id}
+                    label={option.label}
+                    className={cn("transition-transform", active && "scale-110")}
+                  />
                   {option.label}
                 </button>
               )
