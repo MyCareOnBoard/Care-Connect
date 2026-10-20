@@ -26,6 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils"
 import { getAuthErrorMessage } from "@/utils/auth"
 import { EmptyState } from "@/components/ui/empty-state"
+import { NetworkLogo } from "@/components/cowry/NetworkLogo"
 import {
   clearRecaptchaVerifier,
   startPhoneLink,
@@ -674,7 +675,10 @@ export function PayoutAccountPicker({ selectedId = null, onSelect: onSelectProp,
                     <SelectContent className="max-h-72">
                       {networks.map((item) => (
                         <SelectItem key={item.key} value={item.key}>
-                          {item.label} · {item.currency}
+                          <span className="inline-flex items-center gap-2">
+                            <NetworkLogo network={item.key} label={item.label} size={22} />
+                            {item.label} · {item.currency}
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>
