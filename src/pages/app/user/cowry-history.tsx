@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import { ArrowDownLeft, ArrowUpRight, CalendarDays, Clock, Copy, Loader2 } from "lucide-react"
+import { ArrowDownLeft, ArrowUpRight, CalendarDays, Clock, Copy, Loader2, RotateCcw, SlidersHorizontal } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
@@ -200,172 +200,211 @@ export default function CowryHistoryPage() {
     return { inflow, outflow }
   }, [entries])
 
+  const resetFilters = () => {
+    setWalletType("all")
+    setType("all")
+    setPeriod("all")
+  }
+
+  /** A small heading over each group of filters. */
+  const filterLabel = (text: string) => (
+    <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#8a94a3]">{text}</p>
+  )
+
   return (
     <div className="animate-fade-in-up space-y-6 p-5 sm:p-8">
-      {/* The header and filters stay put while the list reloads, so changing a filter does
-          not flash the whole page back to a skeleton. */}
       <CowryPageHeader title="Cowry history" subtitle="Every Cowry in and out of your account, newest first." />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by balance">
-          {WALLET_FILTERS.map((option) => {
-            const active = walletType === option.value
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setWalletType(option.value)}
-                aria-pressed={active}
-                className={cn(
-                  "cowry-press inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition",
-                  active
-                    ? "bg-[#10141a] text-white shadow-sm"
-                    : "bg-white text-[#565656] ring-1 ring-[#e2e6ea] hover:ring-[#c8cdd4]",
-                )}
-              >
-                {option.dot && (
-                  <span className="size-2 rounded-full" style={{ background: option.dot }} aria-hidden="true" />
-                )}
-                {option.label}
-              </button>
-            )
-          })}
-        </div>
-
-        <Select value={type} onValueChange={(value) => setType(value as typeof type)}>
-          <SelectTrigger className="w-44 bg-white" aria-label="Filter by activity">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {TYPE_FILTERS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <FilterChipRow label="Filter by date" className="-mt-3">
-        <CalendarDays className="size-4 shrink-0 text-[#8a94a3]" aria-hidden="true" />
-        {PERIODS.map((option) => (
-          <FilterChip key={option.value} active={period === option.value} onClick={() => setPeriod(option.value)}>
-            {option.label}
-          </FilterChip>
-        ))}
-      </FilterChipRow>
-
-      {loading ? (
-        <HistorySkeleton />
-      ) : entries.length === 0 ? (
-        <CowryEmpty
-          title={
-            !filtered
-              ? "No Cowry activity yet"
-              : period !== "all" && walletType === "all" && type === "all"
-                ? `No Cowry activity ${periodInfo.summary}`
-                : "Nothing matches these filters"
-          }
-          action={
-            period !== "all" ? (
-              <Button variant="outline" size="sm" className="rounded-full" onClick={() => setPeriod("all")}>
-                Show any time
-              </Button>
-            ) : undefined
-          }
-        >
-          {!filtered
-            ? "Every Cowry you earn, buy, redeem or send will be listed here."
-            : "Try a different date, balance or activity."}
-        </CowryEmpty>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-3 sm:max-w-md">
-            <div className="rounded-2xl bg-white p-4 ring-1 ring-[#e2e6ea]">
-              <p className="text-xs text-[#657080]">In, {periodInfo.summary}</p>
-              <p className="mt-1 flex items-center gap-1.5 text-xl font-bold tabular-nums text-[#1f9c4c]">
-                <CowryIcon size={18} />+{formatCowries(totals.inflow)}
-              </p>
+      {/* The list on the left, filters and totals on the right; on phones they stack, filters
+          first. The filters stay put while the list reloads, so changing one does not flash
+          the page back to a skeleton — and on wide screens they stay in view while scrolling. */}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <aside className="space-y-4 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-1">
+          <section aria-label="Filters" className="space-y-4 rounded-2xl bg-white p-4 ring-1 ring-[#e2e6ea] sm:p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="inline-flex items-center gap-2 text-sm font-bold text-[#141922]">
+                <SlidersHorizontal className="size-4 text-[#00898c]" aria-hidden="true" />
+                Filters
+              </h2>
+              {filtered && (
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#00868a] hover:underline"
+                >
+                  <RotateCcw className="size-3.5" aria-hidden="true" />
+                  Reset
+                </button>
+              )}
             </div>
-            <div className="rounded-2xl bg-white p-4 ring-1 ring-[#e2e6ea]">
-              <p className="text-xs text-[#657080]">Out, {periodInfo.summary}</p>
-              <p className="mt-1 flex items-center gap-1.5 text-xl font-bold tabular-nums text-[#b4372c]">
-                <CowryIcon size={18} />−{formatCowries(totals.outflow)}
-              </p>
+
+            <div>
+              {filterLabel("Date")}
+              <FilterChipRow label="Filter by date" className="lg:flex-wrap lg:overflow-visible">
+                {PERIODS.map((option) => (
+                  <FilterChip key={option.value} active={period === option.value} onClick={() => setPeriod(option.value)}>
+                    {option.value !== "all" && period === option.value && (
+                      <CalendarDays className="size-3.5" aria-hidden="true" />
+                    )}
+                    {option.label}
+                  </FilterChip>
+                ))}
+              </FilterChipRow>
             </div>
-          </div>
 
-          <div className="space-y-5">
-            {groups.map((group) => (
-              <section key={group.label}>
-                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#8a94a3]">
-                  {group.label}
-                </h2>
-                <ul className="cowry-stagger divide-y divide-[#eef1f3] overflow-hidden rounded-2xl bg-white ring-1 ring-[#e2e6ea]">
-                  {group.rows.map((entry) => {
-                    const direction = DIRECTION_STYLE[entryDirection(entry)]
-                    const DirectionIcon = direction.icon
-                    const reference = entry.fulfillmentReference || entry.paymentReference || entry.id
-                    return (
-                      <li key={entry.id} className="flex gap-3 p-4 transition-colors hover:bg-[#f9fafb]">
-                        <span
-                          className={cn(
-                            "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full",
-                            direction.chip,
-                          )}
-                        >
-                          <DirectionIcon className="size-4" aria-hidden="true" />
-                        </span>
+            <div>
+              {filterLabel("Balance")}
+              <FilterChipRow label="Filter by balance" className="lg:flex-wrap lg:overflow-visible">
+                {WALLET_FILTERS.map((option) => (
+                  <FilterChip
+                    key={option.value}
+                    active={walletType === option.value}
+                    onClick={() => setWalletType(option.value)}
+                  >
+                    {option.dot && (
+                      <span className="size-2 rounded-full" style={{ background: option.dot }} aria-hidden="true" />
+                    )}
+                    {option.label}
+                  </FilterChip>
+                ))}
+              </FilterChipRow>
+            </div>
 
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-3">
-                            <p className="text-sm font-semibold text-[#141922]">
-                              {TRANSACTION_LABELS[entry.type] ?? entry.type}
-                              <span className="ml-2 rounded-full bg-[#f1f3f5] px-2 py-0.5 text-[11px] font-medium text-[#657080]">
-                                {WALLET_LABELS[entry.walletType]}
-                              </span>
-                            </p>
-                            <span className={cn("shrink-0 text-sm font-bold tabular-nums", direction.text)}>
-                              {signedAmount(entry)}
+            <div>
+              {filterLabel("Activity")}
+              <Select value={type} onValueChange={(value) => setType(value as typeof type)}>
+                <SelectTrigger className="w-full bg-white" aria-label="Filter by activity">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TYPE_FILTERS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </section>
+
+          {/* What came in and went out, for the filters above. */}
+          {!loading && entries.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-white p-4 ring-1 ring-[#e2e6ea]">
+                <p className="text-xs text-[#657080]">In, {periodInfo.summary}</p>
+                <p className="mt-1 flex items-center gap-1.5 text-lg font-bold tabular-nums text-[#1f9c4c]">
+                  <CowryIcon size={16} />+{formatCowries(totals.inflow)}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white p-4 ring-1 ring-[#e2e6ea]">
+                <p className="text-xs text-[#657080]">Out, {periodInfo.summary}</p>
+                <p className="mt-1 flex items-center gap-1.5 text-lg font-bold tabular-nums text-[#b4372c]">
+                  <CowryIcon size={16} />−{formatCowries(totals.outflow)}
+                </p>
+              </div>
+            </div>
+          )}
+        </aside>
+
+        <div className="min-w-0 space-y-5 lg:col-start-1 lg:row-start-1">
+          {loading ? (
+            <HistorySkeleton />
+          ) : entries.length === 0 ? (
+            <CowryEmpty
+              title={
+                !filtered
+                  ? "No Cowry activity yet"
+                  : period !== "all" && walletType === "all" && type === "all"
+                    ? `No Cowry activity ${periodInfo.summary}`
+                    : "Nothing matches these filters"
+              }
+              action={
+                filtered ? (
+                  <Button variant="outline" size="sm" className="rounded-full" onClick={resetFilters}>
+                    {period !== "all" && walletType === "all" && type === "all" ? "Show any time" : "Clear filters"}
+                  </Button>
+                ) : undefined
+              }
+            >
+              {!filtered
+                ? "Every Cowry you earn, buy, redeem or send will be listed here."
+                : "Try a different date, balance or activity."}
+            </CowryEmpty>
+          ) : (
+            <>
+              <div className="space-y-5">
+                {groups.map((group) => (
+                  <section key={group.label}>
+                    <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#8a94a3]">
+                      {group.label}
+                    </h2>
+                    <ul className="cowry-stagger divide-y divide-[#eef1f3] overflow-hidden rounded-2xl bg-white ring-1 ring-[#e2e6ea]">
+                      {group.rows.map((entry) => {
+                        const direction = DIRECTION_STYLE[entryDirection(entry)]
+                        const DirectionIcon = direction.icon
+                        const reference = entry.fulfillmentReference || entry.paymentReference || entry.id
+                        return (
+                          <li key={entry.id} className="flex gap-3 p-4 transition-colors hover:bg-[#f9fafb]">
+                            <span
+                              className={cn(
+                                "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full",
+                                direction.chip,
+                              )}
+                            >
+                              <DirectionIcon className="size-4" aria-hidden="true" />
                             </span>
-                          </div>
-                          <p className="mt-0.5 text-sm text-[#565656]">{entryDescription(entry)}</p>
-                          {/* A correction points back at the row it fixes; showing that link is
-                              what keeps a clawback from looking arbitrary. */}
-                          {entry.reversalOf && (
-                            <p className="mt-0.5 font-mono text-xs text-[#657080]">corrects {entry.reversalOf}</p>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => copyReference(reference)}
-                            className="mt-1 inline-flex max-w-full items-center gap-1 rounded font-mono text-xs text-[#8a94a3] transition hover:text-[#00868a]"
-                            title="Copy reference"
-                          >
-                            <span className="truncate">{reference}</span>
-                            <Copy className="size-3 shrink-0" aria-hidden="true" />
-                          </button>
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </section>
-            ))}
-          </div>
 
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-xs text-[#657080]">
-              Showing {formatCowries(entries.length)} movement{entries.length === 1 ? "" : "s"}.
-            </p>
-            {!exhausted && (
-              <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
-                {loadingMore && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-                {loadingMore ? "Loading…" : "Load more"}
-              </Button>
-            )}
-          </div>
-        </>
-      )}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-3">
+                                <p className="text-sm font-semibold text-[#141922]">
+                                  {TRANSACTION_LABELS[entry.type] ?? entry.type}
+                                  <span className="ml-2 rounded-full bg-[#f1f3f5] px-2 py-0.5 text-[11px] font-medium text-[#657080]">
+                                    {WALLET_LABELS[entry.walletType]}
+                                  </span>
+                                </p>
+                                <span className={cn("shrink-0 text-sm font-bold tabular-nums", direction.text)}>
+                                  {signedAmount(entry)}
+                                </span>
+                              </div>
+                              <p className="mt-0.5 text-sm text-[#565656]">{entryDescription(entry)}</p>
+                              {/* A correction points back at the row it fixes; showing that link is
+                                  what keeps a clawback from looking arbitrary. */}
+                              {entry.reversalOf && (
+                                <p className="mt-0.5 font-mono text-xs text-[#657080]">corrects {entry.reversalOf}</p>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => copyReference(reference)}
+                                className="mt-1 inline-flex max-w-full items-center gap-1 rounded font-mono text-xs text-[#8a94a3] transition hover:text-[#00868a]"
+                                title="Copy reference"
+                              >
+                                <span className="truncate">{reference}</span>
+                                <Copy className="size-3 shrink-0" aria-hidden="true" />
+                              </button>
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-xs text-[#657080]">
+                  Showing {formatCowries(entries.length)} movement{entries.length === 1 ? "" : "s"}.
+                </p>
+                {!exhausted && (
+                  <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
+                    {loadingMore && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+                    {loadingMore ? "Loading…" : "Load more"}
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
