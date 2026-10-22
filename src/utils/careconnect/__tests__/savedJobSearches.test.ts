@@ -7,6 +7,7 @@ import {
   storeSavedSearches,
   type SavedJobSearch,
 } from "../savedJobSearches"
+import { acceptAllCookies, acceptNecessaryOnly } from "@/lib/consent"
 
 const base = { search: "", typeFilter: "all" as const, paidOnly: false, newOnly: false, savedOnly: false }
 const saved = (id: string, extra: Partial<SavedJobSearch> = {}): SavedJobSearch => ({ id, name: id, ...base, ...extra })
@@ -30,11 +31,18 @@ describe("saved job searches", () => {
   })
 
   it("keeps searches between visits, up to the limit", () => {
+    acceptAllCookies() // saved searches are a preference, kept only with consent
     const many = Array.from({ length: MAX_SAVED_SEARCHES + 2 }, (_, i) => saved(`s${i}`))
     storeSavedSearches(many)
     const back = loadSavedSearches()
     expect(back).toHaveLength(MAX_SAVED_SEARCHES)
     expect(back[0].id).toBe("s0")
+  })
+
+  it("keeps nothing when preferences are declined", () => {
+    acceptNecessaryOnly()
+    storeSavedSearches([saved("a")])
+    expect(loadSavedSearches()).toEqual([])
   })
 
   it("comes back empty, without throwing, when storage is blocked or corrupt", () => {

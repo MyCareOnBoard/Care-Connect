@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, useNavigate } from "react-router"
+import { acceptAllCookies } from "@/lib/consent"
 
 const listProfiles = vi.fn()
 const listJobs = vi.fn()
@@ -15,6 +16,7 @@ const navigate = vi.fn()
 beforeEach(() => {
   vi.mocked(useNavigate).mockReturnValue(navigate)
   localStorage.clear()
+  acceptAllCookies() // recent searches are a preference, kept only with consent
   listProfiles.mockImplementation(async ({ type }: { type: string }) =>
     type === "individual" ? [{ uid: "u1", name: "Ada Obi", subtitle: "ICU nurse", photo: null }] : [],
   )

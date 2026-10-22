@@ -1,4 +1,5 @@
 import { EMPLOYMENT_TYPE_LABELS, type EmploymentType } from "@/utils/careconnect/types"
+import { preferenceStorage } from "@/lib/consent"
 
 /**
  * Job searches you have saved, kept on this device.
@@ -32,7 +33,7 @@ export function loadSavedSearches(): SavedJobSearch[] {
 
 export function storeSavedSearches(list: SavedJobSearch[]): void {
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(list.slice(0, MAX_SAVED_SEARCHES)))
+    preferenceStorage.setItem(KEY, JSON.stringify(list.slice(0, MAX_SAVED_SEARCHES)))
   } catch {
     // Storage blocked or full: the searches last until the page closes.
   }

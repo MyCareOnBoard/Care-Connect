@@ -1,5 +1,7 @@
 import { useRef, useState, type ReactNode } from "react"
 import { Link } from "react-router"
+import { Routes } from "@/routes/constants"
+import { openCookieSettings } from "@/lib/consent"
 import { AuthMarketingPanel } from "./AuthMarketingPanel"
 import { CareConnectLogo } from "./CareConnectLogo"
 
@@ -46,12 +48,15 @@ export function AuthOnboardingLayout({
           </div>
           {showFooter && (
             <footer className="flex flex-wrap justify-center gap-6 px-5 pb-4 text-sm text-[#3b3f48] sm:justify-end sm:px-8">
-              <Link to="#" className="hover:text-[#00b4b8]">
+              <Link to={Routes.legal.privacy} className="hover:text-[#00b4b8]">
                 Privacy policy
               </Link>
-              <Link to="#" className="hover:text-[#00b4b8]">
+              <Link to={Routes.legal.terms} className="hover:text-[#00b4b8]">
                 Terms &amp; Agreement
               </Link>
+              <button type="button" onClick={openCookieSettings} className="hover:text-[#00b4b8]">
+                Cookie settings
+              </button>
             </footer>
           )}
         </div>

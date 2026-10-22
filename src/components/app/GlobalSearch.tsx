@@ -11,6 +11,7 @@ import { Routes } from "@/routes/constants"
 import { listJobs } from "@/utils/careconnect/services/jobsService"
 import { listProfiles } from "@/utils/careconnect/services/profilesService"
 import type { CareConnectProfile, Job } from "@/utils/careconnect/types"
+import { preferenceStorage } from "@/lib/consent"
 
 /**
  * Search from anywhere: people, providers and jobs.
@@ -50,7 +51,7 @@ function readRecent(): string[] {
 function rememberSearch(term: string) {
   try {
     const next = [term, ...readRecent().filter((item) => item.toLowerCase() !== term.toLowerCase())]
-    localStorage.setItem(RECENT_KEY, JSON.stringify(next.slice(0, RECENT_MAX)))
+    preferenceStorage.setItem(RECENT_KEY, JSON.stringify(next.slice(0, RECENT_MAX)))
   } catch {
     // Not remembered; search still works.
   }

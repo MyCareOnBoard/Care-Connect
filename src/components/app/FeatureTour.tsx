@@ -4,6 +4,7 @@ import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useAuthUser } from "@/utils/auth"
+import { preferenceStorage } from "@/lib/consent"
 
 /**
  * A short, one-time tour of what is new.
@@ -70,7 +71,7 @@ export function FeatureTour() {
   const finish = useCallback(() => {
     setSteps([])
     try {
-      if (uid) localStorage.setItem(storageKey(uid), "done")
+      if (uid) preferenceStorage.setItem(storageKey(uid), "done")
     } catch {
       // Not remembered; it may show once more.
     }

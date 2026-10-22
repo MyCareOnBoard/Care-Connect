@@ -1,5 +1,11 @@
 export const Routes = {
     root: "/",
+    // Public policy pages, reachable signed in or out.
+    legal: {
+        privacy: "/privacy",
+        terms: "/terms",
+        cookies: "/cookies",
+    },
     app: {
         user: {
             dashboard: "/user/dashboard",

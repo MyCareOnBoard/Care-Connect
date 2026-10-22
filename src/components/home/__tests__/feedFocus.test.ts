@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest"
 import { act, renderHook } from "@testing-library/react"
 import { setFeedFocus, useFeedFocus } from "@/components/home/feedFocus"
+import { acceptAllCookies } from "@/lib/consent"
 
 /** Pretend the screen is (or is not) wide enough to have side columns. */
 function setWide(wide: boolean) {
@@ -43,6 +44,7 @@ describe("feed focus mode", () => {
   })
 
   it("remembers the choice", () => {
+    acceptAllCookies() // preferences are only kept with consent
     setWide(true)
     act(() => setFeedFocus(true))
     expect(localStorage.getItem("careconnect-feed-focus")).toBe("1")

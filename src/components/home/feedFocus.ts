@@ -1,4 +1,5 @@
 import { useSyncExternalStore, type CSSProperties } from "react"
+import { preferenceStorage } from "@/lib/consent"
 
 /**
  * Focus mode for the feed.
@@ -54,7 +55,7 @@ export function setFeedFocus(next: boolean): void {
   if (focused === next) return
   focused = next
   try {
-    localStorage.setItem(STORAGE_KEY, next ? "1" : "0")
+    preferenceStorage.setItem(STORAGE_KEY, next ? "1" : "0")
   } catch {
     // Storage blocked: focus still works for this visit.
   }
