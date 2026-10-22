@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Link } from "react-router"
 // TELEHEALTH PAUSED: add CalendarClock back to this import with the Availability item.
-import { Bell, ChevronDown, ChevronRight, LogOut, Settings, UserRound } from "lucide-react"
+import { Bell, ChevronDown, ChevronRight, Compass, LogOut, Settings, UserRound } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,6 +97,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
             aria-label={
               unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications"
             }
+            data-tour="notifications"
             className={`relative flex ${notificationButtonSize} items-center justify-center rounded-full bg-white text-[#151922] outline-none transition hover:bg-[#f2f6f8] cursor-pointer`}
           >
             <Bell className="size-4 fill-[#151922]" />
@@ -219,6 +220,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
           {/* Initials rather than the full name, so the header leaves room for the nav.
               The full name is still in the label, and at the top of the menu it opens. */}
           <button
+            data-tour="account"
             type="button"
             aria-label={`Account menu for ${displayName}`}
             title={displayName}
@@ -289,6 +291,19 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
                 </span>
                 <ChevronRight className="size-4 text-[#8b97a8]" />
               </button>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="rounded-lg hover:bg-[#edf3f5]">
+              {/* Replays the feature tour on the home page. */}
+              <Link
+                to={`${flow === "agency" ? Routes.app.agency.dashboard : Routes.app.user.dashboard}?tour=1`}
+                className="flex items-center justify-between w-full gap-2 px-3 py-2 text-sm text-left rounded-xl"
+              >
+                <span className="flex items-center gap-2">
+                  <Compass className="size-4 text-[#00b4b8]" />
+                  Take the tour
+                </span>
+                <ChevronRight className="size-4 text-[#8b97a8]" />
+              </Link>
             </DropdownMenuItem>
           </div>
           <DropdownMenuSeparator />

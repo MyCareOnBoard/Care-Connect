@@ -39,7 +39,7 @@ export function LegalPage({
   const navigate = useNavigate()
   return (
     <div className="min-h-screen bg-[#f6f8fa]">
-      <div className="mx-auto max-w-3xl px-5 py-8 sm:py-12">
+      <div className="max-w-3xl px-5 py-8 mx-auto sm:py-12">
         <button
           type="button"
           onClick={() => (window.history.length > 1 ? navigate(-1) : navigate(Routes.root))}
@@ -49,7 +49,7 @@ export function LegalPage({
           Back
         </button>
 
-        <nav aria-label="Policies" className="mt-6 flex flex-wrap gap-2">
+        <nav aria-label="Policies" className="flex flex-wrap gap-2 mt-6">
           {PAGES.map((page) => (
             <Link
               key={page.to}
@@ -66,7 +66,7 @@ export function LegalPage({
           ))}
         </nav>
 
-        <article className="mt-6 rounded-[24px] bg-white p-6 ring-1 ring-[#e2e6ea] sm:p-10">
+        <article className="mt-6 rounded-3xl bg-white p-6 ring-1 ring-[#e2e6ea] sm:p-10">
           <h1 className="text-3xl font-bold tracking-tight text-[#141922]">{title}</h1>
           <p className="mt-2 text-xs text-[#8a94a3]">Version {CONSENT_VERSION}</p>
 
@@ -84,7 +84,7 @@ export function LegalPage({
 
           <nav aria-label="Contents" className="mt-8 rounded-2xl bg-[#f7fafb] p-4 ring-1 ring-[#eef1f3]">
             <p className="text-xs font-bold uppercase tracking-wide text-[#8a94a3]">Contents</p>
-            <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm">
+            <ol className="pl-5 mt-2 space-y-1 text-sm list-decimal">
               {sections.map((section) => (
                 <li key={section.id}>
                   <a href={`#${section.id}`} className="text-[#00868a] hover:underline">

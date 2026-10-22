@@ -744,6 +744,7 @@ export function PortfolioPost({
             <button
               type="button"
               onClick={onGift}
+              data-tour="treasure"
               className="cowry-hover inline-flex h-9 items-center gap-1.5 rounded-full border border-[#e8d1a0] bg-[linear-gradient(180deg,#fff8e6_0%,#fbeed2_45%,#f1d9a4_100%)] px-4 text-sm font-semibold text-[#7a5310] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),inset_0_-2px_0_rgba(168,121,62,0.25),0_4px_12px_-4px_rgba(200,150,62,0.6)] transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.9),inset_0_-2px_0_rgba(168,121,62,0.25),0_8px_18px_-6px_rgba(200,150,62,0.75)] active:translate-y-0 active:scale-95 active:shadow-[inset_0_2px_4px_rgba(168,121,62,0.35)]"
             >
               <TreasureChest className="cowry-wobble size-4" aria-hidden="true" />
