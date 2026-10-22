@@ -12,6 +12,11 @@ const localStorageMock = (() => {
     clear: () => {
       store = {};
     },
+    // As in the real Storage API, so code that lists keys (clearing preferences) can be tested.
+    key: (index: number) => Object.keys(store)[index] ?? null,
+    get length() {
+      return Object.keys(store).length;
+    },
   };
 })();
 

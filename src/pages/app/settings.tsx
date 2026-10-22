@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button"
 import { useCareFlow } from "@/components/app/useCareFlow"
 import { ProfileModals } from "@/components/profile/ProfileModals"
 import { useAccountSettings } from "@/hooks/useAccountSettings"
+import { PrivacyChoicesDialog } from "@/components/consent/PrivacyChoicesDialog"
 
-const settings = ["Account information", "Notification preferences", "Privacy and security"]
+const settings = ["Account information", "Notification preferences", "Privacy and security", "Privacy and cookies"]
 
 export default function SettingsPage() {
   const { flow } = useCareFlow()
@@ -12,6 +13,7 @@ export default function SettingsPage() {
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [privacyOpen, setPrivacyOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [consentOpen, setConsentOpen] = useState(false)
 
   const {
     accountInfo,
@@ -52,7 +54,9 @@ export default function SettingsPage() {
                 ? () => setNotificationsOpen(true)
                 : item === "Privacy and security"
                   ? () => setPrivacyOpen(true)
-                  : () => setSettingsOpen(true)
+                  : item === "Privacy and cookies"
+                    ? () => setConsentOpen(true)
+                    : () => setSettingsOpen(true)
 
             return (
               <button
@@ -68,6 +72,8 @@ export default function SettingsPage() {
           })}
         </div>
       </section>
+
+      <PrivacyChoicesDialog open={consentOpen} onOpenChange={setConsentOpen} />
 
       {/* Experience / skills / certifications are edited from the profile page's
           tabs; this page only opens the account, notification, and privacy dialogs. */}

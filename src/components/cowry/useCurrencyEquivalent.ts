@@ -6,6 +6,7 @@ import {
   getNairaRates,
   type RateTable,
 } from "@/utils/careconnect/exchangeRates"
+import { preferenceStorage } from "@/lib/consent"
 
 const PREFERENCE_KEY = "careconnect-withdraw-currency"
 
@@ -53,7 +54,7 @@ export function useCurrencyEquivalent() {
   const setCurrency = useCallback((code: string) => {
     setCurrencyState(code)
     try {
-      localStorage.setItem(PREFERENCE_KEY, code)
+      preferenceStorage.setItem(PREFERENCE_KEY, code)
     } catch {
       // Not remembered; still applies now.
     }

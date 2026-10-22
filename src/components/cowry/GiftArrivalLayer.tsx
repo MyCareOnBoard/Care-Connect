@@ -6,6 +6,7 @@ import { GIFT_PREVIEW_EVENT, type GiftPreviewDetail } from "@/components/cowry/g
 import { toDate } from "@/utils/careconnect/types"
 import { isAnyCowryPageEnabled } from "@/utils/careconnect/cowryPages"
 import { listGifts, type CowryGift } from "@/utils/careconnect/services/cowryService"
+import { preferenceStorage } from "@/lib/consent"
 
 /**
  * Gifts arriving, on the receiver's side.
@@ -43,7 +44,7 @@ function readSeen(uid: string): Set<string> | null {
 
 function writeSeen(uid: string, ids: Set<string>) {
   try {
-    localStorage.setItem(storageKey(uid), JSON.stringify([...ids].slice(-REMEMBER)))
+    preferenceStorage.setItem(storageKey(uid), JSON.stringify([...ids].slice(-REMEMBER)))
   } catch {
     // Not remembered: at worst a gift plays again after a reload.
   }

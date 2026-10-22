@@ -62,6 +62,7 @@ html.dark .bg-\[\#f5dcc4\] { background-color: #493726; }
 html.dark .bg-\[\#f5f6f8\] { background-color: #27292d; }
 html.dark .bg-\[\#f5f8fa\] { background-color: #0d1117; }
 html.dark .bg-\[\#f5f8fb\] { background-color: #212931; }
+html.dark .bg-\[\#f6f8fa\] { background-color: #24292e; }
 html.dark .bg-\[\#f7ebe0\] { background-color: #403225; }
 html.dark .bg-\[\#f7f8fa\] { background-color: #0d1117; }
 html.dark .bg-\[\#f7f9fb\] { background-color: #22282e; }
@@ -97,10 +98,12 @@ html.dark .bg-\[\#fff4e0\] { background-color: #45361a; }
 html.dark .bg-\[\#fff4e5\] { background-color: #423119; }
 html.dark .bg-\[\#fff4f2\] { background-color: #3b1c16; }
 html.dark .bg-\[\#fff5f7\] { background-color: #39161d; }
+html.dark .bg-\[\#fff6e6\] { background-color: #423319; }
 html.dark .bg-\[\#fff6ec\] { background-color: #3e2c18; }
 html.dark .bg-\[\#fff6f7\] { background-color: #381519; }
 html.dark .bg-\[\#fff8e6\] { background-color: #423619; }
 html.dark .bg-\[\#fff8ed\] { background-color: #3d2f17; }
+html.dark .bg-\[\#fffaf0\] { background-color: #3c2f17; }
 html.dark .bg-\[linear-gradient\(0deg\,\#a855f7\,\#f0abfc\)\] { background-image: linear-gradient(0deg,#a855f7,#4e2355); }
 html.dark .bg-\[linear-gradient\(135deg\,\#d3f2f2\,\#a5e8e9\)\] { background-image: linear-gradient(135deg,#284141,#305454); }
 html.dark .bg-\[linear-gradient\(135deg\,\#e2f7e8\,\#f4fbf6\)\] { background-image: linear-gradient(135deg,#253f2d,#213225); }
@@ -261,11 +264,13 @@ html.dark .ring-\[\#eef1f3\] { --tw-ring-color: #35393b; }
 html.dark .ring-\[\#eefbfb\] { --tw-ring-color: #2d4141; }
 html.dark .ring-\[\#f0dcae\] { --tw-ring-color: #524936; }
 html.dark .ring-\[\#f3dfb3\] { --tw-ring-color: #514834; }
+html.dark .ring-\[\#f3dfb5\] { --tw-ring-color: #504734; }
 html.dark .ring-\[\#f5d2ae\] { --tw-ring-color: #534333; }
 html.dark .ring-\[\#f6e1ee\] { --tw-ring-color: #43303c; }
 html.dark .ring-gray-200 { --tw-ring-color: #393a3d; }
 html.dark .ring-white { --tw-ring-color: #333333; }
 html.dark .ring-white\/60 { --tw-ring-color: color-mix(in srgb, #333333 60%, transparent); }
+html.dark .text-\[\#00585b\] { color: #28b8bd; }
 html.dark .text-\[\#00686b\] { color: #28b9bd; }
 html.dark .text-\[\#00707a\] { color: #28b1bd; }
 html.dark .text-\[\#00868a\] { color: #28b9bd; }

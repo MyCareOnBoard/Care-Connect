@@ -14,6 +14,8 @@ import { useAuth } from "@/utils/auth"
 import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
 import { createBackendUserProfile, deleteCurrentFirebaseUser } from "@/utils/auth/services/authService"
 import { getAuthErrorMessage } from "@/utils/auth/helpers/errorMessages"
+import { auth } from "@/lib/firebase"
+import { recordAccountAgreement } from "@/lib/consent"
 
 export default function SignUpPage() {
   const navigate = useNavigate()
@@ -33,13 +35,30 @@ export default function SignUpPage() {
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  // Terms and Privacy must be accepted to sign up; marketing is optional and starts unticked.
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const [marketingEmail, setMarketingEmail] = useState(false)
+  const [marketingSms, setMarketingSms] = useState(false)
   const passwordStrength = getPasswordStrength(password)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (!acceptedTerms) {
+      toast.error("Please accept the Terms of Service and Privacy Policy to continue.")
+      return
+    }
     setLoading(true)
     try {
       await signup(email, password, fullName)
+      // What was agreed, against which policy version, and when — kept with the new account.
+      const uid = auth.currentUser?.uid
+      if (uid) {
+        recordAccountAgreement(uid, {
+          termsAcceptedAt: new Date().toISOString(),
+          marketingEmail,
+          marketingSms,
+        })
+      }
       setWizardFullName(fullName)
       setWizardEmail(email)
       setWizardPhone(phone)
@@ -146,6 +165,51 @@ export default function SignUpPage() {
               </button>
             </div>
           </div>
+
+          <fieldset className="space-y-3 rounded-2xl bg-[#f7fafb] p-4 ring-1 ring-[#eef1f3]">
+            <legend className="sr-only">Agreements</legend>
+            <label className="flex items-start gap-3 text-sm text-[#383d45]">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(event) => setAcceptedTerms(event.target.checked)}
+                required
+                className="mt-0.5 size-4 shrink-0 accent-[#00b4b8]"
+              />
+              <span>
+                I agree to the{" "}
+                <Link to={Routes.legal.terms} target="_blank" className="font-semibold text-[#00868a] hover:underline">
+                  Terms of Service
+                </Link>{" "}
+                and have read the{" "}
+                <Link to={Routes.legal.privacy} target="_blank" className="font-semibold text-[#00868a] hover:underline">
+                  Privacy Policy
+                </Link>
+                . <span className="text-[#b4372c]">*</span>
+              </span>
+            </label>
+            <div className="border-t border-[#e8edef] pt-3">
+              <p className="text-xs text-[#657080]">Optional — you can change these later in Settings.</p>
+              <label className="mt-2 flex items-start gap-3 text-sm text-[#383d45]">
+                <input
+                  type="checkbox"
+                  checked={marketingEmail}
+                  onChange={(event) => setMarketingEmail(event.target.checked)}
+                  className="mt-0.5 size-4 shrink-0 accent-[#00b4b8]"
+                />
+                Send me news, tips and offers by email
+              </label>
+              <label className="mt-2 flex items-start gap-3 text-sm text-[#383d45]">
+                <input
+                  type="checkbox"
+                  checked={marketingSms}
+                  onChange={(event) => setMarketingSms(event.target.checked)}
+                  className="mt-0.5 size-4 shrink-0 accent-[#00b4b8]"
+                />
+                Send me offers by text message
+              </label>
+            </div>
+          </fieldset>
 
           <Button type="submit" disabled={loading} className="mt-2 h-11 w-full text-white bg-[#00b4b8]">
             {loading ? (
