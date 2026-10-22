@@ -31,6 +31,9 @@ type NavItem = {
   children?: { label: string; href: string }[]
 }
 
+/** The feature tour's anchor for a nav item: "My network" -> "nav-mynetwork". */
+const tourId = (label: string) => `nav-${label.toLowerCase().replace(/[^a-z]/g, "")}`
+
 /** The drawn cowry, sized like the lucide icons around it. */
 function CowryNavIcon({ className }: { className?: string }) {
   return <CowryIcon size={22} className={className} />
@@ -197,7 +200,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <DropdownMenu key={item.href}>
                   <NavTooltip label={item.label}>
                     <DropdownMenuTrigger asChild>
-                      <button type="button" aria-label={item.label} className={cn(buttonClass, "cowry-hover")}>
+                      <button
+                        type="button"
+                        aria-label={item.label}
+                        data-tour={tourId(item.label)}
+                        className={cn(buttonClass, "cowry-hover")}
+                      >
                         <Icon className={iconClass} />
                         {/* A small chevron badge: this one opens a menu. */}
                         <ChevronDown
@@ -237,7 +245,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
             return (
               <NavTooltip key={item.href} label={item.label}>
-                <NavLink to={item.href} aria-label={item.label} className={buttonClass}>
+                <NavLink to={item.href} aria-label={item.label} data-tour={tourId(item.label)} className={buttonClass}>
                   <Icon className={iconClass} />
                   {item.label === "Messages" && unreadMessages > 0 && (
                     <span

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
+import { useSearchParams } from "react-router"
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -7,31 +8,79 @@ import { useAuthUser } from "@/utils/auth"
 import { preferenceStorage } from "@/lib/consent"
 
 /**
- * A short, one-time tour of what is new.
+ * A short tour of how to use CareConnect, shown once and replayable from the account menu
+ * ("Take the tour", which opens home with `?tour=1`).
  *
  * Each step points at a real control on the page — marked with `data-tour="<id>"` — dims
- * everything else, and says in one line what it does. Steps whose control is not on screen
- * (the phone tab bar on a desktop, focus mode on a phone) are skipped, so nobody is shown
- * something they cannot see. Finishing or skipping is remembered per member, per browser.
+ * everything else, and says in a line or two what it does and how to use it. Steps whose
+ * control is not on screen (the phone tab bar on a desktop, focus mode on a phone, Cowries
+ * for an account without them) are skipped, so nobody is shown something they cannot see.
+ * Finishing or skipping is remembered per member, per browser.
  *
  * Bump TOUR_VERSION to show it again after a round of new features.
  */
 
-const TOUR_VERSION = 1
+const TOUR_VERSION = 2
 const START_DELAY_MS = 1200
 
 interface Step {
+  /** The `data-tour` id of the control it points at. */
   id: string
   title: string
   body: string
 }
 
+/** In the order someone would use them: post, react, find people, talk, work, earn, settle in. */
 const STEPS: Step[] = [
-  { id: "compose", title: "Share something", body: "Post an update, a photo or a win. Type @ to mention someone — posts can earn you Cowries." },
+  {
+    id: "compose",
+    title: "Share something",
+    body: "Write an update, add photos or a video, and type @ to mention someone. Posts can earn you Cowries.",
+  },
+  { id: "tabbar-post", title: "Post from anywhere", body: "On your phone, the + opens the composer from any page." },
+  {
+    id: "treasure",
+    title: "Send a treasure",
+    body: "Like a post a lot? Tap Treasure under it to send a gift paid in Cowries. Pick one, add a message, and they get a celebration.",
+  },
   { id: "search", title: "Find anyone", body: "Search people, providers and jobs from any page. Press / to jump straight in." },
-  { id: "cowry", title: "Your Cowries", body: "Your balance lives here. Tap it to see the full picture and what you can do with them." },
+  {
+    id: "nav-mynetwork",
+    title: "Grow your network",
+    body: "Accept linkup requests, see your linkups and find people you may know — each in its own tab.",
+  },
+  {
+    id: "nav-network",
+    title: "Grow your network",
+    body: "Accept linkup requests, see your linkups and find people you may know — each in its own tab.",
+  },
+  {
+    id: "nav-messages",
+    title: "Message people",
+    body: "Chat one-to-one and share photos and files. On a phone, swipe a conversation left to delete it or right to mark it read.",
+  },
+  {
+    id: "nav-jobs",
+    title: "Jobs",
+    body: "Filter by type, pay or what's new, save a search to reuse it, and apply in a few taps. Agencies post jobs and review applicants here.",
+  },
+  {
+    id: "nav-marketplace",
+    title: "Marketplace",
+    body: "Browse equipment, courses and services, filter by price, and message a seller. List your own with Add product.",
+  },
+  {
+    id: "cowry",
+    title: "Your Cowries",
+    body: "Earn Cowries for taking part, then redeem them for mobile data or cash out to a bank or mobile money account. Tap here for your wallet and history.",
+  },
+  { id: "notifications", title: "Stay in the loop", body: "Linkups, messages, treasures and job updates arrive here." },
+  {
+    id: "account",
+    title: "Your account",
+    body: "Your profile, settings, privacy and cookie choices, light or dark mode — and this tour, any time you want it again.",
+  },
   { id: "focus", title: "Focus on posts", body: "Fold the side columns away and read the feed on its own. Press F to switch." },
-  { id: "tabbar-post", title: "Post from anywhere", body: "The + opens the composer from any page." },
 ]
 
 const storageKey = (uid: string) => `careconnect-tour-v${TOUR_VERSION}:${uid}`
@@ -52,26 +101,56 @@ export function FeatureTour() {
   const [steps, setSteps] = useState<Step[]>([])
   const [index, setIndex] = useState(0)
   const [rect, setRect] = useState<DOMRect | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const replay = searchParams.get("tour") === "1"
+  const replayRequested = useRef(false)
 
   // Start once, a moment after the page has settled, if this member has not seen it.
   useEffect(() => {
     if (!uid) return
-    try {
-      if (localStorage.getItem(storageKey(uid))) return
-    } catch {
-      return // No storage means it could not be remembered; better not to show it every time.
+    if (replay) {
+      // Asked for. Note it, then clear the flag from the address (so a refresh does not start
+      // it again); this effect runs again once the flag is gone, and starts the tour then.
+      replayRequested.current = true
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current)
+          next.delete("tour")
+          return next
+        },
+        { replace: true },
+      )
+      return
     }
+    if (!replayRequested.current) {
+      try {
+        // Kept for good only with preference consent; otherwise for this browser session, so
+        // declining preferences does not mean seeing the tour on every visit.
+        if (localStorage.getItem(storageKey(uid)) || sessionStorage.getItem(storageKey(uid))) return
+      } catch {
+        return // No storage means it could not be remembered; better not to show it every time.
+      }
+    }
+    replayRequested.current = false
+    setIndex(0)
     const timer = setTimeout(() => {
-      const available = STEPS.filter((step) => findAnchor(step.id))
+      const available = STEPS.filter((step) => findAnchor(step.id)).filter(
+        (step, i, list) => list.findIndex((other) => other.title === step.title) === i,
+      )
       if (available.length) setSteps(available)
     }, START_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [uid])
+    // setSearchParams is stable enough here; the tour starts once per arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, replay])
 
   const finish = useCallback(() => {
     setSteps([])
     try {
-      if (uid) preferenceStorage.setItem(storageKey(uid), "done")
+      if (uid) {
+        preferenceStorage.setItem(storageKey(uid), "done")
+        sessionStorage.setItem(storageKey(uid), "done")
+      }
     } catch {
       // Not remembered; it may show once more.
     }
@@ -150,7 +229,7 @@ export function FeatureTour() {
       >
         <div className="flex items-start justify-between gap-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-[#00898c]">
-            New · {index + 1} of {steps.length}
+            Tour · {index + 1} of {steps.length}
           </p>
           <button type="button" onClick={finish} aria-label="Close the tour" className="-mr-1 -mt-1 flex size-7 items-center justify-center rounded-full text-[#657080] hover:bg-[#f2f6f8]">
             <X className="size-4" aria-hidden="true" />

@@ -79,6 +79,7 @@ export function BottomTabBar({ flow, unreadMessages }: { flow: CareFlow; unreadM
         key={tab.label}
         to={tab.href}
         aria-current={active ? "page" : undefined}
+        data-tour={`nav-${tab.label.toLowerCase().replace(/[^a-z]/g, "")}`}
         className="group relative flex flex-1 flex-col items-center justify-center gap-0.5 pt-1.5 text-[11px] font-semibold"
       >
         {/* A short bar marks the current tab. */}
