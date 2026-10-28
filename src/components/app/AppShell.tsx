@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from "react"
 import { Link, NavLink, useLocation } from "react-router"
-import { Briefcase, ChevronDown, Home, Menu, MessageCircle, Stethoscope, Store, Users, X } from "lucide-react"
+import { Briefcase, ChevronDown, HeartPulse, Home, Menu, MessageCircle, Stethoscope, Store, Users, X } from "lucide-react"
 import { collection, onSnapshot, query, where } from "firebase/firestore"
 import { CareConnectLogo } from "@/components/auth/CareConnectLogo"
 import { Routes } from "@/routes/constants"
@@ -64,6 +64,8 @@ const userNavItems: NavItem[] = [
   // TELEHEALTH PAUSED — one item, to the Coming Soon page, while Telehealth is paused. The
   // dropdown below is kept, commented, to restore with the routes (routes/index.tsx).
   { label: "Tele health", href: Routes.app.user.telehealth, icon: Stethoscope },
+  // AI-generated general wellness tips; the page carries its own disclaimer.
+  { label: "Health tips", href: Routes.app.user.healthTips, icon: HeartPulse },
   // {
   //   label: "Tele health",
   //   href: Routes.app.user.telehealth,

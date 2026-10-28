@@ -12,6 +12,28 @@ export default function PrivacyPolicyPage() {
         { id: "what-we-collect", title: "What we collect", body: <ToBeProvided>account details (name, email, phone), profile and professional information, posts and messages, payment and payout details, Cowry activity, device and usage data.</ToBeProvided> },
         { id: "why", title: "Why we use it, and on what legal basis", body: <ToBeProvided>each purpose (running the service, payments, security, marketing with consent) with its lawful basis under the applicable data protection laws.</ToBeProvided> },
         { id: "sharing", title: "Who we share it with", body: <ToBeProvided>service providers (hosting, Firebase, payment and payout partners, Google reCAPTCHA and Maps), other members as you choose, and authorities where the law requires.</ToBeProvided> },
+        {
+          id: "health-tips",
+          title: "Health Tips searches",
+          body: (
+            <>
+              <p>
+                When you search in Health Tips, the words you type are sent to a third-party AI provider (currently
+                Google&apos;s Gemini) so it can write the tips. They are used to answer that search.
+              </p>
+              <p>
+                CareConnect does not save your searches, or the tips you get back, to your profile or health record, and
+                keeps the text of your search out of its activity logs. Each search is also screened for emergency
+                wording so that emergency guidance can be shown, and we may record that an emergency notice was shown.
+              </p>
+              <p>
+                You type these searches in your own words, so avoid including your name, contact details or other
+                information that identifies you or someone else.
+              </p>
+              <ToBeProvided>how the AI provider handles and retains what it receives, the lawful basis for processing these searches, and the retention period for anything kept in server logs.</ToBeProvided>
+            </>
+          ),
+        },
         { id: "transfers", title: "International transfers", body: <ToBeProvided>where data is processed outside your country and the safeguards used.</ToBeProvided> },
         { id: "retention", title: "How long we keep it", body: <ToBeProvided>retention periods for each kind of data, and what happens when an account is deleted.</ToBeProvided> },
         { id: "rights", title: "Your rights", body: <ToBeProvided>access, correction, deletion, objection, restriction, portability and withdrawing consent, how to exercise them, and the right to complain to the data protection authority.</ToBeProvided> },

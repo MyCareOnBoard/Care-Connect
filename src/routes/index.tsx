@@ -53,6 +53,7 @@ const TelehealthComingSoonPage = lazy(() => import("@/pages/app/telehealth-comin
 const ProfilePage = lazy(() => import("@/pages/app/profile"));
 const ViewProfilePage = lazy(() => import("@/pages/app/view-profile"));
 const SettingsPage = lazy(() => import("@/pages/app/settings"));
+const HealthTipsPage = lazy(() => import("@/pages/app/user/health-tips"));
 // TELEHEALTH PAUSED
 // const HealthProfilePage = lazy(() => import("@/pages/app/user/health-profile"));
 // const MyRecordsPage = lazy(() => import("@/pages/app/user/records"));
@@ -130,6 +131,7 @@ export const router = createBrowserRouter([
           { path: Routes.app.user.profile, Component: ProfilePage },
           { path: `${Routes.app.user.profile}/:id`, Component: ViewProfilePage },
           { path: Routes.app.user.settings, Component: SettingsPage },
+          { path: Routes.app.user.healthTips, Component: HealthTipsPage },
           // TELEHEALTH PAUSED
           // { path: Routes.app.user.healthProfile, Component: HealthProfilePage },
           // { path: Routes.app.user.records, Component: MyRecordsPage },
