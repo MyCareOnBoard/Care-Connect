@@ -19,6 +19,8 @@ export const Routes = {
             profile: "/user/profile",
             viewProfile: (id: string) => `/user/profile/${id}`,
             settings: "/user/settings",
+            // AI-generated general wellness tips. Always shown with a disclaimer.
+            healthTips: "/user/health-tips",
             // Clinical layer. Professionals share the /user/* prefix, exactly as
             // they do for /user/schedule — there is no /professional/* prefix.
             healthProfile: "/user/health-profile",
