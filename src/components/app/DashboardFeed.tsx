@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link, useSearchParams } from "react-router"
-import { Briefcase, CloudOff, Hash, PenLine, RefreshCw, Users, X } from "lucide-react"
+import { ArrowUp, Briefcase, CloudOff, Hash, PenLine, RefreshCw, Users, X } from "lucide-react"
 import { PortfolioPost, type PostComment } from "@/components/profile/PortfolioPost"
 import { feedSource, toPortfolioData } from "@/components/profile/postMapping"
 import { RemovedPost } from "@/components/profile/RemovedPost"
@@ -30,6 +30,7 @@ import {
   type FeedPost,
 } from "@/utils/careconnect/services/postsService"
 import { isEstablished, listConnections } from "@/utils/careconnect/services/connectionsService"
+import { EmptyState } from "@/components/ui/empty-state"
 
 /** How many faces the "in your feed" row shows before it stops. */
 const STORY_LIMIT = 12
@@ -199,6 +200,9 @@ function EmptyFeed({ flow }: { flow: CareFlow }) {
   )
 }
 
+/** How often the feed looks for new posts while it is open. */
+const FEED_POLL_MS = 60_000
+
 export function DashboardFeed() {
   const { flow } = useCareFlow()
   const { user } = useAuthUser()
@@ -244,11 +248,22 @@ export function DashboardFeed() {
     }
   }, [])
 
+  /**
+   * A newer feed, held back until asked for. Posts are never dropped in above someone who
+   * is reading — that moves the page under their thumb — so new ones wait behind a pill.
+   */
+  const [incoming, setIncoming] = useState<FeedPost[] | null>(null)
+  const postsRef = useRef<FeedPost[]>([])
+  useEffect(() => {
+    postsRef.current = posts
+  }, [posts])
+
   /** Load (or reload) the feed. Also what pulling down to refresh calls. */
   const refresh = useCallback(async () => {
     try {
       const [feed, connections] = await Promise.all([listFeed(), listConnections().catch(() => [])])
       if (!mounted.current) return
+      setIncoming(null)
       setPosts(feed)
       setFailed(false)
       setFollowed(new Set(connections.map((connection) => connection.targetId)))
@@ -272,6 +287,28 @@ export function DashboardFeed() {
     window.addEventListener(POST_CREATED_EVENT, onCreated)
     return () => window.removeEventListener(POST_CREATED_EVENT, onCreated)
   }, [refresh])
+
+  // Look for new posts every so often while the tab is in view, and as soon as it is back.
+  useEffect(() => {
+    const check = async () => {
+      if (document.visibilityState !== "visible" || postsRef.current.length === 0) return
+      try {
+        const feed = await listFeed()
+        if (!mounted.current) return
+        const known = new Set(postsRef.current.map((post) => post.id))
+        if (feed.some((post) => !known.has(post.id))) setIncoming(feed)
+      } catch {
+        // A missed check is silent; the next one catches up.
+      }
+    }
+    const timer = window.setInterval(() => void check(), FEED_POLL_MS)
+    const onVisible = () => void check()
+    document.addEventListener("visibilitychange", onVisible)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener("visibilitychange", onVisible)
+    }
+  }, [])
 
   useEffect(() => {
     if (loading || !linkedPostId || revealed.current) return
@@ -320,9 +357,28 @@ export function DashboardFeed() {
       )
     : posts
 
+  const newCount = incoming ? incoming.filter((post) => !posts.some((shown) => shown.id === post.id)).length : 0
+
   return (
     <div className="space-y-6">
       <PullToRefresh onRefresh={refresh} />
+      {newCount > 0 && incoming && (
+        // Fixed under the header, so it is seen wherever the reader is in the feed.
+        <div className="pointer-events-none fixed inset-x-0 top-20 z-30 flex justify-center px-4 sm:top-24">
+          <button
+            type="button"
+            onClick={() => {
+              setPosts(incoming)
+              setIncoming(null)
+              window.scrollTo({ top: 0, behavior: "smooth" })
+            }}
+            className="animate-fade-in-up cowry-press pointer-events-auto inline-flex items-center gap-2 rounded-full bg-[#00b4b8] px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_30px_-10px_rgba(0,137,140,0.8)] transition hover:-translate-y-0.5"
+          >
+            <ArrowUp className="size-4" aria-hidden="true" />
+            {newCount} new post{newCount === 1 ? "" : "s"}
+          </button>
+        </div>
+      )}
       {!activeTag && <FeedFaces posts={posts} myUid={myUid} network={network} />}
 
       {activeTag && (
@@ -347,9 +403,9 @@ export function DashboardFeed() {
       )}
 
       {activeTag && visiblePosts.length === 0 && (
-        <p className="rounded-2xl border border-dashed border-[#d7dde3] p-8 text-center text-sm text-[#657080]">
-          No posts in your feed use #{activeTag} yet. Be the first — add it to your next post.
-        </p>
+        <EmptyState icon={<Hash className="size-8 text-[#9aa5b1]" aria-hidden="true" />} title={`No posts use #${activeTag} yet`}>
+          Be the first — add it to your next post.
+        </EmptyState>
       )}
 
       {/* visiblePosts, not posts: the hashtag filter above narrows what is shown. */}

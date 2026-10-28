@@ -714,6 +714,145 @@ const welcome = ({ L, R }: Paint) => (
   </>
 )
 
+/* ── Celebrations ───────────────────────────────────────────────────────────── */
+
+/** Two flutes of something sparkling, raised and touching, a heart over them. */
+const anniversary = ({ L, R }: Paint) => (
+  <>
+    {[[16, 18, 4.5], [86, 22, 4], [50, 6, 3.5]].map(([x, y, r]) => (
+      <path key={x} d={star(x, y, r)} fill={R("amber")} />
+    ))}
+    {[-1, 1].map((side) => (
+      <g key={side} transform={`rotate(${side * 14} ${50 + side * 16} 62)`}>
+        <path d={`M${50 + side * 16 - 11} 26 L${50 + side * 16 + 11} 26 L${50 + side * 16 + 8} 54 C ${50 + side * 16 + 7} 60, ${50 + side * 16 - 7} 60, ${50 + side * 16 - 8} 54 Z`} fill={L("amber")} {...O} />
+        <path d={`M${50 + side * 16 - 10} 32 H${50 + side * 16 + 10}`} stroke="#ffffff" strokeWidth="1.6" opacity="0.7" />
+        {[[-3, 44], [2, 38], [-1, 50]].map(([dx, y]) => (
+          <circle key={y} cx={50 + side * 16 + dx} cy={y} r="1.6" fill="#fffbeb" opacity="0.9" />
+        ))}
+        <path d={`M${50 + side * 16} 59 V84`} stroke={solid("stone")} strokeWidth="3.5" />
+        <ellipse cx={50 + side * 16} cy="86" rx="11" ry="3.5" fill={L("stone")} {...O} />
+        <ellipse cx={50 + side * 16 - 5} cy="36" rx="2" ry="7" {...SHINE} />
+      </g>
+    ))}
+    <path d={heart(50, 16, 0.75)} fill={R("rose")} {...O} />
+  </>
+)
+
+/** A two-tier cake with icing running down it and three lit candles. */
+const birthday = ({ L, R }: Paint) => (
+  <>
+    <ellipse cx="50" cy="89" rx="42" ry="6" fill={L("stone")} {...O} />
+    <rect x="14" y="58" width="72" height="30" rx="6" fill={L("pink")} {...O} />
+    <path d="M14 64 C 22 74, 28 74, 34 64 C 40 74, 46 74, 52 64 C 58 74, 64 74, 70 64 C 76 74, 80 72, 86 64" stroke="#ffffff" strokeWidth="4.5" fill="none" strokeLinecap="round" />
+    <rect x="26" y="38" width="48" height="22" rx="5" fill={L("cream")} {...O} />
+    <path d="M26 44 C 32 50, 38 50, 44 44 C 50 50, 56 50, 62 44 C 66 48, 70 48, 74 44" stroke={solid("pink")} strokeWidth="3" fill="none" strokeLinecap="round" />
+    {(["sky", "amber", "teal"] as const).map((c, i) => {
+      const x = 36 + i * 14
+      return (
+        <g key={c}>
+          <rect x={x - 2.5} y="22" width="5" height="17" rx="1.5" fill={L(c)} {...O} />
+          <path d={`M${x} 9 C ${x + 4} 14, ${x + 3.5} 19, ${x} 20 C ${x - 3.5} 19, ${x - 4} 14, ${x} 9 Z`} fill={R("amber")} />
+          <ellipse cx={x} cy="17" rx="1.2" ry="2" fill="#fffbeb" />
+        </g>
+      )
+    })}
+    {[[22, 80, "#38bdf8"], [40, 82, "#f59e0b"], [60, 80, "#22c55e"], [76, 82, "#a855f7"], [34, 54, "#ec4899"], [62, 54, "#38bdf8"]].map(([x, y, c]) => (
+      <rect key={`${x}${y}`} x={Number(x) - 2} y={Number(y) - 1} width="4" height="2" rx="1" fill={String(c)} transform={`rotate(${Number(x) * 7} ${x} ${y})`} />
+    ))}
+  </>
+)
+
+/** A pram: its hood up, a heart on its side, a star over it. */
+const newBaby = ({ L, R }: Paint) => (
+  <>
+    <path d="M70 52 L82 34 L92 34" stroke={solid("dark")} strokeWidth="4.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M14 50 L72 50 C 72 68, 60 76, 44 76 C 28 76, 14 68, 14 50 Z" fill={L("sky")} {...O} />
+    <path d="M14 50 C 14 30, 28 18, 48 18 L48 50 Z" fill={L("pink")} {...O} />
+    {["M48 50 L22 30", "M48 50 L34 20", "M48 50 L16 42"].map((d) => (
+      <path key={d} d={d} stroke="#9d174d" strokeWidth="1.4" opacity="0.45" />
+    ))}
+    <path d={heart(48, 62, 0.55)} fill={R("rose")} {...O} />
+    <path d="M28 76 L30 82 M62 76 L60 82" stroke={solid("dark")} strokeWidth="3" />
+    {[30, 60].map((x) => (
+      <g key={x}>
+        <circle cx={x} cy="86" r="9" fill={R("dark")} {...O} />
+        <circle cx={x} cy="86" r="3" fill={L("stone")} />
+      </g>
+    ))}
+    <path d={star(80, 14, 7)} fill={R("amber")} />
+    <ellipse cx="26" cy="32" rx="3" ry="7" transform="rotate(35 26 32)" {...SHINE} />
+  </>
+)
+
+/** A house of one's own: smoke from the chimney, the windows lit, its key in front. */
+const newHome = ({ L, R }: Paint) => (
+  <>
+    <circle cx="68" cy="9" r="4.5" fill="#ffffff" opacity="0.7" />
+    <circle cx="74" cy="3" r="3" fill="#ffffff" opacity="0.5" />
+    <rect x="62" y="16" width="11" height="22" fill={L("brown")} {...O} />
+    <path d="M8 50 L50 16 L92 50 Z" fill={L("teal")} {...O} />
+    <rect x="18" y="48" width="64" height="40" rx="2" fill={L("cream")} {...O} />
+    <rect x="25" y="56" width="13" height="12" rx="1.5" fill={R("amber")} {...O} />
+    <rect x="62" y="56" width="13" height="12" rx="1.5" fill={R("amber")} {...O} />
+    <path d="M31.5 56 V68 M25 62 H38 M68.5 56 V68 M62 62 H75" stroke="rgba(40,22,10,0.45)" strokeWidth="1.2" />
+    <path d="M43 88 V64 C 43 60, 57 60, 57 64 V88 Z" fill={L("wood")} {...O} />
+    <circle cx="53" cy="76" r="1.6" fill={L("amber")} />
+    <circle cx="20" cy="88" r="7" fill="none" stroke={solid("amber")} strokeWidth="4" />
+    <path d="M27 88 H46 M40 88 V94 M45 88 V93" stroke={solid("amber")} strokeWidth="4" strokeLinecap="round" />
+    <ellipse cx="34" cy="30" rx="8" ry="3" transform="rotate(-38 34 30)" {...SHINE} />
+  </>
+)
+
+/** A new briefcase, an arrow climbing over it. */
+const newJob = ({ L, R }: Paint) => (
+  <>
+    <path d="M38 34 V26 C 38 22, 41 20, 44 20 H56 C 59 20, 62 22, 62 26 V34" stroke={solid("dark")} strokeWidth="5" fill="none" />
+    <rect x="10" y="32" width="80" height="56" rx="8" fill={L("wood")} {...O} />
+    <path d="M10 54 H90" stroke="rgba(40,22,10,0.45)" strokeWidth="2" />
+    <rect x="43" y="48" width="14" height="12" rx="2.5" fill={R("amber")} {...O} />
+    <path d="M24 32 V88 M76 32 V88" stroke="rgba(40,22,10,0.25)" strokeWidth="2" />
+    <path d="M80 2 L96 18 H87 V32 H73 V18 H64 Z" fill={L("green")} {...O} />
+    <ellipse cx="26" cy="40" rx="9" ry="3" transform="rotate(-12 26 40)" {...SHINE} />
+  </>
+)
+
+/** A mortarboard, its tassel swinging, over a diploma tied in red. */
+const graduation = ({ L, R }: Paint) => (
+  <>
+    <g transform="rotate(-16 50 80)">
+      <rect x="14" y="72" width="72" height="16" rx="8" fill={L("cream")} {...O} />
+      <ellipse cx="84" cy="80" rx="3" ry="8" fill={L("cream")} {...O} />
+      <rect x="46" y="70" width="8" height="20" fill={L("red")} {...O} />
+    </g>
+    <path d="M28 40 L28 54 C 38 63, 62 63, 72 54 L72 40 Z" fill={L("dark")} {...O} />
+    <path d="M50 12 L96 31 L50 50 L4 31 Z" fill={L("dark")} {...O} />
+    <path d="M50 31 L82 39 L82 58" stroke={solid("amber")} strokeWidth="2.6" fill="none" strokeLinejoin="round" />
+    <path d="M78 56 L86 56 L85 70 L79 70 Z" fill={R("amber")} {...O} />
+    <circle cx="50" cy="31" r="3.4" fill={R("amber")} {...O} />
+    <ellipse cx="36" cy="26" rx="9" ry="2.6" transform="rotate(-20 36 26)" {...SHINE} />
+  </>
+)
+
+/** Two rings, one gold and one silver, a diamond set in one and a heart over both. */
+const wedding = ({ L, R }: Paint) => (
+  <>
+    {[[62, "stone"], [38, "amber"]].map(([cx, c]) => (
+      <g key={cx}>
+        <circle cx={cx} cy="62" r="22" fill="none" stroke={L(c as Colour)} strokeWidth="8" />
+        <circle cx={cx} cy="62" r="26" fill="none" stroke="rgba(40,22,10,0.45)" strokeWidth="1.2" />
+        <circle cx={cx} cy="62" r="18" fill="none" stroke="rgba(40,22,10,0.45)" strokeWidth="1.2" />
+      </g>
+    ))}
+    {/* The gold ring passes back over the silver one, so they read as linked. */}
+    <path d="M56 46 A22 22 0 0 1 59.8 70" fill="none" stroke={solid("amber")} strokeWidth="8" />
+    <path d="M38 24 L47 32 L38 44 L29 32 Z" fill={R("sky")} {...O} />
+    <path d="M29 32 H47 M34 32 L38 44 L42 32 M34 32 L38 24 L42 32" stroke="#ffffff" strokeWidth="1" opacity="0.7" fill="none" />
+    <path d={heart(70, 20, 0.6)} fill={R("rose")} {...O} />
+    <path d={star(18, 30, 4)} fill="#ffffff" />
+    <ellipse cx="26" cy="54" rx="2" ry="6" transform="rotate(30 26 54)" {...SHINE} />
+  </>
+)
+
 const DRAW: Record<IllustrationKind, (paint: Paint) => JSX.Element> = {
   "new-dawn": newDawn,
   "strong-root": strongRoot,
@@ -758,6 +897,13 @@ const DRAW: Record<IllustrationKind, (paint: Paint) => JSX.Element> = {
   "warm-embrace": warmEmbrace,
   "helping-hand": helpingHand,
   welcome,
+  anniversary,
+  birthday,
+  "new-baby": newBaby,
+  "new-home": newHome,
+  "new-job": newJob,
+  graduation,
+  wedding,
 }
 
 

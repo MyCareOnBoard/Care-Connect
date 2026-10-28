@@ -18,6 +18,7 @@ import { formatCowries } from "@/utils/careconnect/cowry"
 import { createPost, POST_CREATED_EVENT } from "@/utils/careconnect/services/postsService"
 import { listProfiles } from "@/utils/careconnect/services/profilesService"
 import type { CareConnectProfile } from "@/utils/careconnect/types"
+import { preferenceStorage } from "@/lib/consent"
 
 /**
  * Prompts that rotate in the empty box.
@@ -158,7 +159,7 @@ export function PostComposer({ photo, cowryReward = 0 }: PostComposerProps = {})
     const timer = setTimeout(() => {
       try {
         if (text.trim()) {
-          localStorage.setItem(draftKey(uid), text)
+          preferenceStorage.setItem(draftKey(uid), text)
           setDraftSaved(true)
         } else {
           localStorage.removeItem(draftKey(uid))

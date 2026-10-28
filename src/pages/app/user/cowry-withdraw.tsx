@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link, useNavigate } from "react-router"
 import { toast } from "sonner"
-import { ArrowLeft, Info, Landmark, Loader2 } from "lucide-react"
+import { ArrowLeft, Info, Landmark, Loader2, Smartphone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -404,7 +404,11 @@ export default function CowryWithdrawPage() {
                 </div>
               )}
               <p className="flex flex-wrap items-center mt-3 text-sm gap-x-2 gap-y-1 text-white/80">
-                <Landmark className="size-4" aria-hidden="true" />
+                {payoutAccount?.rail === "mobile_money" ? (
+                  <Smartphone className="size-4" aria-hidden="true" />
+                ) : (
+                  <Landmark className="size-4" aria-hidden="true" />
+                )}
                 {payoutAccount?.resolvedName ?? "Your account"} ·{" "}
                 <span className="tabular-nums">{payoutAccount?.masked}</span> ·{" "}
                 {payoutAccount?.bankName ?? payoutAccount?.networkLabel ?? payoutAccount?.network}
@@ -665,14 +669,24 @@ export default function CowryWithdrawPage() {
                     key={`${fx.currency}-${quote.netNaira}`}
                     className="animate-fadeIn text-2xl font-bold tabular-nums text-[#141922]"
                   >
-                    {fx.converting && fx.status === "loading" ? (
+                    {/* In the currency it arrives in: a cedi wallet is told cedis here, not naira,
+                        so the first figure seen is the one that lands. */}
+                    {quote.destinationAmount != null && quote.destinationCurrency ? (
+                      arriving()
+                    ) : fx.converting && fx.status === "loading" ? (
                       <Skeleton className="h-7 w-28" />
                     ) : (
                       money(quote.netNaira)
                     )}
                   </dd>
                 </div>
-                {nairaNote(quote.netNaira) && (
+                {quote.destinationAmount != null && quote.destinationCurrency && (
+                  <div className="flex justify-between text-xs">
+                    <dt className="text-[#8a94a3]">Worth in naira</dt>
+                    <dd className="tabular-nums text-[#657080]">{money(quote.netNaira)}</dd>
+                  </div>
+                )}
+                {nairaNote(quote.netNaira) && quote.destinationAmount == null && (
                   <div className="flex justify-between text-xs">
                     <dt className="text-[#8a94a3]">Paid to your bank as</dt>
                     <dd className="tabular-nums text-[#657080]">{nairaNote(quote.netNaira)}</dd>
@@ -697,8 +711,15 @@ export default function CowryWithdrawPage() {
         <p className="min-w-0 flex-1 text-sm text-[#657080]">
           {blocker ?? (
             <>
-              Send <span className="font-semibold text-[#141922]">{money(quote?.netNaira)}</span> to
-              your saved account
+              Send <span className="font-semibold text-[#141922]">{arriving()}</span> to{" "}
+              {payoutAccount ? (
+                <span className="font-semibold text-[#141922]">
+                  {payoutAccount.bankName ?? payoutAccount.networkLabel ?? "your account"}{" "}
+                  <span className="tabular-nums">{payoutAccount.masked}</span>
+                </span>
+              ) : (
+                "your saved account"
+              )}
             </>
           )}
         </p>

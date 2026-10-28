@@ -21,6 +21,7 @@
 // addressed from the root. careconnectClient prefixes /careconnectCore and would send this
 // to /careconnectCore/careconnectCowry/rates.
 import axiosClient from "@/lib/axios"
+import { preferenceStorage } from "@/lib/consent"
 
 const CACHE_KEY = "careconnect-fx-ngn"
 /** The feed updates daily; six hours keeps it fresh without a request on every visit. */
@@ -67,7 +68,7 @@ function readCache(): RateTable | null {
 
 function writeCache(table: RateTable) {
   try {
-    localStorage.setItem(
+    preferenceStorage.setItem(
       CACHE_KEY,
       JSON.stringify({ rates: table.rates, updatedAt: table.updatedAt.toISOString(), fetchedAt: Date.now() }),
     )

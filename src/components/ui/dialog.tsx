@@ -8,8 +8,32 @@ export const Dialog = DialogPrimitive.Root
 export const DialogTrigger = DialogPrimitive.Trigger
 export const DialogPortal = DialogPrimitive.Portal
 export const DialogClose = DialogPrimitive.Close
-export const DialogTitle = DialogPrimitive.Title
-export const DialogDescription = DialogPrimitive.Description
+
+/** The dialog's heading. One look across every modal; a className still overrides it. */
+export const DialogTitle = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Title>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Title
+    ref={ref}
+    className={cn("text-lg font-semibold leading-snug text-[#141922]", className)}
+    {...props}
+  />
+))
+DialogTitle.displayName = DialogPrimitive.Title.displayName
+
+/** The line under the heading. */
+export const DialogDescription = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Description>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Description
+    ref={ref}
+    className={cn("text-sm leading-relaxed text-[#657080]", className)}
+    {...props}
+  />
+))
+DialogDescription.displayName = DialogPrimitive.Description.displayName
 
 export const DialogOverlay = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Overlay>, DialogContentProps>(
   ({ className, ...props }, ref) => (
@@ -72,11 +96,25 @@ export const DialogContent = React.forwardRef<
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("flex flex-col gap-2 px-6 pt-6 text-center sm:text-left", className)} {...props} />
+  return <div className={cn("flex shrink-0 flex-col gap-2 px-6 pt-6 text-center sm:text-left", className)} {...props} />
 }
 
 export function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("flex flex-col-reverse gap-2 px-6 pb-6 sm:flex-row sm:justify-end sm:gap-3", className)} {...props} />
+  return <div className={cn("flex shrink-0 flex-col-reverse gap-2 px-6 pb-6 sm:flex-row sm:justify-end sm:gap-3", className)} {...props} />
+}
+
+/**
+ * The scrolling middle of a tall dialog. Pair with `flex flex-col` and a max height on
+ * DialogContent, and a bordered DialogHeader / DialogFooter: the heading and the actions
+ * stay put while only this part scrolls.
+ */
+export function DialogScrollBody({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn("min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5 text-sm text-[#20242c]", className)}
+      {...props}
+    />
+  )
 }
 
 export function DialogBody({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {

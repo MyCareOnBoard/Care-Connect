@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react"
+import { preferenceStorage } from "@/lib/consent"
 
 /**
  * Sound effects, made in the browser.
@@ -54,7 +55,7 @@ let enabled = typeof window === "undefined" ? false : readEnabled()
 export function setSoundEnabled(next: boolean): void {
   enabled = next
   try {
-    localStorage.setItem(STORAGE_KEY, next ? "on" : "off")
+    preferenceStorage.setItem(STORAGE_KEY, next ? "on" : "off")
   } catch {
     // Not remembered; applies for this visit.
   }

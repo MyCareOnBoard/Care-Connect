@@ -6,7 +6,7 @@ export function RecaptchaAnchor({ id }: { id: string }) {
   return (
     <div
       id={id}
-      className="absolute -left-[9999px] top-0 h-px w-[300px] overflow-hidden"
+      className="absolute -left-[9999px] top-0 h-px w-75 overflow-hidden"
       aria-hidden="true"
     />
   )

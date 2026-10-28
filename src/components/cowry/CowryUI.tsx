@@ -10,6 +10,7 @@ import { CowryIcon } from "@/components/cowry/CowryIcon"
 import { celebrateCowries, originOf, type CelebrationSize } from "@/components/cowry/celebrate"
 import { useCountUp } from "@/components/cowry/useCountUp"
 import { playSound } from "@/lib/sound"
+import { EmptyState } from "@/components/ui/empty-state"
 
 /**
  * Shared pieces for the Cowry screens.
@@ -100,12 +101,9 @@ export function CowryEmpty({
   action?: ReactNode
 }) {
   return (
-    <div className="rounded-2xl border border-dashed border-[#d7dde3] bg-white/60 p-10 text-center">
-      <CowryIcon size={40} className="animate-cowry-float mx-auto" />
-      <p className="mt-4 text-sm font-semibold text-[#141922]">{title}</p>
-      {children && <p className="mx-auto mt-2 max-w-md text-sm text-[#657080]">{children}</p>}
-      {action && <div className="mt-5">{action}</div>}
-    </div>
+    <EmptyState icon={<CowryIcon size={40} className="animate-cowry-float" />} title={title} action={action}>
+      {children}
+    </EmptyState>
   )
 }
 

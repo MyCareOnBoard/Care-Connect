@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from "react"
 import { Link, NavLink, useLocation } from "react-router"
-import { Briefcase, ChevronDown, Home, Menu, MessageCircle, Stethoscope, Store, Users, X } from "lucide-react"
+import { Briefcase, ChevronDown, HeartPulse, Home, Menu, MessageCircle, Stethoscope, Store, Users, X } from "lucide-react"
 import { collection, onSnapshot, query, where } from "firebase/firestore"
 import { CareConnectLogo } from "@/components/auth/CareConnectLogo"
 import { Routes } from "@/routes/constants"
@@ -31,6 +31,9 @@ type NavItem = {
   children?: { label: string; href: string }[]
 }
 
+/** The feature tour's anchor for a nav item: "My network" -> "nav-mynetwork". */
+const tourId = (label: string) => `nav-${label.toLowerCase().replace(/[^a-z]/g, "")}`
+
 /** The drawn cowry, sized like the lucide icons around it. */
 function CowryNavIcon({ className }: { className?: string }) {
   return <CowryIcon size={22} className={className} />
@@ -54,9 +57,15 @@ const userNavItems: NavItem[] = [
     ],
   },
   { label: "Market place", href: Routes.app.user.marketplace, icon: Store },
+  // The Cowry pages are switched on individually — see cowryPages.ts. A page that is off
+  // loses its entry here and its route; the parent drops out entirely once nothing is
+  // left under it, rather than opening an empty dropdown.
+  ...cowryNavItem(),
   // TELEHEALTH PAUSED — one item, to the Coming Soon page, while Telehealth is paused. The
   // dropdown below is kept, commented, to restore with the routes (routes/index.tsx).
   { label: "Tele health", href: Routes.app.user.telehealth, icon: Stethoscope },
+  // AI-generated general wellness tips; the page carries its own disclaimer.
+  { label: "Health tips", href: Routes.app.user.healthTips, icon: HeartPulse },
   // {
   //   label: "Tele health",
   //   href: Routes.app.user.telehealth,
@@ -67,10 +76,6 @@ const userNavItems: NavItem[] = [
   //     { label: "Schedule", href: Routes.app.user.schedule },
   //   ],
   // },
-  // The Cowry pages are switched on individually — see cowryPages.ts. A page that is off
-  // loses its entry here and its route; the parent drops out entirely once nothing is
-  // left under it, rather than opening an empty dropdown.
-  ...cowryNavItem(),
 ]
 
 /** Exported for its own test: the empty case and the parent href are easy to get wrong. */
@@ -197,7 +202,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <DropdownMenu key={item.href}>
                   <NavTooltip label={item.label}>
                     <DropdownMenuTrigger asChild>
-                      <button type="button" aria-label={item.label} className={cn(buttonClass, "cowry-hover")}>
+                      <button
+                        type="button"
+                        aria-label={item.label}
+                        data-tour={tourId(item.label)}
+                        className={cn(buttonClass, "cowry-hover")}
+                      >
                         <Icon className={iconClass} />
                         {/* A small chevron badge: this one opens a menu. */}
                         <ChevronDown
@@ -237,7 +247,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
             return (
               <NavTooltip key={item.href} label={item.label}>
-                <NavLink to={item.href} aria-label={item.label} className={buttonClass}>
+                <NavLink to={item.href} aria-label={item.label} data-tour={tourId(item.label)} className={buttonClass}>
                   <Icon className={iconClass} />
                   {item.label === "Messages" && unreadMessages > 0 && (
                     <span

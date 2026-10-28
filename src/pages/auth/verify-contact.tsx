@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { ButtonLoader } from "@/components/ui/loader"
 import { AuthOnboardingLayout } from "@/components/auth/AuthOnboardingLayout"
+import { OtpInput, type OtpInputHandle } from "@/components/auth/OtpInput"
 import { Routes } from "@/routes/constants"
 import { useSignupWizard } from "@/utils/auth/context/SignupWizardContext"
 import { getOtpStatus, resendOtp, sendOtp, verifyOtp } from "@/utils/auth/services/authService"
@@ -19,7 +20,8 @@ export default function VerifyContactPage() {
   const [verifying, setVerifying] = useState(false)
   const [sending, setSending] = useState(false)
   const [resendSeconds, setResendSeconds] = useState(RESEND_COOLDOWN_SEC)
-  const inputRefs = useRef<Array<HTMLInputElement | null>>([])
+  const otpRef = useRef<OtpInputHandle>(null)
+  const formRef = useRef<HTMLFormElement>(null)
   const initialSendStarted = useRef(false)
 
   const goToNextStep = () => {
@@ -54,19 +56,10 @@ export default function VerifyContactPage() {
     return () => window.clearInterval(timer)
   }, [resendSeconds])
 
-  const updateDigit = (index: number, value: string) => {
-    const nextValue = value.replace(/\D/g, "").slice(-1)
-    setDigits((current) => current.map((digit, digitIndex) => (digitIndex === index ? nextValue : digit)))
-
-    if (nextValue && index < digits.length - 1) {
-      inputRefs.current[index + 1]?.focus()
-    }
-  }
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const otp = digits.join("")
-    if (otp.length < CODE_LENGTH) return
+    if (otp.length < CODE_LENGTH || verifying) return
 
     setVerifying(true)
     try {
@@ -86,7 +79,7 @@ export default function VerifyContactPage() {
       await resendOtp()
       setResendSeconds(RESEND_COOLDOWN_SEC)
       setDigits(Array(CODE_LENGTH).fill(""))
-      inputRefs.current[0]?.focus()
+      otpRef.current?.focus(0)
     } catch (error: unknown) {
       toast.error(getAuthErrorMessage(error))
     } finally {
@@ -99,24 +92,15 @@ export default function VerifyContactPage() {
       <div className="flex flex-col justify-center flex-1 w-full px-5 py-10 mx-auto max-w-123 sm:px-0">
         <h1 className="mb-10 text-[34px] font-normal leading-none">Verify your contact details</h1>
 
-        <form onSubmit={handleSubmit}>
+        <form ref={formRef} onSubmit={handleSubmit}>
           <p className="mb-4 text-sm font-semibold">Check your email for the one time PIN</p>
-          <div className="grid grid-cols-6 gap-2 sm:gap-4">
-            {digits.map((digit, index) => (
-              <input
-                key={index}
-                ref={(node) => {
-                  inputRefs.current[index] = node
-                }}
-                value={digit}
-                onChange={(event) => updateDigit(index, event.target.value)}
-                className="h-15.5 rounded-xl border border-[#d7d7d8] text-center text-3xl font-bold outline-none focus:border-[#00b4b8] focus:ring-2 focus:ring-[#00b4b8]/20"
-                inputMode="numeric"
-                aria-label={`Verification digit ${index + 1}`}
-                required
-              />
-            ))}
-          </div>
+          <OtpInput
+            ref={otpRef}
+            value={digits}
+            onChange={setDigits}
+            // A pasted or autofilled code is sent straight away.
+            onComplete={() => requestAnimationFrame(() => formRef.current?.requestSubmit())}
+          />
           <Button type="submit" disabled={verifying} className="mt-6 h-11 w-full bg-[#00b4b8]">
             {verifying ? (
               <span className="flex items-center justify-center gap-2">

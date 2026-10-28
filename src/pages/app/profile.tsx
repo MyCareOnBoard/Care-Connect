@@ -15,6 +15,9 @@ import { cn, getInitials } from "@/lib/utils"
 import { avatarColor } from "@/components/app/avatarColor"
 import { StrengthRing } from "@/components/home/ProfileStrengthCard"
 import { profileStrength } from "@/components/home/profileStrength"
+import { ProfileCompletionCard } from "@/components/profile/ProfileCompletionCard"
+import { TreasureShowcase } from "@/components/profile/TreasureShowcase"
+import { getEarnSummary } from "@/utils/careconnect/services/cowryService"
 import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
 import { updateUserProfile, updateCareConnectProfile } from "@/utils/auth/services/authService"
 import { useAccountSettings } from "@/hooks/useAccountSettings"
@@ -357,6 +360,22 @@ export default function ProfilePage() {
       })),
   })
 
+  // Cowries for finishing the profile, if that reward is on and not yet earned today.
+  const [completeReward, setCompleteReward] = useState<number | null>(null)
+  useEffect(() => {
+    if (isAgency || !user?.uid) return
+    let active = true
+    getEarnSummary()
+      .then((summary) => {
+        const row = summary.today.find((item) => item.activityType === "complete_profile")
+        if (active) setCompleteReward(row && row.remaining > 0 ? row.value : null)
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [isAgency, user?.uid])
+
   const [avatarSrc, setAvatarSrc] = useState<string | null>(null)
   const [coverSrc, setCoverSrc] = useState<string | null>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
@@ -418,7 +437,30 @@ export default function ProfilePage() {
     void persistCareConnect({ organizationInterests: next })
   }
 
-  const strength = !isAgency && me ? profileStrength(me) : null
+  // Worked out from what is on screen, not the profile as first loaded, so the meter moves
+  // the moment a skill or photo is added rather than on the next visit.
+  const strength =
+    !isAgency && me
+      ? profileStrength({
+          ...me,
+          photo: avatarSrc ?? me.photo,
+          headline: accountInfo.headline || me.headline,
+          description: accountInfo.description || me.description,
+          location: profileSummary.location || me.location,
+          skills,
+          experience,
+          certificationDetails: certifications,
+        })
+      : null
+
+  /** Take a completion step straight to the place that does it. */
+  const openStep = (key: string) => {
+    if (key === "photo") avatarInputRef.current?.click()
+    else if (key === "experience") setExperienceOpen(true)
+    else if (key === "skills") setSkillOpen(true)
+    else if (key === "certifications") setCertificationOpen(true)
+    else setSettingsOpen(true) // headline, about and location live in Account settings
+  }
   const contacts = [
     { icon: MapPin, value: summary.location },
     { icon: Mail, value: summary.email },
@@ -476,7 +518,11 @@ export default function ProfilePage() {
               {strength && !identityLoading && (
                 <button
                   type="button"
-                  onClick={() => setActiveTab("About")}
+                  onClick={() =>
+                    strength.next
+                      ? document.getElementById("profile-completion")?.scrollIntoView({ behavior: "smooth", block: "center" })
+                      : setActiveTab("About")
+                  }
                   className="group flex items-center gap-3 rounded-2xl bg-[#f7fafb] py-2 pl-2 pr-4 text-left ring-1 ring-[#e8edef] transition hover:ring-[#00b4b8]/40"
                 >
                   <StrengthRing percent={strength.percent} size={48} stroke={5} />
@@ -536,6 +582,19 @@ export default function ProfilePage() {
           </div>
         </div>
       </section>
+
+      {/* What is left to do, and what people have sent you. Each hides when it has nothing
+          to say: a finished profile, or no treasures yet. */}
+      {(strength?.next || !identityLoading) && (
+        <div className="mx-auto mt-6 grid max-w-250 items-start gap-6 empty:hidden lg:grid-cols-2">
+          {strength?.next && !identityLoading && (
+            <div id="profile-completion" className="scroll-mt-24">
+              <ProfileCompletionCard strength={strength} reward={completeReward} onStep={openStep} />
+            </div>
+          )}
+          {!identityLoading && <TreasureShowcase />}
+        </div>
+      )}
 
       <section className="mx-auto mt-6 max-w-250 overflow-hidden rounded-[28px] bg-white shadow-[0_12px_40px_-24px_rgba(16,20,26,0.35)] ring-1 ring-[#e2e6ea]">
         {/* Tabs as pills that scroll sideways on a phone. */}

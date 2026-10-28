@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react"
+import { preferenceStorage } from "@/lib/consent"
 
 /**
  * Light or dark.
@@ -38,7 +39,7 @@ export function setTheme(theme: Theme): void {
   root.classList.toggle("dark", theme === "dark")
   root.style.colorScheme = theme
   try {
-    localStorage.setItem(THEME_STORAGE_KEY, theme)
+    preferenceStorage.setItem(THEME_STORAGE_KEY, theme)
   } catch {
     // Private mode or blocked storage: the switch still works for this visit.
   }

@@ -17,13 +17,13 @@ import {
   ReceiptRow,
 } from "@/components/cowry/CowryUI"
 import { cn } from "@/lib/utils"
+import { NetworkLogo } from "@/components/cowry/NetworkLogo"
 import { Routes } from "@/routes/constants"
 import { getAuthErrorMessage } from "@/utils/auth"
 import {
   getRedemptionCatalog,
   redeemForData,
   type CowryDataPackage,
-  type CowryNetwork,
   type CowryRedeemResult,
   type CowryRedemptionCatalog,
   type CowryWalletType,
@@ -54,13 +54,6 @@ const STEP_INDEX: Record<Step, number> = { choose: 0, confirm: 1, result: 2 }
 /** Wallets that can pay, in the order they should be offered. */
 const WALLET_ORDER: CowryWalletType[] = ["reward", "creator", "purchased"]
 
-/** Brand colours, as a dot beside each network's name. */
-const NETWORK_COLORS: Record<CowryNetwork, string> = {
-  mtn: "#ffcc00",
-  airtel: "#e40000",
-  glo: "#50b651",
-  "9mobile": "#006e53",
-}
 
 /**
  * The package label split into figure and unit, so the size can be the headline.
@@ -167,6 +160,17 @@ export default function CowryRedeemPage() {
   }
 
   const networkLabel = catalog.networks.find((n) => n.id === network)?.label
+  // The package giving the most data per Cowry at this wallet's prices. Only marked when
+  // there is a real choice between packages.
+  const bestValueId =
+    catalog.packages.length > 1
+      ? catalog.packages.reduce<{ id: string; perMb: number } | null>((best, pkg) => {
+          const total = pkg.pricing?.[walletType]?.total ?? pkg.cowryCost
+          if (!pkg.megabytes || !total) return best
+          const perMb = total / pkg.megabytes
+          return !best || perMb < best.perMb ? { id: pkg.id, perMb } : best
+        }, null)?.id ?? null
+      : null
 
   /* ── result ───────────────────────────────────────────────────────────── */
   if (step === "result" && result) {
@@ -268,11 +272,7 @@ export default function CowryRedeemPage() {
                   <span className="ml-1 text-xl font-semibold text-white/80">{size.unit}</span>
                 </p>
                 <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-white/80">
-                  <span
-                    className="size-2.5 rounded-full"
-                    style={{ background: NETWORK_COLORS[network as CowryNetwork] ?? "#fff" }}
-                    aria-hidden="true"
-                  />
+                  <NetworkLogo network={network} label={networkLabel} size={20} className="ring-white/60" />
                   {networkLabel} · <span className="tabular-nums">{phoneNumber}</span>
                 </p>
               </div>
@@ -329,9 +329,16 @@ export default function CowryRedeemPage() {
   const showPhoneError = phoneTouched && phoneNumber !== "" && !phoneValid
 
   // Say why Continue is off, instead of leaving a grey button to be puzzled over.
-  const blocker = !wallet?.canRedeem
-    ? "Redeeming is unavailable on this account right now."
-    : monthlyLeft === 0
+  //
+  // The supplier comes first, because it is the one reason that is nothing to do with the
+  // member: their balance, their limits and their number are all fine, and there is simply
+  // nothing on the other end yet. Ordering it below the account checks would tell someone
+  // with an empty wallet to top up for a thing that could not be delivered either way.
+  const blocker = catalog?.available === false
+    ? "Redeeming for data isn't switched on yet. Your Cowries are untouched."
+    : !wallet?.canRedeem
+      ? "Redeeming is unavailable on this account right now."
+      : monthlyLeft === 0
       ? "You've used all your data rewards for this month."
       : !selected
         ? "Choose a package."
@@ -380,6 +387,7 @@ export default function CowryRedeemPage() {
           {catalog.packages.map((pkg) => {
             const cost = pkg.pricing?.[walletType]
             const total = cost?.total ?? pkg.cowryCost
+            const bestValue = pkg.id === bestValueId
             const canAfford = cost ? balance >= cost.total : false
             const reach = total > 0 ? Math.min(100, (balance / total) * 100) : 0
             const size = dataSize(pkg)
@@ -390,7 +398,15 @@ export default function CowryRedeemPage() {
                 onSelect={() => setPackageId(pkg.id)}
                 muted={!canAfford}
               >
-                <Wifi className="size-5 text-[#00b4b8]" aria-hidden="true" />
+                <span className="flex items-start justify-between gap-2">
+                  <Wifi className="size-5 text-[#00b4b8]" aria-hidden="true" />
+                  {bestValue && (
+                    // The most data for each Cowry, priced for the wallet being spent.
+                    <span className="rounded-full bg-[linear-gradient(135deg,#fff1c7,#f3c969)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#7a5310]">
+                      Best value
+                    </span>
+                  )}
+                </span>
                 <span className="mt-2 block text-3xl font-bold text-[#141922]">
                   {size.value}
                   <span className="ml-1 text-base font-semibold text-[#657080]">{size.unit}</span>
@@ -429,16 +445,16 @@ export default function CowryRedeemPage() {
                   onClick={() => setNetwork(option.id)}
                   aria-pressed={active}
                   className={cn(
-                    "cowry-press inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 text-sm font-semibold transition",
+                    "cowry-press inline-flex items-center gap-2 rounded-full border-2 py-1.5 pl-1.5 pr-4 text-sm font-semibold transition",
                     active
                       ? "border-[#00b4b8] bg-[#effbfb] text-[#141922]"
                       : "border-[#e2e6ea] bg-white text-[#565656] hover:border-[#c8cdd4]",
                   )}
                 >
-                  <span
-                    className={cn("size-3 rounded-full transition-transform", active && "scale-125")}
-                    style={{ background: NETWORK_COLORS[option.id] ?? "#9aa4b2" }}
-                    aria-hidden="true"
+                  <NetworkLogo
+                    network={option.id}
+                    label={option.label}
+                    className={cn("transition-transform", active && "scale-110")}
                   />
                   {option.label}
                 </button>

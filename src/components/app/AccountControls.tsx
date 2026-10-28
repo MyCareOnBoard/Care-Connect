@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Link } from "react-router"
 // TELEHEALTH PAUSED: add CalendarClock back to this import with the Availability item.
-import { Bell, ChevronDown, ChevronRight, LogOut, Settings, UserRound } from "lucide-react"
+import { Bell, ChevronDown, ChevronRight, Compass, LogOut, Settings, UserRound } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +13,7 @@ import {
 import { Routes } from "@/routes/constants"
 import { useAuth, useAuthUser } from "@/utils/auth"
 import { getInitials } from "@/lib/utils"
+import { Skeleton } from "@/components/ui/skeleton"
 import { ProfileModals } from "@/components/profile/ProfileModals"
 import { useAccountSettings } from "@/hooks/useAccountSettings"
 import { useNotifications } from "@/hooks/useNotifications"
@@ -96,6 +97,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
             aria-label={
               unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications"
             }
+            data-tour="notifications"
             className={`relative flex ${notificationButtonSize} items-center justify-center rounded-full bg-white text-[#151922] outline-none transition hover:bg-[#f2f6f8] cursor-pointer`}
           >
             <Bell className="size-4 fill-[#151922]" />
@@ -131,7 +133,17 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
           </div>
 
           {loading && notifications.length === 0 ? (
-            <div className="px-1 py-5 text-center text-sm text-[#737780]">Loading…</div>
+            <div className="space-y-3 px-1 py-3" aria-label="Loading notifications">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="flex items-start gap-3">
+                  <Skeleton className="size-9 shrink-0 rounded-full" />
+                  <div className="flex-1 space-y-2 pt-1">
+                    <Skeleton className="h-3 w-4/5" />
+                    <Skeleton className="h-3 w-1/3" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : notifications.length === 0 ? (
             <div className="px-1 py-5 text-center text-sm text-[#737780]">No notifications</div>
           ) : (
@@ -208,6 +220,7 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
           {/* Initials rather than the full name, so the header leaves room for the nav.
               The full name is still in the label, and at the top of the menu it opens. */}
           <button
+            data-tour="account"
             type="button"
             aria-label={`Account menu for ${displayName}`}
             title={displayName}
@@ -278,6 +291,19 @@ export function AccountControls({ flow = "user", notificationSize = "md" }: Acco
                 </span>
                 <ChevronRight className="size-4 text-[#8b97a8]" />
               </button>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="rounded-lg hover:bg-[#edf3f5]">
+              {/* Replays the feature tour on the home page. */}
+              <Link
+                to={`${flow === "agency" ? Routes.app.agency.dashboard : Routes.app.user.dashboard}?tour=1`}
+                className="flex items-center justify-between w-full gap-2 px-3 py-2 text-sm text-left rounded-xl"
+              >
+                <span className="flex items-center gap-2">
+                  <Compass className="size-4 text-[#00b4b8]" />
+                  Take the tour
+                </span>
+                <ChevronRight className="size-4 text-[#8b97a8]" />
+              </Link>
             </DropdownMenuItem>
           </div>
           <DropdownMenuSeparator />

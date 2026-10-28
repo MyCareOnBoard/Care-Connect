@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "react-router"
 import { collection, limit as fsLimit, onSnapshot, orderBy, query, where, type DocumentData } from "firebase/firestore"
-import { ChevronLeft, Search, Trash2 } from "lucide-react"
+import { CheckCheck, ChevronLeft, Search, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ChatThread, type ChatMessage } from "@/components/app/ChatThread"
+import { SwipeRow } from "@/components/app/SwipeRow"
 import { db } from "@/lib/firestore"
 import { cn, getInitials } from "@/lib/utils"
 import { getAuthErrorMessage, useAuthUser } from "@/utils/auth"
@@ -64,6 +65,17 @@ function mapConversationDoc(id: string, data: DocumentData, myUid: string): Care
   }
 }
 
+/**
+ * Whether the other person has read everything in the thread. The conversation keeps an
+ * unread count per participant, and theirs drops to zero when they open it — so a zero
+ * there means your latest message has been seen. Undefined when the count is not there.
+ */
+function otherHasRead(data: DocumentData, myUid: string): boolean | undefined {
+  const otherUid = ((data.participantIds || []) as string[]).find((pid) => pid !== myUid)
+  const count = otherUid ? data.unreadCount?.[otherUid] : undefined
+  return typeof count === "number" ? count === 0 : undefined
+}
+
 function MessagesSkeleton() {
   return (
     <div className="flex h-[calc(100vh-72px-var(--app-bottom-inset,0px))] gap-4 p-5 sm:p-8">
@@ -87,6 +99,8 @@ export default function MessagesPage() {
   const [conversations, setConversations] = useState<CareConnectConversation[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  // Which conversation's messages have arrived; anything else is still loading.
+  const [loadedThreadId, setLoadedThreadId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   // Below lg, list and chat are mutually exclusive full-screen views; at lg+ both show side-by-side regardless.
   const [mobileView, setMobileView] = useState<"list" | "chat">("list")
@@ -94,6 +108,8 @@ export default function MessagesPage() {
   // Clearance instant per conversation. A thread that resurfaced after being cleared is
   // back in the list, but the messages from before the clear must stay gone.
   const [clearedByConversation, setClearedByConversation] = useState<Record<string, number>>({})
+  // Per conversation: has the other person read it all? Drives "Seen" under your last message.
+  const [seenByConversation, setSeenByConversation] = useState<Record<string, boolean | undefined>>({})
   const handledToRef = useRef(false)
 
   const openConversation = (id: string) => {
@@ -131,6 +147,9 @@ export default function MessagesPage() {
               .map((doc) => [doc.id, clearedAtMillis(doc.data(), myUid)] as const)
               .filter(([, cleared]) => cleared > 0),
           ),
+        )
+        setSeenByConversation(
+          Object.fromEntries(snapshot.docs.map((doc) => [doc.id, otherHasRead(doc.data(), myUid)])),
         )
         const list = snapshot.docs
           .filter((doc) => !isClearedFor(doc.data(), myUid))
@@ -186,6 +205,7 @@ export default function MessagesPage() {
           .map((doc) => mapMessage(doc.id, doc.data()))
           .reverse()
         setMessages(msgs)
+        setLoadedThreadId(selectedId)
         // A message may have arrived for the open thread — clear its unread.
         markRead(selectedId).catch(() => undefined)
       },
@@ -231,24 +251,32 @@ export default function MessagesPage() {
     }
   }
 
-  const handleSend = async (text: string) => {
-    if (!selectedId) return
+  // A failed send keeps what was written: the error carries a Retry that sends it again, to
+  // the same conversation even if another one has been opened since.
+  const handleSend = async (text: string, conversationId = selectedId) => {
+    if (!conversationId) return
     try {
-      await sendMessage(selectedId, { content: text })
+      await sendMessage(conversationId, { content: text })
       // Rendered by the messages onSnapshot.
     } catch (error) {
-      toast.error(getAuthErrorMessage(error))
+      toast.error("Couldn't send your message", {
+        description: getAuthErrorMessage(error),
+        action: { label: "Retry", onClick: () => void handleSend(text, conversationId) },
+      })
     }
   }
 
-  const handleAttach = async (file: File) => {
-    if (!selectedId) return
+  const handleAttach = async (file: File, conversationId = selectedId) => {
+    if (!conversationId) return
     try {
       const url = await uploadMessageAttachment(file)
       const type = file.type.startsWith("image/") ? "image" : "file"
-      await sendMessage(selectedId, { attachments: [{ type, url, name: file.name }] })
+      await sendMessage(conversationId, { attachments: [{ type, url, name: file.name }] })
     } catch (error) {
-      toast.error(getAuthErrorMessage(error))
+      toast.error(`Couldn't send ${file.name}`, {
+        description: getAuthErrorMessage(error),
+        action: { label: "Retry", onClick: () => void handleAttach(file, conversationId) },
+      })
     }
   }
 
@@ -284,33 +312,55 @@ export default function MessagesPage() {
             visibleConversations.map((conversation) => {
               const name = conversation.participant?.name || "Care Connect user"
               return (
-                <button
+                // On phones: swipe left to delete, swipe right to mark it read.
+                <SwipeRow
                   key={conversation.id}
-                  type="button"
-                  onClick={() => openConversation(conversation.id)}
-                  className={cn(
-                    "flex w-full items-start gap-3 rounded-xl p-3 text-left transition-all duration-200",
-                    conversation.id === selectedId
-                      ? "bg-white shadow-[0_4px_14px_rgba(16,20,26,0.1)] hover:-translate-y-0.5 hover:bg-[#e0f7fa] active:bg-[#b2f5f8] cursor-pointer"
-                      : "hover:-translate-y-0.5 hover:bg-[#e0f7fa] active:bg-[#b2f5f8] cursor-pointer transition-colors hover:shadow-[0_4px_12px_rgba(16,20,26,0.06)]"
-                  )}
+                  left={{
+                    label: "Delete",
+                    icon: <Trash2 className="size-5" aria-hidden="true" />,
+                    className: "bg-[#ff3e66]",
+                    onAction: () => void handleDeleteConversation(conversation.id),
+                  }}
+                  right={
+                    conversation.unread > 0
+                      ? {
+                          label: "Mark read",
+                          icon: <CheckCheck className="size-5" aria-hidden="true" />,
+                          className: "bg-[#00b4b8]",
+                          onAction: () => {
+                            markRead(conversation.id).catch(() => toast.error("Couldn't mark it read. Try again."))
+                          },
+                        }
+                      : undefined
+                  }
                 >
-                  <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow-[0_2px_6px_rgba(16,20,26,0.15)]", colorFor(conversation.id))}>
-                    {getInitials(name)}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-bold truncate">{name}</p>
-                      <span className="shrink-0 text-xs text-[#8a8f98]">{formatTime(conversation.lastMessageAt)}</span>
-                    </div>
-                    <p className="mt-1 truncate text-sm text-[#657080]">{conversation.lastMessage || "No messages yet"}</p>
-                  </div>
-                  {conversation.unread > 0 && (
-                    <span className="mt-1 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#00b4b8] text-xs font-semibold text-white shadow-[0_2px_6px_rgba(0,180,184,0.4)]">
-                      {conversation.unread}
+                  <button
+                    type="button"
+                    onClick={() => openConversation(conversation.id)}
+                    className={cn(
+                      "flex w-full items-start gap-3 rounded-xl p-3 text-left transition-all duration-200",
+                      conversation.id === selectedId
+                        ? "bg-white shadow-[0_4px_14px_rgba(16,20,26,0.1)] hover:-translate-y-0.5 hover:bg-[#e0f7fa] active:bg-[#b2f5f8] cursor-pointer"
+                        : "hover:-translate-y-0.5 hover:bg-[#e0f7fa] active:bg-[#b2f5f8] cursor-pointer transition-colors hover:shadow-[0_4px_12px_rgba(16,20,26,0.06)]"
+                    )}
+                  >
+                    <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow-[0_2px_6px_rgba(16,20,26,0.15)]", colorFor(conversation.id))}>
+                      {getInitials(name)}
                     </span>
-                  )}
-                </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-bold truncate">{name}</p>
+                        <span className="shrink-0 text-xs text-[#8a8f98]">{formatTime(conversation.lastMessageAt)}</span>
+                      </div>
+                      <p className="mt-1 truncate text-sm text-[#657080]">{conversation.lastMessage || "No messages yet"}</p>
+                    </div>
+                    {conversation.unread > 0 && (
+                      <span className="mt-1 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#00b4b8] text-xs font-semibold text-white shadow-[0_2px_6px_rgba(0,180,184,0.4)]">
+                        {conversation.unread}
+                      </span>
+                    )}
+                  </button>
+                </SwipeRow>
               )
             })
           )}
@@ -325,9 +375,13 @@ export default function MessagesPage() {
       >
         {selected ? (
           <ChatThread
-            messages={messages}
-            onSend={handleSend}
-            onAttach={handleAttach}
+            // One thread per conversation: switching opens the new one at its latest message.
+            key={selected.id}
+            messages={loadedThreadId === selected.id ? messages : []}
+            onSend={(text) => void handleSend(text)}
+            onAttach={(file) => void handleAttach(file)}
+            seen={seenByConversation[selected.id]}
+            loading={loadedThreadId !== selected.id}
             className="h-full"
             header={
               <header className="flex items-center justify-between border-b border-[#eef1f3] bg-white/60 p-4 backdrop-blur-sm">

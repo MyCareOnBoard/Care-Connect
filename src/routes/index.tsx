@@ -2,6 +2,7 @@ import { lazy } from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 import { Routes } from "@/routes/constants";
 import RouteErrorPage from "@/pages/error/RouteErrorPage";
+import { RootShell } from "@/components/consent/RootShell";
 import { AppRouteGuard } from "@/components/AppRouteGuard";
 import { AdminRouteGuard } from "@/components/AdminRouteGuard";
 import { isCowryPathEnabled } from "@/utils/careconnect/cowryPages";
@@ -27,6 +28,9 @@ const ProfessionalAvailabilityPage = lazy(() => import("@/pages/auth/professiona
 const WelcomePage = lazy(() => import("@/pages/auth/welcome"));
 const ForgotPasswordPage = lazy(() => import("@/pages/auth/forgot-password"));
 const ResetPasswordPage = lazy(() => import("@/pages/auth/reset-password"));
+const PrivacyPolicyPage = lazy(() => import("@/pages/legal/privacy"));
+const TermsPage = lazy(() => import("@/pages/legal/terms"));
+const CookiePolicyPage = lazy(() => import("@/pages/legal/cookies"));
 
 const DashboardPage = lazy(() => import("@/pages/app/user/dashboard"));
 const AgencyDashboardPage = lazy(() => import("@/pages/app/agency/dashboard"));
@@ -49,6 +53,7 @@ const TelehealthComingSoonPage = lazy(() => import("@/pages/app/telehealth-comin
 const ProfilePage = lazy(() => import("@/pages/app/profile"));
 const ViewProfilePage = lazy(() => import("@/pages/app/view-profile"));
 const SettingsPage = lazy(() => import("@/pages/app/settings"));
+const HealthTipsPage = lazy(() => import("@/pages/app/user/health-tips"));
 // TELEHEALTH PAUSED
 // const HealthProfilePage = lazy(() => import("@/pages/app/user/health-profile"));
 // const MyRecordsPage = lazy(() => import("@/pages/app/user/records"));
@@ -69,8 +74,14 @@ function cowryRoutes<T extends { path: string }>(routes: T[]): T[] {
 
 export const router = createBrowserRouter([
   {
+    // Every page, signed in or out, carries the cookie banner.
+    element: <RootShell />,
     errorElement: <RouteErrorPage />,
     children: [
+      // Policy pages are public: linked from sign-up and the banner before anyone signs in.
+      { path: Routes.legal.privacy, Component: PrivacyPolicyPage },
+      { path: Routes.legal.terms, Component: TermsPage },
+      { path: Routes.legal.cookies, Component: CookiePolicyPage },
       {
         path: Routes.root,
         element: <Navigate to={Routes.app.user.dashboard} replace />,
@@ -120,6 +131,7 @@ export const router = createBrowserRouter([
           { path: Routes.app.user.profile, Component: ProfilePage },
           { path: `${Routes.app.user.profile}/:id`, Component: ViewProfilePage },
           { path: Routes.app.user.settings, Component: SettingsPage },
+          { path: Routes.app.user.healthTips, Component: HealthTipsPage },
           // TELEHEALTH PAUSED
           // { path: Routes.app.user.healthProfile, Component: HealthProfilePage },
           // { path: Routes.app.user.records, Component: MyRecordsPage },
