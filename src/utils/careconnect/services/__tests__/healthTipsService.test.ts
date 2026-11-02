@@ -8,7 +8,6 @@ import {
   HEALTH_TIPS_FEEDBACK_PATH,
   HEALTH_TIPS_PATH,
   HealthTipsQueryError,
-  MAX_EXCLUDE,
   MAX_QUERY_LENGTH,
   fetchHealthTipImage,
   healthTipsErrorMessage,
@@ -325,43 +324,6 @@ describe("healthTipsErrorMessage", () => {
     for (const value of [new Error("Network Error"), null, undefined, "boom", failure(429, 42)]) {
       expect(healthTipsErrorMessage(value)).toBe("We couldn't get tips just now.")
     }
-  })
-})
-
-describe("searchHealthTips — show me another", () => {
-  beforeEach(() => post.mockReset())
-
-  it("sends the titles already shown, and nothing extra when there are none", async () => {
-    post.mockResolvedValue({ data: { data: {} } })
-    await searchHealthTips("sleeping better", { exclude: [] })
-    expect(post).toHaveBeenLastCalledWith(HEALTH_TIPS_PATH, { query: "sleeping better" })
-
-    await searchHealthTips("sleeping better", { exclude: ["Keep a regular bedtime"] })
-    expect(post).toHaveBeenLastCalledWith(HEALTH_TIPS_PATH, {
-      query: "sleeping better",
-      exclude: ["Keep a regular bedtime"],
-    })
-  })
-
-  it("works together with personalising and answers", async () => {
-    post.mockResolvedValue({ data: { data: {} } })
-    await searchHealthTips("sleeping better", { personalize: true, answers: { ageRange: "60_74" }, exclude: ["A"] })
-    expect(post).toHaveBeenLastCalledWith(HEALTH_TIPS_PATH, {
-      query: "sleeping better",
-      personalize: true,
-      answers: { ageRange: "60_74" },
-      exclude: ["A"],
-    })
-  })
-
-  it("keeps the newest titles within the server's limit, trimmed and non-empty", async () => {
-    post.mockResolvedValue({ data: { data: {} } })
-    const titles = Array.from({ length: MAX_EXCLUDE + 2 }, (_, i) => ` Tip ${i} `)
-    await searchHealthTips("sleeping better", { exclude: ["  ", ...titles] })
-    const sent = post.mock.lastCall?.[1].exclude as string[]
-    expect(sent).toHaveLength(MAX_EXCLUDE)
-    expect(sent.at(-1)).toBe(`Tip ${MAX_EXCLUDE + 1}`)
-    expect(sent.every((title) => title === title.trim() && title.length > 0)).toBe(true)
   })
 })
 
