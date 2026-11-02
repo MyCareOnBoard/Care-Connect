@@ -77,7 +77,21 @@ export interface HealthTip {
 /** What the server may ask before it personalises a tip. */
 export type HealthTipQuestionField = "ageRange" | "mobility" | "smoking" | "alcohol"
 
-const QUESTION_FIELDS: readonly HealthTipQuestionField[] = ["ageRange", "mobility", "smoking", "alcohol"]
+/**
+ * Questions the server writes for the particular search ("What are you aiming for?") are
+ * numbered q1–q3. Their answers go back as option numbers in `followUp`, not in `answers`.
+ */
+export type FollowUpField = "q1" | "q2" | "q3"
+
+const QUESTION_FIELDS: readonly (HealthTipQuestionField | FollowUpField)[] = [
+  "ageRange",
+  "mobility",
+  "smoking",
+  "alcohol",
+  "q1",
+  "q2",
+  "q3",
+]
 
 /** Never show more than this, whatever the server sends: a questionnaire in front of a tip drives people away. */
 export const MAX_QUESTIONS = 3
@@ -90,13 +104,29 @@ export interface HealthTipQuestionOption {
 }
 
 export interface HealthTipQuestion {
-  field: HealthTipQuestionField
+  field: HealthTipQuestionField | FollowUpField
   question: string
   options: HealthTipQuestionOption[]
 }
 
 /** Answers keyed by question field; every value is one of that question's option values. */
-export type HealthTipAnswers = Partial<Record<HealthTipQuestionField, string>>
+export type HealthTipAnswers = Partial<Record<HealthTipQuestionField | FollowUpField, string>>
+
+/** Answers to the questions written for the search: the signed token and one pick per question. */
+export interface HealthTipFollowUp {
+  token: string
+  /** The option number chosen for each question in order; null = skipped. */
+  picks: (number | null)[]
+}
+
+/** Turn what the question card collected into picks, in question order. */
+export function picksFromAnswers(questions: HealthTipQuestion[], answers: HealthTipAnswers): (number | null)[] {
+  return questions.map((question) => {
+    const value = answers[question.field]
+    const index = value === undefined ? NaN : Number(value)
+    return Number.isInteger(index) && index >= 0 ? index : null
+  })
+}
 
 export interface SearchHealthTipsOptions {
   /** Opt in to tailoring the tip to the person's health profile. Off unless set. */
@@ -106,6 +136,8 @@ export interface SearchHealthTipsOptions {
    * Only sent when `personalize` is on.
    */
   answers?: HealthTipAnswers
+  /** Answers to questions written for this search; sent only with `personalize`. */
+  followUp?: HealthTipFollowUp
   /** Titles of tips already shown for this query ("show me another"). The newest are kept. */
   exclude?: string[]
 }
@@ -126,6 +158,8 @@ export interface HealthTipsResult {
    * search with `answers` once they are answered or skipped.
    */
   needs: HealthTipQuestion[]
+  /** Present with questions written for this search; send it back with the picks. */
+  followUpToken: string | null
 }
 
 export class HealthTipsQueryError extends Error {}
@@ -206,7 +240,7 @@ function mapNeeds(raw: unknown): HealthTipQuestion[] {
       question?: unknown
       options?: unknown
     }
-    if (!QUESTION_FIELDS.includes(field as HealthTipQuestionField)) continue
+    if (!QUESTION_FIELDS.includes(field as HealthTipQuestion["field"])) continue
     if (typeof question !== "string" || !question.trim()) continue
     const mapped: HealthTipQuestionOption[] = []
     if (Array.isArray(options)) {
@@ -218,7 +252,7 @@ function mapNeeds(raw: unknown): HealthTipQuestion[] {
       }
     }
     if (mapped.length < 2) continue
-    questions.push({ field: field as HealthTipQuestionField, question: question.trim(), options: mapped })
+    questions.push({ field: field as HealthTipQuestion["field"], question: question.trim(), options: mapped })
     if (questions.length >= MAX_QUESTIONS) break
   }
   return questions
@@ -226,15 +260,22 @@ function mapNeeds(raw: unknown): HealthTipQuestion[] {
 
 export async function searchHealthTips(
   rawQuery: string,
-  { personalize = false, answers, exclude }: SearchHealthTipsOptions = {},
+  { personalize = false, answers, followUp, exclude }: SearchHealthTipsOptions = {},
 ): Promise<HealthTipsResult> {
   const query = normalizeQuery(rawQuery)
   // Unpersonalised requests send exactly what they always did. Answers only travel with an
   // opt-in; the server ignores them otherwise, and there is no reason to send them.
-  const payload: { query: string; personalize?: true; answers?: HealthTipAnswers; exclude?: string[] } = { query }
+  const payload: {
+    query: string
+    personalize?: true
+    answers?: HealthTipAnswers
+    followUp?: HealthTipFollowUp
+    exclude?: string[]
+  } = { query }
   if (personalize) {
     payload.personalize = true
     if (answers) payload.answers = answers
+    if (followUp) payload.followUp = followUp
   }
   const shown = (exclude ?? []).map((title) => title.trim().slice(0, 120)).filter(Boolean)
   if (shown.length > 0) payload.exclude = shown.slice(-MAX_EXCLUDE)
@@ -245,6 +286,7 @@ export async function searchHealthTips(
   // `tip` first; the first of `tips` covers a server that has not shipped `tip` yet.
   const tip = mapTip(body.tip ?? (Array.isArray(body.tips) ? body.tips[0] : null))
   const urgent = body.urgent === true
+  const needs = urgent || tip ? [] : mapNeeds(body.needs)
 
   return {
     query,
@@ -253,7 +295,11 @@ export async function searchHealthTips(
     notice: typeof body.notice === "string" && body.notice ? body.notice : null,
     personalized: body.personalized === true,
     // An emergency is never answered with a question, whatever else arrived with it.
-    needs: urgent || tip ? [] : mapNeeds(body.needs),
+    needs,
+    followUpToken:
+      needs.length > 0 && typeof body.followUpToken === "string" && body.followUpToken
+        ? body.followUpToken
+        : null,
   }
 }
 
