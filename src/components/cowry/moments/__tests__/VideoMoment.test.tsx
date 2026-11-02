@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { VideoMoment } from "../VideoMoment"
 import { MomentCaptionContext, congratulationsFor } from "../captionContext"
-import { giftVideoFor } from "@/components/cowry/giftVideos"
+import { giftVideoFor, treasureVideoFor } from "@/components/cowry/giftVideos"
 
 /**
  * A filmed legendary arrival.
@@ -85,10 +85,38 @@ describe("a filmed arrival", () => {
 })
 
 describe("which treasures are filmed", () => {
-  it("has videos for the eagle, the lion and the harvest only", () => {
+  it("has videos for the eagle and the harvest only", () => {
     expect(giftVideoFor("eagle-flight")).toMatch(/Golden-Eagle-Flying-in-Jungle\.mp4$/)
-    expect(giftVideoFor("lion-storm")).toMatch(/Crowned-Lion-Roaring-in-Storm\.mp4$/)
+    // The lion's film was taken out; its drawn storm plays instead.
+    expect(giftVideoFor("lion-storm")).toBeNull()
     expect(giftVideoFor("earth-harvest")).toMatch(/Dry-Earth-Transforms-into-Garden\.mp4$/)
     expect(giftVideoFor("rose-bloom")).toBeNull()
+  })
+})
+
+describe("which Special and Premium treasures are filmed", () => {
+  it.each([
+    ["The Baobab Tree", "Baobab-Tree"],
+    ["Masai Shield", "Masai-Shield"],
+    ["The Maasai Shield", "Masai-Shield"],
+    ["Dzimba Dzamabwe Stone House", "Dzimba-Dzamabwe-Stone-House"],
+    ["Great Stone House", "Dzimba-Dzamabwe-Stone-House"],
+    ["Lake Chad Basin", "Lake-Chad-Basin"],
+    ["Benin Bronze Original", "Benin-Bronze-Original"],
+    ["Nigerian Jollof", "Nigerian-Jollof-Rice"],
+    ["Jollof Rice", "Nigerian-Jollof-Rice"],
+    ["The Timeless Treasure", "Timeless-Treasure"],
+  ])("plays %s its own film", (label, file) => {
+    expect(treasureVideoFor({ label })).toMatch(new RegExp(`/videos/${file}[.]mp4$`))
+  })
+
+  it("finds the film by id when the name says nothing", () => {
+    expect(treasureVideoFor({ id: "lake_chad_basin" })).toMatch(/Lake-Chad-Basin\.mp4$/)
+  })
+
+  it("leaves the everyday treasures of the same subject on their drawn scenes", () => {
+    expect(treasureVideoFor({ label: "The Baobab" })).toBeNull()
+    expect(treasureVideoFor({ label: "Jollof Table" })).toBeNull()
+    expect(treasureVideoFor({ label: "Bronze Head" })).toBeNull()
   })
 })
