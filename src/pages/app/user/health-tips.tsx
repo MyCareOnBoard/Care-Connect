@@ -3,6 +3,7 @@ import { toast } from "sonner"
 import { AlertTriangle, Search, Sparkles } from "lucide-react"
 import { PageHeader } from "@/components/app/PageHeader"
 import { AiDisclaimer, AI_DISCLAIMER_EMERGENCY } from "@/components/health-tips/AiDisclaimer"
+import { HealthTipCard } from "@/components/health-tips/HealthTipCard"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   HealthTipsQueryError,
@@ -32,14 +33,9 @@ const SUGGESTIONS = [
 
 type Status = "idle" | "loading" | "done" | "error"
 
+// One block, because one tip comes back — not a stack of placeholder cards.
 function ResultsSkeleton() {
-  return (
-    <div className="space-y-3" aria-hidden="true">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <Skeleton key={i} className="h-28 rounded-2xl" />
-      ))}
-    </div>
-  )
+  return <Skeleton className="h-40 rounded-2xl" aria-hidden="true" />
 }
 
 export default function HealthTipsPage() {
@@ -165,48 +161,26 @@ export default function HealthTipsPage() {
               </div>
             )}
 
-            {!result.urgent && result.tips.length > 0 && (
+            {!result.urgent && result.tip && (
               <h2 className="flex items-center gap-2 text-lg font-bold text-[#141922]">
                 <Sparkles className="size-4 text-[#00b4b8]" aria-hidden="true" />
-                Tips for &ldquo;{result.query}&rdquo;
+                A tip for &ldquo;{result.query}&rdquo;
               </h2>
             )}
 
-            {result.urgent ? null : result.tips.length === 0 ? (
-              // No tips and no emergency: the server declined (a diagnosis or dose question) or
+            {result.urgent ? null : !result.tip ? (
+              // No tip and no emergency: the server declined (a diagnosis or dose question) or
               // nothing safe came back. Say why when it told us; otherwise suggest rewording.
               <p className="rounded-2xl bg-white p-5 text-sm text-[#657080] ring-1 ring-[#e2e6ea]">
                 {result.notice ??
-                  "No tips came back for that. Try rewording it, or pick one of the topics above."}
+                  "No tip came back for that. Try rewording it, or pick one of the topics above."}
               </p>
             ) : (
-              <ul className="space-y-3">
-                {result.tips.map((tip) => (
-                  <li
-                    key={tip.id}
-                    className="rounded-2xl bg-white p-5 ring-1 ring-[#e2e6ea]"
-                  >
-                    <h3 className="text-base font-semibold text-[#141922]">{tip.title}</h3>
-                    <p className="mt-1.5 text-sm leading-6 text-[#4a5260]">{tip.summary}</p>
-                    {tip.steps && tip.steps.length > 0 && (
-                      <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-[#4a5260]">
-                        {tip.steps.map((step, index) => (
-                          <li key={index}>{step}</li>
-                        ))}
-                      </ul>
-                    )}
-                    {tip.whenToSeeAProfessional && (
-                      <p className="mt-3 text-xs font-medium text-[#8a5a2b]">
-                        See a professional if: {tip.whenToSeeAProfessional}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
+              <HealthTipCard tip={result.tip} />
             )}
 
             {/* Only where there is AI-written content for it to qualify. */}
-            {!result.urgent && result.tips.length > 0 && <AiDisclaimer variant="inline" />}
+            {!result.urgent && result.tip && <AiDisclaimer variant="inline" />}
           </section>
         )}
       </div>
