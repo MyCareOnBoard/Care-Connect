@@ -24,13 +24,13 @@ export function HealthTipCard({ tip }: { tip: HealthTip }) {
         <div
           role="status"
           aria-label="Drawing an illustration"
-          className="mx-auto aspect-square w-full max-w-sm animate-pulse bg-[#eef1f3]"
+          className="mx-auto aspect-square w-full max-w-lg animate-pulse bg-[#eef1f3]"
         />
       )}
 
       {ready && (
         <figure className="m-0">
-          <div className="mx-auto aspect-square w-full max-w-sm bg-[#eef1f3]">
+          <div className="mx-auto aspect-square w-full max-w-lg bg-[#eef1f3]">
             <img
               src={ready.url}
               alt={ready.alt}
