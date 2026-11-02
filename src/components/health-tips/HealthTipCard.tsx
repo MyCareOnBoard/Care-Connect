@@ -7,7 +7,8 @@ import { useTipImage } from "./useTipImage"
  *
  * Text first: the picture is a bonus, so a tip with no image, or whose image fails to load
  * or never arrives, reads exactly the same minus the picture. The image sits in a fixed 16:9
- * frame so the page does not jump while it loads, and it is loaded lazily. While a picture is
+ * square frame (the pictures are square, and are shown whole, never cropped) so the page
+ * does not jump while it loads, and it is loaded lazily. While a picture is
  * still being drawn the frame holds a quiet placeholder; the picture is always labelled as
  * AI-generated, because it is an illustration, not a photograph of anything real.
  */
@@ -23,20 +24,20 @@ export function HealthTipCard({ tip }: { tip: HealthTip }) {
         <div
           role="status"
           aria-label="Drawing an illustration"
-          className="aspect-video w-full animate-pulse bg-[#eef1f3]"
+          className="mx-auto aspect-square w-full max-w-sm animate-pulse bg-[#eef1f3]"
         />
       )}
 
       {ready && (
         <figure className="m-0">
-          <div className="aspect-video w-full bg-[#eef1f3]">
+          <div className="mx-auto aspect-square w-full max-w-sm bg-[#eef1f3]">
             <img
               src={ready.url}
               alt={ready.alt}
               loading="lazy"
               decoding="async"
               onError={() => setFailedUrl(ready.url)}
-              className="size-full object-cover"
+              className="size-full object-contain"
             />
           </div>
           <figcaption className="px-5 pt-2 text-xs text-[#657080]">AI-generated illustration</figcaption>
