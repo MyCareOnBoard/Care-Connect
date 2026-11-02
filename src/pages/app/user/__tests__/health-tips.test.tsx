@@ -38,6 +38,7 @@ function result(overrides: Partial<HealthTipsResult> = {}): HealthTipsResult {
     notice: null,
     personalized: false,
     needs: [],
+    followUpToken: null,
     ...overrides,
   }
 }
@@ -327,6 +328,97 @@ describe("Health tips page", () => {
       await user.click(screen.getByRole("button", { name: "Show me another" }))
       await screen.findByRole("heading", { name: "Limit late caffeine" })
       expect(await screen.findByText("Was this tip helpful?")).toBeInTheDocument()
+    })
+  })
+
+  describe("questions written for the search", () => {
+    const AIM = {
+      field: "q1" as const,
+      question: "What are you aiming for?",
+      options: [
+        { value: "0", label: "Stay active" },
+        { value: "1", label: "Build strength" },
+      ],
+    }
+    const TIME = {
+      field: "q2" as const,
+      question: "How much time do you have?",
+      options: [
+        { value: "0", label: "5 minutes" },
+        { value: "1", label: "15 minutes" },
+      ],
+    }
+
+    it("asks them, then sends the token with the picks, never the words", async () => {
+      searchHealthTips
+        .mockResolvedValueOnce(result({ needs: [AIM, TIME], followUpToken: "signed.token" }))
+        .mockResolvedValueOnce(result({ tip: TIP, personalized: true }))
+      const user = userEvent.setup()
+      render(<HealthTipsPage />)
+      await user.click(personalizeBox())
+      await search(user)
+
+      expect(await screen.findByText(AIM.question)).toBeInTheDocument()
+      await user.click(screen.getByRole("button", { name: "Build strength" }))
+      await user.click(screen.getByRole("button", { name: "5 minutes" }))
+
+      expect(await screen.findByRole("heading", { name: TIP.title })).toBeInTheDocument()
+      expect(searchHealthTips).toHaveBeenLastCalledWith("sleeping better", {
+        personalize: true,
+        answers: undefined,
+        followUp: { token: "signed.token", picks: [1, 0] },
+      })
+      expect(screen.queryByText(AIM.question)).not.toBeInTheDocument()
+    })
+
+    it("sends null for a skipped question", async () => {
+      searchHealthTips
+        .mockResolvedValueOnce(result({ needs: [AIM, TIME], followUpToken: "signed.token" }))
+        .mockResolvedValueOnce(result({ tip: TIP }))
+      const user = userEvent.setup()
+      render(<HealthTipsPage />)
+      await user.click(personalizeBox())
+      await search(user)
+      await user.click(await screen.findByRole("button", { name: "Stay active" }))
+      await user.click(screen.getByRole("button", { name: "Skip" }))
+
+      await screen.findByRole("heading", { name: TIP.title })
+      expect(searchHealthTips.mock.lastCall?.[1].followUp).toEqual({ token: "signed.token", picks: [0, null] })
+    })
+
+    it("does not ask again if the server still sends questions after they were answered", async () => {
+      searchHealthTips
+        .mockResolvedValueOnce(result({ needs: [AIM], followUpToken: "signed.token" }))
+        .mockResolvedValueOnce(result({ needs: [AIM], followUpToken: "signed.token" }))
+      const user = userEvent.setup()
+      render(<HealthTipsPage />)
+      await user.click(personalizeBox())
+      await search(user)
+      await user.click(await screen.findByRole("button", { name: "Stay active" }))
+
+      expect(await screen.findByText(/No tip came back/)).toBeInTheDocument()
+      expect(screen.queryByText(AIM.question)).not.toBeInTheDocument()
+    })
+
+    it("keeps the same answers for 'show me another'", async () => {
+      searchHealthTips
+        .mockResolvedValueOnce(result({ needs: [AIM], followUpToken: "signed.token" }))
+        .mockResolvedValueOnce(result({ tip: TIP, personalized: true }))
+        .mockResolvedValueOnce(result({ tip: { id: "tip-1", title: "Another one", summary: "S." }, personalized: true }))
+      const user = userEvent.setup()
+      render(<HealthTipsPage />)
+      await user.click(personalizeBox())
+      await search(user)
+      await user.click(await screen.findByRole("button", { name: "Build strength" }))
+      await user.click(await screen.findByRole("button", { name: "Show me another" }))
+
+      await screen.findByRole("heading", { name: "Another one" })
+      expect(searchHealthTips).toHaveBeenLastCalledWith("sleeping better", {
+        personalize: true,
+        answers: undefined,
+        followUp: { token: "signed.token", picks: [1] },
+        exclude: [TIP.title],
+      })
     })
   })
 })
