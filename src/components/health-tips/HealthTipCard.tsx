@@ -1,30 +1,46 @@
 import { useState } from "react"
 import type { HealthTip } from "@/utils/careconnect/services/healthTipsService"
+import { useTipImage } from "./useTipImage"
 
 /**
  * The one tip shown for a search.
  *
- * Text first: the picture is a bonus, so a tip with no image, or whose image fails to load,
- * reads exactly the same minus the picture. The image sits in a fixed 16:9 frame so the
- * page does not jump while it loads, and it is loaded lazily.
+ * Text first: the picture is a bonus, so a tip with no image, or whose image fails to load
+ * or never arrives, reads exactly the same minus the picture. The image sits in a fixed 16:9
+ * frame so the page does not jump while it loads, and it is loaded lazily. While a picture is
+ * still being drawn the frame holds a quiet placeholder; the picture is always labelled as
+ * AI-generated, because it is an illustration, not a photograph of anything real.
  */
 export function HealthTipCard({ tip }: { tip: HealthTip }) {
-  const [imageFailed, setImageFailed] = useState(false)
-  const showImage = Boolean(tip.image) && !imageFailed
+  const picture = useTipImage(tip.image)
+  // Remembered with the URL it failed for, so a new picture is never hidden by an old failure.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
+  const ready = picture.phase === "ready" && picture.url !== failedUrl ? picture : null
 
   return (
     <article className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#e2e6ea]">
-      {showImage && tip.image && (
-        <div className="aspect-video w-full bg-[#eef1f3]">
-          <img
-            src={tip.image.url}
-            alt={tip.image.alt}
-            loading="lazy"
-            decoding="async"
-            onError={() => setImageFailed(true)}
-            className="size-full object-cover"
-          />
-        </div>
+      {picture.phase === "loading" && (
+        <div
+          role="status"
+          aria-label="Drawing an illustration"
+          className="aspect-video w-full animate-pulse bg-[#eef1f3]"
+        />
+      )}
+
+      {ready && (
+        <figure className="m-0">
+          <div className="aspect-video w-full bg-[#eef1f3]">
+            <img
+              src={ready.url}
+              alt={ready.alt}
+              loading="lazy"
+              decoding="async"
+              onError={() => setFailedUrl(ready.url)}
+              className="size-full object-cover"
+            />
+          </div>
+          <figcaption className="px-5 pt-2 text-xs text-[#657080]">AI-generated illustration</figcaption>
+        </figure>
       )}
 
       <div className="p-5">

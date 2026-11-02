@@ -5,13 +5,19 @@ const post = vi.fn()
 vi.mock("@/lib/axios", () => ({ default: { post: (...args: unknown[]) => post(...args) } }))
 
 import {
+  HEALTH_TIPS_FEEDBACK_PATH,
   HEALTH_TIPS_PATH,
   HealthTipsQueryError,
+  MAX_EXCLUDE,
   MAX_QUERY_LENGTH,
+  fetchHealthTipImage,
   healthTipsErrorMessage,
   normalizeQuery,
   searchHealthTips,
+  sendHealthTipFeedback,
 } from "../healthTipsService"
+
+const KEY = "0123456789abcdef0123456789abcdef"
 
 describe("normalizeQuery", () => {
   it("collapses whitespace and trims", () => {
@@ -113,6 +119,7 @@ describe("searchHealthTips", () => {
       post.mockResolvedValue(withImage({ url: "https://cdn.example.com/stretch.png", alt: "  A seated neck stretch " }))
       const result = await searchHealthTips("neck stretch")
       expect(result.tip?.image).toEqual({
+        status: "ready",
         url: "https://cdn.example.com/stretch.png",
         alt: "A seated neck stretch",
       })
@@ -130,6 +137,38 @@ describe("searchHealthTips", () => {
         post.mockResolvedValue(withImage({ url, alt: "A stretch" }))
         expect((await searchHealthTips("neck stretch")).tip?.image).toBeUndefined()
       }
+    })
+
+    it("reads a pending image by its key, with no URL", async () => {
+      post.mockResolvedValue(withImage({ status: "pending", key: KEY, alt: " A seated neck stretch " }))
+      expect((await searchHealthTips("neck stretch")).tip?.image).toEqual({
+        status: "pending",
+        key: KEY,
+        alt: "A seated neck stretch",
+      })
+    })
+
+    it("keeps the key on a ready image when the server sends one", async () => {
+      post.mockResolvedValue(withImage({ status: "ready", key: KEY, url: "https://cdn.example.com/a.png", alt: "A stretch" }))
+      expect((await searchHealthTips("neck stretch")).tip?.image).toMatchObject({ status: "ready", key: KEY })
+    })
+
+    it("drops a pending image with a bad key or no alt text, and never keeps a bad key", async () => {
+      for (const image of [
+        { status: "pending", key: "../../etc/passwd", alt: "A stretch" },
+        { status: "pending", key: KEY.toUpperCase(), alt: "A stretch" },
+        { status: "pending", alt: "A stretch" },
+        { status: "pending", key: KEY, alt: "  " },
+      ]) {
+        post.mockResolvedValue(withImage(image))
+        expect((await searchHealthTips("neck stretch")).tip?.image).toBeUndefined()
+      }
+      post.mockResolvedValue(withImage({ url: "https://cdn.example.com/a.png", alt: "A stretch", key: "nope" }))
+      expect((await searchHealthTips("neck stretch")).tip?.image).toEqual({
+        status: "ready",
+        url: "https://cdn.example.com/a.png",
+        alt: "A stretch",
+      })
     })
 
     it("ignores a malformed image value but keeps the tip", async () => {
@@ -284,5 +323,124 @@ describe("healthTipsErrorMessage", () => {
     for (const value of [new Error("Network Error"), null, undefined, "boom", failure(429, 42)]) {
       expect(healthTipsErrorMessage(value)).toBe("We couldn't get tips just now.")
     }
+  })
+})
+
+describe("searchHealthTips — show me another", () => {
+  beforeEach(() => post.mockReset())
+
+  it("sends the titles already shown, and nothing extra when there are none", async () => {
+    post.mockResolvedValue({ data: { data: {} } })
+    await searchHealthTips("sleeping better", { exclude: [] })
+    expect(post).toHaveBeenLastCalledWith(HEALTH_TIPS_PATH, { query: "sleeping better" })
+
+    await searchHealthTips("sleeping better", { exclude: ["Keep a regular bedtime"] })
+    expect(post).toHaveBeenLastCalledWith(HEALTH_TIPS_PATH, {
+      query: "sleeping better",
+      exclude: ["Keep a regular bedtime"],
+    })
+  })
+
+  it("works together with personalising and answers", async () => {
+    post.mockResolvedValue({ data: { data: {} } })
+    await searchHealthTips("sleeping better", { personalize: true, answers: { ageRange: "60_74" }, exclude: ["A"] })
+    expect(post).toHaveBeenLastCalledWith(HEALTH_TIPS_PATH, {
+      query: "sleeping better",
+      personalize: true,
+      answers: { ageRange: "60_74" },
+      exclude: ["A"],
+    })
+  })
+
+  it("keeps the newest titles within the server's limit, trimmed and non-empty", async () => {
+    post.mockResolvedValue({ data: { data: {} } })
+    const titles = Array.from({ length: MAX_EXCLUDE + 2 }, (_, i) => ` Tip ${i} `)
+    await searchHealthTips("sleeping better", { exclude: ["  ", ...titles] })
+    const sent = post.mock.lastCall?.[1].exclude as string[]
+    expect(sent).toHaveLength(MAX_EXCLUDE)
+    expect(sent.at(-1)).toBe(`Tip ${MAX_EXCLUDE + 1}`)
+    expect(sent.every((title) => title === title.trim() && title.length > 0)).toBe(true)
+  })
+})
+
+describe("sendHealthTipFeedback", () => {
+  beforeEach(() => post.mockReset())
+
+  it("sends only the rating for a thumbs-up, even if a reason was passed", async () => {
+    post.mockResolvedValue({ data: { success: true } })
+    await sendHealthTipFeedback({ rating: "up", reason: "unclear" })
+    expect(post).toHaveBeenCalledWith(HEALTH_TIPS_FEEDBACK_PATH, { rating: "up" })
+  })
+
+  it("sends the reason and flags for a thumbs-down, and leaves out the ones that are off", async () => {
+    post.mockResolvedValue({ data: { success: true } })
+    await sendHealthTipFeedback({ rating: "down", reason: "not_relevant", concerning: true, personalized: false })
+    expect(post).toHaveBeenLastCalledWith(HEALTH_TIPS_FEEDBACK_PATH, {
+      rating: "down",
+      reason: "not_relevant",
+      concerning: true,
+    })
+  })
+
+  it("names a picture only with a valid key", async () => {
+    post.mockResolvedValue({ data: { success: true } })
+    await sendHealthTipFeedback({ rating: "down", reason: "bad_image", imageKey: KEY })
+    expect(post).toHaveBeenLastCalledWith(HEALTH_TIPS_FEEDBACK_PATH, { rating: "down", reason: "bad_image", imageKey: KEY })
+    await sendHealthTipFeedback({ rating: "down", reason: "bad_image", imageKey: "../x" })
+    expect(post.mock.lastCall?.[1]).toEqual({ rating: "down", reason: "bad_image" })
+  })
+
+  it("never carries the query or any tip text", async () => {
+    post.mockResolvedValue({ data: { success: true } })
+    await sendHealthTipFeedback({
+      rating: "down",
+      reason: "unclear",
+      // Not part of the type, but a caller must not be able to smuggle them through.
+      ...({ query: "my chest hurts", title: "A tip" } as object),
+    })
+    expect(Object.keys(post.mock.lastCall?.[1]).sort()).toEqual(["rating", "reason"])
+  })
+
+  it("rejects when the server does, so the form can say it failed", async () => {
+    post.mockRejectedValue(new Error("Network Error"))
+    await expect(sendHealthTipFeedback({ rating: "up" })).rejects.toThrow("Network Error")
+  })
+})
+
+describe("fetchHealthTipImage", () => {
+  beforeEach(() => post.mockReset())
+
+  it("posts to the image path for the key", async () => {
+    post.mockResolvedValue({ data: { data: { status: "pending" } } })
+    expect(await fetchHealthTipImage(KEY)).toEqual({ status: "pending" })
+    expect(post).toHaveBeenCalledWith(`/careconnectHealthTips/image/${KEY}`)
+  })
+
+  it("returns a ready https picture, with its alt text when given", async () => {
+    post.mockResolvedValue({ data: { data: { status: "ready", url: "https://cdn.example.com/a.png", alt: " Alt " } } })
+    expect(await fetchHealthTipImage(KEY)).toEqual({ status: "ready", url: "https://cdn.example.com/a.png", alt: "Alt" })
+  })
+
+  it("reads anything unexpected as failed", async () => {
+    for (const data of [
+      { status: "ready", url: "http://cdn.example.com/a.png" },
+      { status: "ready", url: "javascript:alert(1)" },
+      { status: "ready" },
+      { status: "failed" },
+      { status: "weird" },
+      {},
+    ]) {
+      post.mockResolvedValue({ data: { data } })
+      expect(await fetchHealthTipImage(KEY)).toEqual({ status: "failed" })
+    }
+    post.mockResolvedValue({ data: {} })
+    expect(await fetchHealthTipImage(KEY)).toEqual({ status: "failed" })
+  })
+
+  it("does not spend a request on a key that is not one", async () => {
+    for (const key of ["", "../../x", KEY.toUpperCase(), `${KEY}0`]) {
+      expect(await fetchHealthTipImage(key)).toEqual({ status: "failed" })
+    }
+    expect(post).not.toHaveBeenCalled()
   })
 })

@@ -3,9 +3,19 @@
  *
  * Served by the `careconnectHealthTips` Cloud Function in CareOnBoard-Backend:
  *
- *   POST /careconnectHealthTips/search   body: { query, personalize?, answers? }
+ *   POST /careconnectHealthTips/search   body: { query, personalize?, answers?, exclude? }
  *   200  { success, data: { tip, tips, urgent, notice, personalized, needs? }, aiGenerated }
  *   400  validation failed      429  rate limited      503  the model is unavailable
+ *   POST /careconnectHealthTips/feedback body: { rating, reason?, concerning?, personalized?, imageKey? }
+ *   POST /careconnectHealthTips/image/:key   200 { data: { status: ready|pending|failed, url?, alt? } }
+ *
+ * "Show me another" repeats the search with `exclude` set to the titles already shown. When
+ * nothing new is left the server sends no tip and a notice. Feedback is stored without the
+ * query, the tip text or who sent it, so nothing the person typed travels with it.
+ *
+ * Illustrations are optional and AI-generated. A tip may carry `image`: either ready (a url)
+ * or pending (a key to fetch it with). `fetchHealthTipImage` asks for a pending one; if it
+ * never comes the tip is just text.
  *
  * Personalising is opt-in. The server reads the person's own health profile itself — it is
  * never sent from here. When a relevant value is unknown it answers with `needs` (questions
@@ -28,18 +38,29 @@
 
 import axiosClient from "@/lib/axios"
 
-export const HEALTH_TIPS_PATH = "/careconnectHealthTips/search"
+const HEALTH_TIPS_BASE = "/careconnectHealthTips"
+export const HEALTH_TIPS_PATH = `${HEALTH_TIPS_BASE}/search`
+export const HEALTH_TIPS_FEEDBACK_PATH = `${HEALTH_TIPS_BASE}/feedback`
+const imagePath = (key: string) => `${HEALTH_TIPS_BASE}/image/${key}`
+
+/** The server's illustration ids: 32 lowercase hex characters. Anything else is never sent back. */
+const IMAGE_KEY = /^[a-f0-9]{32}$/
+
+/** "Show me another" sends at most this many titles; mirrors the server. */
+export const MAX_EXCLUDE = 5
 
 /** Mirrors the server's Joi bounds. Short enough that nobody pastes a record into it. */
 export const MAX_QUERY_LENGTH = 200
 export const MIN_QUERY_LENGTH = 3
 
-/** A picture that goes with a tip. Optional: most tips are text only. */
-export interface HealthTipImage {
-  url: string
-  /** Always present: an image without a description is dropped rather than shown. */
-  alt: string
-}
+/**
+ * An AI-generated picture that goes with a tip. Optional: most tips are text only.
+ * `ready` can be shown now; `pending` is still being drawn and is fetched by `key`.
+ * `alt` is always present: an image without a description is dropped rather than shown.
+ */
+export type HealthTipImage =
+  | { status: "ready"; url: string; alt: string; key?: string }
+  | { status: "pending"; alt: string; key: string }
 
 export interface HealthTip {
   id: string
@@ -85,6 +106,8 @@ export interface SearchHealthTipsOptions {
    * Only sent when `personalize` is on.
    */
   answers?: HealthTipAnswers
+  /** Titles of tips already shown for this query ("show me another"). The newest are kept. */
+  exclude?: string[]
 }
 
 export interface HealthTipsResult {
@@ -138,15 +161,21 @@ export function healthTipsErrorMessage(error: unknown): string {
 }
 
 /**
- * Accept an image only when it can be shown safely and described: an https URL and a
- * non-empty alt text. Anything else is dropped, and the tip simply renders as text.
+ * Accept an image only when it can be shown safely and described: a non-empty alt text and
+ * either an https URL (ready) or a valid key to fetch it with (pending). Anything else is
+ * dropped, and the tip simply renders as text.
  */
 function mapImage(raw: unknown): HealthTipImage | undefined {
   if (!raw || typeof raw !== "object") return undefined
-  const { url, alt } = raw as { url?: unknown; alt?: unknown }
-  if (typeof url !== "string" || !/^https:\/\//i.test(url)) return undefined
+  const { url, alt, key, status } = raw as { url?: unknown; alt?: unknown; key?: unknown; status?: unknown }
   if (typeof alt !== "string" || !alt.trim()) return undefined
-  return { url, alt: alt.trim() }
+  const validKey = typeof key === "string" && IMAGE_KEY.test(key) ? key : undefined
+
+  if (status === "pending") {
+    return validKey ? { status: "pending", alt: alt.trim(), key: validKey } : undefined
+  }
+  if (typeof url !== "string" || !/^https:\/\//i.test(url)) return undefined
+  return { status: "ready", url, alt: alt.trim(), ...(validKey ? { key: validKey } : {}) }
 }
 
 function mapTip(raw: unknown): HealthTip | null {
@@ -197,16 +226,18 @@ function mapNeeds(raw: unknown): HealthTipQuestion[] {
 
 export async function searchHealthTips(
   rawQuery: string,
-  { personalize = false, answers }: SearchHealthTipsOptions = {},
+  { personalize = false, answers, exclude }: SearchHealthTipsOptions = {},
 ): Promise<HealthTipsResult> {
   const query = normalizeQuery(rawQuery)
   // Unpersonalised requests send exactly what they always did. Answers only travel with an
   // opt-in; the server ignores them otherwise, and there is no reason to send them.
-  const payload: { query: string; personalize?: true; answers?: HealthTipAnswers } = { query }
+  const payload: { query: string; personalize?: true; answers?: HealthTipAnswers; exclude?: string[] } = { query }
   if (personalize) {
     payload.personalize = true
     if (answers) payload.answers = answers
   }
+  const shown = (exclude ?? []).map((title) => title.trim().slice(0, 120)).filter(Boolean)
+  if (shown.length > 0) payload.exclude = shown.slice(-MAX_EXCLUDE)
   const { data } = await axiosClient.post(HEALTH_TIPS_PATH, payload)
 
   // Care Connect routes use a { success, data } envelope.
@@ -224,4 +255,57 @@ export async function searchHealthTips(
     // An emergency is never answered with a question, whatever else arrived with it.
     needs: urgent || tip ? [] : mapNeeds(body.needs),
   }
+}
+
+export type HealthTipRating = "up" | "down"
+
+export type HealthTipFeedbackReason = "not_relevant" | "unclear" | "not_safe" | "already_know" | "bad_image"
+
+export interface HealthTipFeedback {
+  rating: HealthTipRating
+  /** Only sent with a thumbs-down. */
+  reason?: HealthTipFeedbackReason
+  /** "This worried me." */
+  concerning?: boolean
+  personalized?: boolean
+  /** The illustration being reported, with `bad_image`. */
+  imageKey?: string
+}
+
+/**
+ * Send a thumbs up or down. The server keeps the rating, the reason and two flags — never the
+ * query, the tip's text or who sent it — so none of those are in the request either.
+ */
+export async function sendHealthTipFeedback(feedback: HealthTipFeedback): Promise<void> {
+  const payload: HealthTipFeedback = { rating: feedback.rating }
+  if (feedback.rating === "down" && feedback.reason) payload.reason = feedback.reason
+  if (feedback.concerning) payload.concerning = true
+  if (feedback.personalized) payload.personalized = true
+  if (feedback.imageKey && IMAGE_KEY.test(feedback.imageKey)) payload.imageKey = feedback.imageKey
+  await axiosClient.post(HEALTH_TIPS_FEEDBACK_PATH, payload)
+}
+
+export type HealthTipImageResult =
+  | { status: "ready"; url: string; alt?: string }
+  | { status: "pending" }
+  | { status: "failed" }
+
+/**
+ * Ask for a pending illustration. The first request may generate it; later ones return it.
+ * Anything unexpected — a bad key, a bad URL, an unknown status — reads as "failed", and
+ * the tip stays text. The key is checked before a request is spent on it.
+ */
+export async function fetchHealthTipImage(key: string): Promise<HealthTipImageResult> {
+  if (!IMAGE_KEY.test(key)) return { status: "failed" }
+  const { data } = await axiosClient.post(imagePath(key))
+  const body = data?.data ?? {}
+  if (body.status === "pending") return { status: "pending" }
+  if (body.status === "ready" && typeof body.url === "string" && /^https:\/\//i.test(body.url)) {
+    return {
+      status: "ready",
+      url: body.url,
+      ...(typeof body.alt === "string" && body.alt.trim() ? { alt: body.alt.trim() } : {}),
+    }
+  }
+  return { status: "failed" }
 }

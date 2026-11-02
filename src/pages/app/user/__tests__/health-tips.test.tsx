@@ -8,9 +8,11 @@ import type { HealthTipsResult } from "@/utils/careconnect/services/healthTipsSe
 vi.mock("@/lib/axios", () => ({ default: { post: vi.fn() } }))
 
 const searchHealthTips = vi.hoisted(() => vi.fn())
+const sendHealthTipFeedback = vi.hoisted(() => vi.fn())
 vi.mock("@/utils/careconnect/services/healthTipsService", async () => ({
   ...(await vi.importActual<object>("@/utils/careconnect/services/healthTipsService")),
   searchHealthTips,
+  sendHealthTipFeedback,
 }))
 
 const TIP = {
@@ -48,7 +50,11 @@ async function search(user: ReturnType<typeof userEvent.setup>, text = "sleeping
 const personalizeBox = () => screen.getByRole("checkbox", { name: /Personalize using my health profile/ })
 
 describe("Health tips page", () => {
-  beforeEach(() => searchHealthTips.mockReset())
+  beforeEach(() => {
+    searchHealthTips.mockReset()
+    sendHealthTipFeedback.mockReset()
+    sendHealthTipFeedback.mockResolvedValue(undefined)
+  })
 
   it("shows one tip, not a list", async () => {
     searchHealthTips.mockResolvedValue(result({ tip: TIP }))
@@ -162,5 +168,165 @@ describe("Health tips page", () => {
 
     await user.click(personalizeBox())
     expect(screen.queryByText(AGE_QUESTION.question)).not.toBeInTheDocument()
+  })
+
+  describe("show me another", () => {
+    const SECOND = { id: "tip-1", title: "Limit late caffeine", summary: "Caffeine late in the day can keep you awake." }
+    const THIRD = { id: "tip-1", title: "Get morning light", summary: "Daylight early in the day helps set your body clock." }
+    const another = () => screen.getByRole("button", { name: "Show me another" })
+
+    it("asks for a different tip, telling the server which titles were shown", async () => {
+      searchHealthTips
+        .mockResolvedValueOnce(result({ tip: TIP }))
+        .mockResolvedValueOnce(result({ tip: SECOND }))
+      const user = userEvent.setup()
+      render(<HealthTipsPage />)
+      await search(user)
+      await screen.findByRole("heading", { name: TIP.title })
+
+      await user.click(another())
+
+      expect(await screen.findByRole("heading", { name: SECOND.title })).toBeInTheDocument()
+      expect(screen.queryByRole("heading", { name: TIP.title })).not.toBeInTheDocument()
+      expect(searchHealthTips).toHaveBeenLastCalledWith(
+        "sleeping better",
+        expect.objectContaining({ personalize: false, exclude: [TIP.title] }),
+      )
+      expect(screen.getAllByRole("article")).toHaveLength(1)
+    })
+
+    it("keeps adding to the list of titles already shown", async () => {
+      searchHealthTips
+        .mockResolvedValueOnce(result({ tip: TIP }))
+        .mockResolvedValueOnce(result({ tip: SECOND }))
+        .mockResolvedValueOnce(result({ tip: THIRD }))
+      const user = userEvent.setup()
+      render(<HealthTipsPage />)
+      await search(user)
+      await user.click(await screen.findByRole("button", { name: "Show me another" }))
+      await screen.findByRole("heading", { name: SECOND.title })
+      await user.click(another())
+      await screen.findByRole("heading", { name: THIRD.title })
+
+      expect(searchHealthTips).toHaveBeenLastCalledWith(
+        "sleeping better",
+        expect.objectContaining({ exclude: [TIP.title, SECOND.title] }),
+      )
+    })
+
+    it("stays personalised the same way, without asking the questions again", async () => {
+      searchHealthTips
+        .mockResolvedValueOnce(result({ needs: [AGE_QUESTION] }))
+        .mockResolvedValueOnce(result({ tip: TIP, personalized: true }))
+        .mockResolvedValueOnce(result({ tip: SECOND, personalized: true }))
+      const user = userEvent.setup()
+      render(<HealthTipsPage />)
+      await user.click(personalizeBox())
+      await search(user)
+      await user.click(await screen.findByRole("button", { name: "60–74" }))
+      await user.click(await screen.findByRole("button", { name: "Show me another" }))
+
+      expect(await screen.findByRole("heading", { name: SECOND.title })).toBeInTheDocument()
+      expect(searchHealthTips).toHaveBeenLastCalledWith("sleeping better", {
+        personalize: true,
+        answers: { ageRange: "60_74" },
+        exclude: [TIP.title],
+      })
+      expect(screen.queryByText(AGE_QUESTION.question)).not.toBeInTheDocument()
+    })
+
+    it("keeps the tip on screen and says so when there is nothing new", async () => {
+      searchHealthTips
+        .mockResolvedValueOnce(result({ tip: TIP }))
+        .mockResolvedValueOnce(result({ tip: null, notice: "That's all the tips we have for this topic right now." }))
+      const user = userEvent.setup()
+      render(<HealthTipsPage />)
+      await search(user)
+      await user.click(await screen.findByRole("button", { name: "Show me another" }))
+
+      expect(await screen.findByText(/That's all the tips we have/)).toBeInTheDocument()
+      expect(screen.getByRole("heading", { name: TIP.title })).toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "Show me another" })).not.toBeInTheDocument()
+    })
+
+    it("lets an emergency replace the tip", async () => {
+      searchHealthTips
+        .mockResolvedValueOnce(result({ tip: TIP }))
+        .mockResolvedValueOnce(result({ urgent: true, notice: "Call your local emergency number." }))
+      const user = userEvent.setup()
+      render(<HealthTipsPage />)
+      await search(user)
+      await user.click(await screen.findByRole("button", { name: "Show me another" }))
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("Call your local emergency number.")
+      expect(screen.queryByRole("heading", { name: TIP.title })).not.toBeInTheDocument()
+      expect(screen.queryByRole("button", { name: "Show me another" })).not.toBeInTheDocument()
+    })
+
+    it("keeps the tip it had when the request fails", async () => {
+      searchHealthTips.mockResolvedValueOnce(result({ tip: TIP })).mockRejectedValueOnce(new Error("Network Error"))
+      const user = userEvent.setup()
+      render(<HealthTipsPage />)
+      await search(user)
+      await user.click(await screen.findByRole("button", { name: "Show me another" }))
+
+      expect(await screen.findByRole("heading", { name: TIP.title })).toBeInTheDocument()
+      expect(screen.getByRole("button", { name: "Show me another" })).toBeInTheDocument()
+    })
+
+    it("forgets what was shown when the person searches again", async () => {
+      searchHealthTips
+        .mockResolvedValueOnce(result({ tip: TIP }))
+        .mockResolvedValueOnce(result({ tip: SECOND }))
+        .mockResolvedValueOnce(result({ tip: THIRD, query: "sleeping better" }))
+      const user = userEvent.setup()
+      render(<HealthTipsPage />)
+      await search(user)
+      await user.click(await screen.findByRole("button", { name: "Show me another" }))
+      await screen.findByRole("heading", { name: SECOND.title })
+
+      await user.click(screen.getByRole("button", { name: "Search" }))
+      await screen.findByRole("heading", { name: THIRD.title })
+      expect(searchHealthTips.mock.lastCall?.[1].exclude).toBeUndefined()
+    })
+
+    it("offers it only next to a tip", async () => {
+      searchHealthTips.mockResolvedValue(result({ tip: null, notice: "We can't give general tips for that." }))
+      const user = userEvent.setup()
+      render(<HealthTipsPage />)
+      await search(user)
+      await screen.findByText(/We can't give general tips/)
+      expect(screen.queryByRole("button", { name: "Show me another" })).not.toBeInTheDocument()
+      expect(screen.queryByText("Was this tip helpful?")).not.toBeInTheDocument()
+    })
+  })
+
+  describe("feedback", () => {
+    it("sends a rating for the tip on screen", async () => {
+      searchHealthTips.mockResolvedValue(result({ tip: TIP, personalized: true }))
+      const user = userEvent.setup()
+      render(<HealthTipsPage />)
+      await search(user)
+      await screen.findByRole("heading", { name: TIP.title })
+
+      await user.click(screen.getByRole("button", { name: "Yes" }))
+      expect(sendHealthTipFeedback).toHaveBeenCalledWith({ rating: "up", personalized: true })
+      expect(await screen.findByText("Thanks for letting us know.")).toBeInTheDocument()
+    })
+
+    it("asks again for the next tip", async () => {
+      searchHealthTips
+        .mockResolvedValueOnce(result({ tip: TIP }))
+        .mockResolvedValueOnce(result({ tip: { id: "tip-1", title: "Limit late caffeine", summary: "S." } }))
+      const user = userEvent.setup()
+      render(<HealthTipsPage />)
+      await search(user)
+      await user.click(await screen.findByRole("button", { name: "Yes" }))
+      await screen.findByText("Thanks for letting us know.")
+
+      await user.click(screen.getByRole("button", { name: "Show me another" }))
+      await screen.findByRole("heading", { name: "Limit late caffeine" })
+      expect(await screen.findByText("Was this tip helpful?")).toBeInTheDocument()
+    })
   })
 })
