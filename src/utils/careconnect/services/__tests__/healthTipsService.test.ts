@@ -150,7 +150,112 @@ describe("searchHealthTips", () => {
   it("survives a malformed body", async () => {
     post.mockResolvedValue({ data: {} })
     const result = await searchHealthTips("sleeping better")
-    expect(result).toEqual({ query: "sleeping better", tip: null, urgent: false, notice: null })
+    expect(result).toEqual({
+      query: "sleeping better",
+      tip: null,
+      urgent: false,
+      notice: null,
+      personalized: false,
+      needs: [],
+    })
+  })
+})
+
+describe("searchHealthTips — personalising", () => {
+  beforeEach(() => post.mockReset())
+
+  const AGE_QUESTION = {
+    field: "ageRange",
+    question: "Which age group are you in?",
+    options: [
+      { value: "18_29", label: "18–29" },
+      { value: "30_44", label: "30–44" },
+    ],
+  }
+
+  it("sends nothing extra unless the person opted in", async () => {
+    post.mockResolvedValue({ data: { data: {} } })
+    await searchHealthTips("sleeping better", { personalize: false, answers: { ageRange: "30_44" } })
+    // Answers do not travel without the opt-in, even if a caller passes them.
+    expect(post).toHaveBeenCalledWith(HEALTH_TIPS_PATH, { query: "sleeping better" })
+  })
+
+  it("sends the opt-in, and the answers when there are some", async () => {
+    post.mockResolvedValue({ data: { data: {} } })
+    await searchHealthTips("sleeping better", { personalize: true })
+    expect(post).toHaveBeenLastCalledWith(HEALTH_TIPS_PATH, { query: "sleeping better", personalize: true })
+
+    await searchHealthTips("sleeping better", { personalize: true, answers: { ageRange: "30_44" } })
+    expect(post).toHaveBeenLastCalledWith(HEALTH_TIPS_PATH, {
+      query: "sleeping better",
+      personalize: true,
+      answers: { ageRange: "30_44" },
+    })
+
+    // An empty object is how the person says they skipped the questions.
+    await searchHealthTips("sleeping better", { personalize: true, answers: {} })
+    expect(post).toHaveBeenLastCalledWith(HEALTH_TIPS_PATH, {
+      query: "sleeping better",
+      personalize: true,
+      answers: {},
+    })
+  })
+
+  it("never sends health profile data of its own", async () => {
+    post.mockResolvedValue({ data: { data: {} } })
+    await searchHealthTips("sleeping better", { personalize: true })
+    const [, payload] = post.mock.calls[0]
+    expect(Object.keys(payload).sort()).toEqual(["personalize", "query"])
+  })
+
+  it("reads questions when the server has some instead of a tip", async () => {
+    post.mockResolvedValue({ data: { data: { tip: null, tips: [], urgent: false, notice: null, needs: [AGE_QUESTION] } } })
+    const result = await searchHealthTips("sleeping better", { personalize: true })
+    expect(result.tip).toBeNull()
+    expect(result.needs).toEqual([AGE_QUESTION])
+    expect(result.personalized).toBe(false)
+  })
+
+  it("reads the personalised flag", async () => {
+    post.mockResolvedValue({
+      data: { data: { tip: { id: "tip-1", title: "T", summary: "S" }, personalized: true } },
+    })
+    expect((await searchHealthTips("sleeping better", { personalize: true })).personalized).toBe(true)
+    post.mockResolvedValue({ data: { data: { tip: { id: "tip-1", title: "T", summary: "S" }, personalized: "yes" } } })
+    expect((await searchHealthTips("sleeping better", { personalize: true })).personalized).toBe(false)
+  })
+
+  it("drops malformed questions and keeps the good ones", async () => {
+    const bad = [
+      null,
+      "question",
+      { field: "medications", question: "Which medicines?", options: AGE_QUESTION.options },
+      { field: "ageRange", question: "   ", options: AGE_QUESTION.options },
+      { field: "ageRange", question: "One option only", options: [AGE_QUESTION.options[0]] },
+      { field: "ageRange", question: "No options" },
+      { field: "ageRange", question: "Bad options", options: [{ value: 1, label: "x" }, { value: "a" }] },
+    ]
+    post.mockResolvedValue({ data: { data: { needs: [...bad, AGE_QUESTION] } } })
+    expect((await searchHealthTips("sleeping better", { personalize: true })).needs).toEqual([AGE_QUESTION])
+  })
+
+  it("shows at most three questions, whatever the server sends", async () => {
+    const make = (field: string) => ({ ...AGE_QUESTION, field })
+    post.mockResolvedValue({
+      data: { data: { needs: [make("ageRange"), make("mobility"), make("smoking"), make("alcohol")] } },
+    })
+    const result = await searchHealthTips("sleeping better", { personalize: true })
+    expect(result.needs.map((q) => q.field)).toEqual(["ageRange", "mobility", "smoking"])
+  })
+
+  it("never asks a question alongside an emergency or a tip", async () => {
+    post.mockResolvedValue({ data: { data: { urgent: true, notice: "Call.", needs: [AGE_QUESTION] } } })
+    expect((await searchHealthTips("he is not breathing", { personalize: true })).needs).toEqual([])
+
+    post.mockResolvedValue({
+      data: { data: { tip: { id: "tip-1", title: "T", summary: "S" }, needs: [AGE_QUESTION] } },
+    })
+    expect((await searchHealthTips("sleeping better", { personalize: true })).needs).toEqual([])
   })
 })
 

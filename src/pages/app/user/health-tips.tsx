@@ -4,22 +4,30 @@ import { AlertTriangle, Search, Sparkles } from "lucide-react"
 import { PageHeader } from "@/components/app/PageHeader"
 import { AiDisclaimer, AI_DISCLAIMER_EMERGENCY } from "@/components/health-tips/AiDisclaimer"
 import { HealthTipCard } from "@/components/health-tips/HealthTipCard"
+import { HealthTipQuestionCard } from "@/components/health-tips/HealthTipQuestionCard"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   HealthTipsQueryError,
   MAX_QUERY_LENGTH,
   healthTipsErrorMessage,
   searchHealthTips,
+  type HealthTipAnswers,
   type HealthTipsResult,
 } from "@/utils/careconnect/services/healthTipsService"
 
 /**
- * Health Tips — search for general wellness tips.
+ * Health Tips — search for one general wellness tip.
  *
  * Everything on this page is AI-generated, so the disclaimer is not dismissible and is not
  * behind a checkbox: the full notice sits above the search where it is read before anyone
  * types, and a short reminder repeats under the results so it is still on screen after
  * scrolling. Both come from AiDisclaimer so the wording stays in one place.
+ *
+ * Personalising is a separate, off-by-default choice. With it on, a search can come back
+ * with a few questions instead of a tip ("asking"); answering or skipping them repeats the
+ * search and returns the tip. The profile itself never travels from this page — the server
+ * reads it — and the answers are used for that tip only.
  */
 
 const SUGGESTIONS = [
@@ -31,11 +39,17 @@ const SUGGESTIONS = [
   "Protecting my back at a desk",
 ]
 
-type Status = "idle" | "loading" | "done" | "error"
+type Status = "idle" | "loading" | "asking" | "done" | "error"
 
 // One block, because one tip comes back — not a stack of placeholder cards.
 function ResultsSkeleton() {
   return <Skeleton className="h-40 rounded-2xl" aria-hidden="true" />
+}
+
+/** The result is a set of questions, not a tip: an emergency or a tip always wins over them. */
+function isAsking(result: HealthTipsResult | null): boolean {
+  if (!result) return false
+  return !result.urgent && !result.tip && result.needs.length > 0
 }
 
 export default function HealthTipsPage() {
@@ -43,22 +57,26 @@ export default function HealthTipsPage() {
   const [status, setStatus] = useState<Status>("idle")
   const [result, setResult] = useState<HealthTipsResult | null>(null)
   const [errorMessage, setErrorMessage] = useState("")
+  // Off until the person turns it on. Deliberately not remembered between visits.
+  const [personalize, setPersonalize] = useState(false)
   // Guards against an older, slower response overwriting a newer search.
   const requestId = useRef(0)
 
-  async function runSearch(text: string) {
+  async function runSearch(text: string, answers?: HealthTipAnswers) {
     const id = ++requestId.current
     setStatus("loading")
     try {
-      const next = await searchHealthTips(text)
+      const next = await searchHealthTips(text, { personalize, answers })
       if (id !== requestId.current) return
       setResult(next)
-      setStatus("done")
+      // Once the questions have been answered or skipped there is nothing left to ask, so a
+      // reply that still carries some is shown as it is rather than asked about again.
+      setStatus(answers === undefined && isAsking(next) ? "asking" : "done")
     } catch (error) {
       if (id !== requestId.current) return
       if (error instanceof HealthTipsQueryError) {
         toast.error(error.message)
-        setStatus(result ? "done" : "idle")
+        setStatus(result ? (isAsking(result) ? "asking" : "done") : "idle")
         return
       }
       const message = healthTipsErrorMessage(error)
@@ -76,6 +94,13 @@ export default function HealthTipsPage() {
   function pickSuggestion(text: string) {
     setQuery(text)
     void runSearch(text)
+  }
+
+  function onTogglePersonalize(next: boolean) {
+    setPersonalize(next)
+    // Questions only make sense while personalising. Turning it off drops them rather than
+    // leaving a card on screen that would send answers the person no longer wants used.
+    if (!next && status === "asking") setStatus("idle")
   }
 
   return (
@@ -130,9 +155,36 @@ export default function HealthTipsPage() {
               </button>
             ))}
           </div>
+
+          <div className="rounded-2xl bg-white p-4 ring-1 ring-[#e2e6ea]">
+            <Checkbox
+              label="Personalize using my health profile"
+              checked={personalize}
+              disabled={status === "loading"}
+              onChange={(event) => onTogglePersonalize(event.target.checked)}
+              aria-describedby="health-tips-personalize-note"
+            />
+            <p
+              id="health-tips-personalize-note"
+              className="mt-2 text-xs leading-5 text-[#657080]"
+            >
+              Tailors the tip using only your age group, how you get around, and your smoking
+              and alcohol use, from your health profile or from a few quick questions. Your
+              name, medicines, allergies and conditions are never used. This is sent to an AI
+              service to write the tip. Off unless you turn it on.
+            </p>
+          </div>
         </form>
 
         {status === "loading" && <ResultsSkeleton />}
+
+        {status === "asking" && result && (
+          <HealthTipQuestionCard
+            key={result.query}
+            questions={result.needs}
+            onSubmit={(answers) => void runSearch(result.query, answers)}
+          />
+        )}
 
         {status === "error" && (
           <div role="alert" className="rounded-2xl bg-white p-5 text-sm ring-1 ring-[#e2e6ea]">
@@ -166,6 +218,10 @@ export default function HealthTipsPage() {
                 <Sparkles className="size-4 text-[#00b4b8]" aria-hidden="true" />
                 A tip for &ldquo;{result.query}&rdquo;
               </h2>
+            )}
+
+            {!result.urgent && result.tip && result.personalized && (
+              <p className="-mt-2 text-xs font-medium text-[#00898c]">Personalized for you</p>
             )}
 
             {result.urgent ? null : !result.tip ? (
