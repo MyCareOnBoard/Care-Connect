@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from "react"
 import { toast } from "sonner"
-import { AlertTriangle, RefreshCw, Search, Sparkles } from "lucide-react"
+import { AlertTriangle, Search, Sparkles } from "lucide-react"
 import { PageHeader } from "@/components/app/PageHeader"
 import { AiDisclaimer, AI_DISCLAIMER_EMERGENCY } from "@/components/health-tips/AiDisclaimer"
 import { HealthTipCard } from "@/components/health-tips/HealthTipCard"
@@ -33,9 +33,7 @@ import {
  * search and returns the tip. The profile itself never travels from this page — the server
  * reads it — and the answers are used for that tip only.
  *
- * "Show me another" asks for a different tip on the same topic, sending the titles already
- * shown (and the same answers, so it stays personalised the same way). When nothing new is
- * left the tip on screen stays and a short note says so. Each tip can be rated; only the
+ * One search, one tip: the single best recommendation. Each tip can be rated; only the
  * rating is sent.
  */
 
@@ -70,25 +68,13 @@ export default function HealthTipsPage() {
   const [personalize, setPersonalize] = useState(false)
   // Guards against an older, slower response overwriting a newer search.
   const requestId = useRef(0)
-  // For "show me another": the titles already shown for this topic, and the answers the tips
-  // were made with, so the next one is different and personalised the same way.
-  const shownTitles = useRef<string[]>([])
-  const usedAnswers = useRef<HealthTipAnswers | undefined>(undefined)
-  const usedFollowUp = useRef<HealthTipFollowUp | undefined>(undefined)
-  const [noMore, setNoMore] = useState<string | null>(null)
 
   async function runSearch(text: string, answers?: HealthTipAnswers, followUp?: HealthTipFollowUp) {
     const id = ++requestId.current
-    // Every search starts the topic afresh; only "show me another" builds on what was shown.
-    shownTitles.current = []
-    usedAnswers.current = answers
-    usedFollowUp.current = followUp
-    setNoMore(null)
     setStatus("loading")
     try {
       const next = await searchHealthTips(text, { personalize, answers, followUp })
       if (id !== requestId.current) return
-      if (next.tip) shownTitles.current = [next.tip.title]
       setResult(next)
       // Once the questions have been answered or skipped there is nothing left to ask, so a
       // reply that still carries some is shown as it is rather than asked about again.
@@ -104,39 +90,6 @@ export default function HealthTipsPage() {
       setErrorMessage(message)
       toast.error(message)
       setStatus("error")
-    }
-  }
-
-  async function showAnother() {
-    if (!result?.tip) return
-    const id = ++requestId.current
-    const previous = result
-    setNoMore(null)
-    setStatus("loading")
-    try {
-      const next = await searchHealthTips(previous.query, {
-        personalize,
-        answers: usedAnswers.current,
-        followUp: usedFollowUp.current,
-        exclude: shownTitles.current,
-      })
-      if (id !== requestId.current) return
-      if (next.tip) {
-        shownTitles.current = [...shownTitles.current, next.tip.title]
-        setResult(next)
-      } else if (next.urgent) {
-        // An emergency replaces the tip: it is the one thing that must never be missed.
-        setResult(next)
-      } else {
-        // Nothing new: keep the tip on screen and say so, rather than replacing it with a blank.
-        setNoMore(next.notice ?? "That's all the tips we have for this topic right now.")
-      }
-      setStatus("done")
-    } catch (error) {
-      if (id !== requestId.current) return
-      // The tip they had is still there; keep it and say what happened.
-      toast.error(healthTipsErrorMessage(error))
-      setStatus("done")
     }
   }
 
@@ -301,21 +254,6 @@ export default function HealthTipsPage() {
 
             {!result.urgent && result.tip && (
               <div className="space-y-3">
-                {noMore ? (
-                  <p role="status" className="text-sm text-[#657080]">
-                    {noMore}
-                  </p>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => void showAnother()}
-                    className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-[#00898c] ring-1 ring-[#e2e6ea] transition hover:bg-[#e3f8f8] focus-visible:outline-2 focus-visible:outline-[#00b4b8]"
-                  >
-                    <RefreshCw className="size-3.5" aria-hidden="true" />
-                    Show me another
-                  </button>
-                )}
-
                 <HealthTipFeedback
                   key={result.tip.title}
                   tip={result.tip}
