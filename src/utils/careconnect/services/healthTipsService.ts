@@ -3,15 +3,14 @@
  *
  * Served by the `careconnectHealthTips` Cloud Function in CareOnBoard-Backend:
  *
- *   POST /careconnectHealthTips/search   body: { query, personalize?, answers?, exclude? }
+ *   POST /careconnectHealthTips/search   body: { query, personalize?, answers?, followUp? }
  *   200  { success, data: { tip, tips, urgent, notice, personalized, needs? }, aiGenerated }
  *   400  validation failed      429  rate limited      503  the model is unavailable
  *   POST /careconnectHealthTips/feedback body: { rating, reason?, concerning?, personalized?, imageKey? }
  *   POST /careconnectHealthTips/image/:key   200 { data: { status: ready|pending|failed, url?, alt? } }
  *
- * "Show me another" repeats the search with `exclude` set to the titles already shown. When
- * nothing new is left the server sends no tip and a notice. Feedback is stored without the
- * query, the tip text or who sent it, so nothing the person typed travels with it.
+ * Feedback is stored without the query, the tip text or who sent it, so nothing the person
+ * typed travels with it.
  *
  * Illustrations are optional and AI-generated. A tip may carry `image`: either ready (a url)
  * or pending (a key to fetch it with). `fetchHealthTipImage` asks for a pending one; if it
@@ -46,8 +45,6 @@ const imagePath = (key: string) => `${HEALTH_TIPS_BASE}/image/${key}`
 /** The server's illustration ids: 32 lowercase hex characters. Anything else is never sent back. */
 const IMAGE_KEY = /^[a-f0-9]{32}$/
 
-/** "Show me another" sends at most this many titles; mirrors the server. */
-export const MAX_EXCLUDE = 5
 
 /** Mirrors the server's Joi bounds. Short enough that nobody pastes a record into it. */
 export const MAX_QUERY_LENGTH = 200
@@ -138,8 +135,6 @@ export interface SearchHealthTipsOptions {
   answers?: HealthTipAnswers
   /** Answers to questions written for this search; sent only with `personalize`. */
   followUp?: HealthTipFollowUp
-  /** Titles of tips already shown for this query ("show me another"). The newest are kept. */
-  exclude?: string[]
 }
 
 export interface HealthTipsResult {
@@ -260,7 +255,7 @@ function mapNeeds(raw: unknown): HealthTipQuestion[] {
 
 export async function searchHealthTips(
   rawQuery: string,
-  { personalize = false, answers, followUp, exclude }: SearchHealthTipsOptions = {},
+  { personalize = false, answers, followUp }: SearchHealthTipsOptions = {},
 ): Promise<HealthTipsResult> {
   const query = normalizeQuery(rawQuery)
   // Unpersonalised requests send exactly what they always did. Answers only travel with an
@@ -270,15 +265,12 @@ export async function searchHealthTips(
     personalize?: true
     answers?: HealthTipAnswers
     followUp?: HealthTipFollowUp
-    exclude?: string[]
   } = { query }
   if (personalize) {
     payload.personalize = true
     if (answers) payload.answers = answers
     if (followUp) payload.followUp = followUp
   }
-  const shown = (exclude ?? []).map((title) => title.trim().slice(0, 120)).filter(Boolean)
-  if (shown.length > 0) payload.exclude = shown.slice(-MAX_EXCLUDE)
   const { data } = await axiosClient.post(HEALTH_TIPS_PATH, payload)
 
   // Care Connect routes use a { success, data } envelope.
