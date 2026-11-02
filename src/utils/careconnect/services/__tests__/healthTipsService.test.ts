@@ -13,6 +13,7 @@ import {
   fetchHealthTipImage,
   healthTipsErrorMessage,
   normalizeQuery,
+  picksFromAnswers,
   searchHealthTips,
   sendHealthTipFeedback,
 } from "../healthTipsService"
@@ -196,6 +197,7 @@ describe("searchHealthTips", () => {
       notice: null,
       personalized: false,
       needs: [],
+      followUpToken: null,
     })
   })
 })
@@ -442,5 +444,56 @@ describe("fetchHealthTipImage", () => {
       expect(await fetchHealthTipImage(key)).toEqual({ status: "failed" })
     }
     expect(post).not.toHaveBeenCalled()
+  })
+})
+
+describe("searchHealthTips — questions written for the search", () => {
+  beforeEach(() => post.mockReset())
+
+  const written = (field: string, question = "What are you aiming for?") => ({
+    field,
+    question,
+    options: [
+      { value: "0", label: "Stay active" },
+      { value: "1", label: "Build strength" },
+    ],
+  })
+
+  it("reads numbered questions and the token that goes with them", async () => {
+    post.mockResolvedValue({ data: { data: { needs: [written("q1"), written("q2", "How much time?")], followUpToken: "a.b" } } })
+    const result = await searchHealthTips("getting started with walking", { personalize: true })
+    expect(result.needs.map((n) => n.field)).toEqual(["q1", "q2"])
+    expect(result.followUpToken).toBe("a.b")
+  })
+
+  it("has no token without questions, or beside a tip or an emergency", async () => {
+    post.mockResolvedValue({ data: { data: { followUpToken: "a.b" } } })
+    expect((await searchHealthTips("walking", { personalize: true })).followUpToken).toBeNull()
+    post.mockResolvedValue({ data: { data: { tip: { id: "tip-1", title: "T", summary: "S" }, needs: [written("q1")], followUpToken: "a.b" } } })
+    expect((await searchHealthTips("walking", { personalize: true })).followUpToken).toBeNull()
+    post.mockResolvedValue({ data: { data: { urgent: true, notice: "Call.", needs: [written("q1")], followUpToken: "a.b" } } })
+    expect((await searchHealthTips("walking", { personalize: true })).followUpToken).toBeNull()
+  })
+
+  it("still drops a question with an unknown field", async () => {
+    post.mockResolvedValue({ data: { data: { needs: [written("q9"), written("medications"), written("q1")], followUpToken: "a.b" } } })
+    expect((await searchHealthTips("walking", { personalize: true })).needs.map((n) => n.field)).toEqual(["q1"])
+  })
+
+  it("sends the token and picks only with the opt-in", async () => {
+    post.mockResolvedValue({ data: { data: {} } })
+    const followUp = { token: "a.b", picks: [1, null] }
+    await searchHealthTips("walking", { personalize: false, followUp })
+    expect(post).toHaveBeenLastCalledWith(HEALTH_TIPS_PATH, { query: "walking" })
+
+    await searchHealthTips("walking", { personalize: true, followUp })
+    expect(post).toHaveBeenLastCalledWith(HEALTH_TIPS_PATH, { query: "walking", personalize: true, followUp })
+  })
+
+  it("turns the card's answers into picks, in question order, null when skipped", () => {
+    const questions = [written("q1"), written("q2"), written("q3")].map((q) => ({ ...q, field: q.field as "q1" | "q2" | "q3" }))
+    expect(picksFromAnswers(questions, { q1: "1", q3: "0" })).toEqual([1, null, 0])
+    expect(picksFromAnswers(questions, {})).toEqual([null, null, null])
+    expect(picksFromAnswers(questions, { q1: "not a number", q2: "-1", q3: "1.5" })).toEqual([null, null, null])
   })
 })

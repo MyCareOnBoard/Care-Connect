@@ -14,7 +14,9 @@ import {
   healthTipsErrorMessage,
   searchHealthTips,
   sendHealthTipFeedback,
+  picksFromAnswers,
   type HealthTipAnswers,
+  type HealthTipFollowUp,
   type HealthTipsResult,
 } from "@/utils/careconnect/services/healthTipsService"
 
@@ -72,23 +74,25 @@ export default function HealthTipsPage() {
   // were made with, so the next one is different and personalised the same way.
   const shownTitles = useRef<string[]>([])
   const usedAnswers = useRef<HealthTipAnswers | undefined>(undefined)
+  const usedFollowUp = useRef<HealthTipFollowUp | undefined>(undefined)
   const [noMore, setNoMore] = useState<string | null>(null)
 
-  async function runSearch(text: string, answers?: HealthTipAnswers) {
+  async function runSearch(text: string, answers?: HealthTipAnswers, followUp?: HealthTipFollowUp) {
     const id = ++requestId.current
     // Every search starts the topic afresh; only "show me another" builds on what was shown.
     shownTitles.current = []
     usedAnswers.current = answers
+    usedFollowUp.current = followUp
     setNoMore(null)
     setStatus("loading")
     try {
-      const next = await searchHealthTips(text, { personalize, answers })
+      const next = await searchHealthTips(text, { personalize, answers, followUp })
       if (id !== requestId.current) return
       if (next.tip) shownTitles.current = [next.tip.title]
       setResult(next)
       // Once the questions have been answered or skipped there is nothing left to ask, so a
       // reply that still carries some is shown as it is rather than asked about again.
-      setStatus(answers === undefined && isAsking(next) ? "asking" : "done")
+      setStatus(answers === undefined && followUp === undefined && isAsking(next) ? "asking" : "done")
     } catch (error) {
       if (id !== requestId.current) return
       if (error instanceof HealthTipsQueryError) {
@@ -113,6 +117,7 @@ export default function HealthTipsPage() {
       const next = await searchHealthTips(previous.query, {
         personalize,
         answers: usedAnswers.current,
+        followUp: usedFollowUp.current,
         exclude: shownTitles.current,
       })
       if (id !== requestId.current) return
@@ -217,9 +222,10 @@ export default function HealthTipsPage() {
               id="health-tips-personalize-note"
               className="mt-2 text-xs leading-5 text-[#657080]"
             >
-              Tailors the tip using only your age group, how you get around, and your smoking
-              and alcohol use, from your health profile or from a few quick questions. Your
-              name, medicines, allergies and conditions are never used. This is sent to an AI
+              Tailors the tip using your age group, how you get around, and your smoking and
+              alcohol use from your health profile, plus a few quick multiple-choice questions
+              about what you&apos;re after. You&apos;re never asked about symptoms, medicines,
+              allergies or conditions, and your name is never used. This is sent to an AI
               service to write the tip. Off unless you turn it on.
             </p>
           </div>
@@ -231,7 +237,16 @@ export default function HealthTipsPage() {
           <HealthTipQuestionCard
             key={result.query}
             questions={result.needs}
-            onSubmit={(answers) => void runSearch(result.query, answers)}
+            onSubmit={(answers) =>
+              // Questions written for this search come back as picks plus the signed token;
+              // the fixed ones go back as named answers.
+              result.followUpToken
+                ? void runSearch(result.query, undefined, {
+                    token: result.followUpToken,
+                    picks: picksFromAnswers(result.needs, answers),
+                  })
+                : void runSearch(result.query, answers)
+            }
           />
         )}
 
