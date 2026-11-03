@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type CSSProperties } from "react"
 import type {
   HealthTipAnswers,
   HealthTipQuestion,
@@ -47,13 +47,26 @@ export function HealthTipQuestionCard({ questions, onSubmit, disabled = false }:
   return (
     <section
       aria-label="A few quick questions"
-      className="rounded-2xl bg-white p-5 ring-1 ring-[#e2e6ea]"
+      className="ht-rise rounded-2xl bg-white p-5 ring-1 ring-[#e2e6ea]"
     >
-      <p className="text-xs font-medium text-[#657080]">
-        Question {index + 1} of {questions.length}
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-medium text-[#657080]">
+          Question {index + 1} of {questions.length}
+        </p>
+        <div className="flex gap-1.5" aria-hidden="true">
+          {questions.map((item, i) => (
+            <span
+              key={item.field}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                i < index ? "w-4 bg-[#00b4b8]" : i === index ? "w-6 bg-[#00b4b8]" : "w-4 bg-[#e2e6ea]"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
 
-      <fieldset disabled={disabled} className="mt-2 min-w-0">
+      {/* Keyed by step so each new question slides in rather than swapping in place. */}
+      <fieldset key={index} disabled={disabled} className="ht-slide-in mt-2 min-w-0">
         <legend
           ref={questionRef}
           tabIndex={-1}
@@ -62,12 +75,13 @@ export function HealthTipQuestionCard({ questions, onSubmit, disabled = false }:
           {question.question}
         </legend>
         <div className="mt-3 flex flex-wrap gap-2">
-          {question.options.map((option) => (
+          {question.options.map((option, i) => (
             <button
               key={option.value}
               type="button"
               onClick={() => choose(option.value)}
-              className="rounded-full bg-white px-4 py-2 text-sm font-medium text-[#4a5260] ring-1 ring-[#e2e6ea] transition hover:bg-[#e3f8f8] hover:text-[#00898c] focus-visible:outline-2 focus-visible:outline-[#00b4b8] disabled:opacity-60"
+              style={{ "--ht-delay": `${80 + i * 50}ms` } as CSSProperties}
+              className="ht-rise rounded-full bg-white px-4 py-2 text-sm font-medium text-[#4a5260] ring-1 ring-[#e2e6ea] transition hover:-translate-y-0.5 hover:bg-[#e3f8f8] hover:text-[#00898c] hover:shadow-sm active:translate-y-0 active:scale-95 focus-visible:outline-2 focus-visible:outline-[#00b4b8] disabled:opacity-60"
             >
               {option.label}
             </button>

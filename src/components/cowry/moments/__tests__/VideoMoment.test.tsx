@@ -105,6 +105,12 @@ describe("which Special and Premium treasures are filmed", () => {
     ["Benin Bronze Original", "Benin-Bronze-Original"],
     ["Nigerian Jollof", "Nigerian-Jollof-Rice"],
     ["Jollof Rice", "Nigerian-Jollof-Rice"],
+    ["Masquerade Dance", "Masquerade-Dance"],
+    ["The Masquerade", "Masquerade-Dance"],
+    ["Sahara Moon", "Sahara-Moon"],
+    ["Royal Beads", "Royal-Beads"],
+    ["The Mbira", "Mbira-Instrument"],
+    ["Mbira Instrument", "Mbira-Instrument"],
     ["The Timeless Treasure", "Timeless-Treasure"],
   ])("plays %s its own film", (label, file) => {
     expect(treasureVideoFor({ label })).toMatch(new RegExp(`/videos/${file}[.]mp4$`))
@@ -118,5 +124,8 @@ describe("which Special and Premium treasures are filmed", () => {
     expect(treasureVideoFor({ label: "The Baobab" })).toBeNull()
     expect(treasureVideoFor({ label: "Jollof Table" })).toBeNull()
     expect(treasureVideoFor({ label: "Bronze Head" })).toBeNull()
+    expect(treasureVideoFor({ label: "Victory Dance" })).toBeNull()
+    expect(treasureVideoFor({ label: "Coral Beads" })).toBeNull()
+    expect(treasureVideoFor({ label: "The Rising Moon" })).toBeNull()
   })
 })

@@ -1,0 +1,142 @@
+/* ── Health Tips motion ──────────────────────────────────────────────────────
+   Small, calm movements for the Health Tips page: things rise into place one after
+   another, the idle lightbulb floats, and finished steps pop. Stagger comes from a
+   `--ht-delay` custom property set inline. Everything here switches off for people who
+   have asked for reduced motion. */
+
+@keyframes htRise {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* `backwards` so the start state covers the delay without pinning `transform` afterwards,
+   which would cancel hover lifts on the same element. */
+.ht-rise {
+    animation: htRise 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    animation-delay: var(--ht-delay, 0ms);
+}
+
+@keyframes htSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.ht-slide-in {
+    animation: htSlideIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+@keyframes htFloat {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-6px);
+    }
+}
+
+.ht-float {
+    animation: htFloat 3.2s ease-in-out infinite;
+}
+
+@keyframes htGlow {
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgb(0 180 184 / 0.28);
+    }
+    50% {
+        box-shadow: 0 0 0 12px rgb(0 180 184 / 0);
+    }
+}
+
+.ht-glow {
+    animation: htGlow 2.4s ease-out infinite;
+}
+
+@keyframes htTwinkle {
+    0%,
+    100% {
+        opacity: 0.2;
+        transform: scale(0.7) rotate(0deg);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1) rotate(20deg);
+    }
+}
+
+.ht-twinkle {
+    animation: htTwinkle 2s ease-in-out infinite;
+    animation-delay: var(--ht-delay, 0ms);
+}
+
+@keyframes htPop {
+    0% {
+        transform: scale(1);
+    }
+    40% {
+        transform: scale(1.25);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* A tapped control as a whole, or (badge) just a finished step's number badge. */
+.ht-pop,
+.ht-pop-badge::before {
+    animation: htPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes htFadeSwap {
+    0% {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    15%,
+    85% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+}
+
+/* The loading card's rotating line; the component re-keys it each time it changes. */
+.ht-fade-swap {
+    animation: htFadeSwap 1.6s ease-in-out both;
+}
+
+.ht-progress {
+    transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ht-rise,
+    .ht-slide-in,
+    .ht-float,
+    .ht-glow,
+    .ht-twinkle,
+    .ht-pop,
+    .ht-pop-badge::before,
+    .ht-fade-swap {
+        animation: none;
+    }
+    .ht-progress {
+        transition: none;
+    }
+}

@@ -29,7 +29,8 @@ export function giftVideoFor(arrival: GiftArrival): string | null {
  * A Treasure listed here plays its video whenever it is received, whatever it is priced at,
  * with its price-band scene (treasureTiers.ts) as the fallback. The Special and Premium
  * films go here as they arrive: one line each, first match wins. The names are kept to the
- * film's own subject, so the everyday "The Baobab" or "Jollof Table" keep their drawn scenes.
+ * film's own subject, so the everyday "The Baobab" or "Jollof Table" keep their drawn scenes,
+ * as do "Victory Dance", "Coral Beads" and "Rising Moon".
  */
 const TREASURE_VIDEOS: { match: string[]; file: string }[] = [
   { match: ["timeless treasure"], file: "Timeless-Treasure.mp4" },
@@ -41,6 +42,10 @@ const TREASURE_VIDEOS: { match: string[]; file: string }[] = [
   { match: ["lake chad"], file: "Lake-Chad-Basin.mp4" },
   { match: ["benin bronze"], file: "Benin-Bronze-Original.mp4" },
   { match: ["nigerian jollof", "jollof rice"], file: "Nigerian-Jollof-Rice.mp4" },
+  { match: ["masquerade*"], file: "Masquerade-Dance.mp4" },
+  { match: ["sahara*"], file: "Sahara-Moon.mp4" },
+  { match: ["royal beads", "royal bead"], file: "Royal-Beads.mp4" },
+  { match: ["mbira*"], file: "Mbira-Instrument.mp4" },
 ]
 
 export function treasureVideoFor(gift: GiftLike | null | undefined): string | null {
