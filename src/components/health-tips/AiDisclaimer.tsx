@@ -55,15 +55,17 @@ export function AiDisclaimer({ variant = "banner", className }: AiDisclaimerProp
       role="note"
       aria-label={AI_DISCLAIMER_TITLE}
       className={cn(
-        "flex gap-3 rounded-2xl border border-[#f0c9a4] bg-[#fff6ec] p-4 text-sm text-[#8a5a2b]",
+        "flex gap-2.5 rounded-xl bg-[#fff6ec] px-3.5 py-3 text-xs leading-5 text-[#8a5a2b] ring-1 ring-[#f0c9a4]",
         className,
       )}
     >
-      <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-      <div className="space-y-1.5">
-        <h2 className="font-semibold">{AI_DISCLAIMER_TITLE}</h2>
-        <p>{AI_DISCLAIMER_BODY}</p>
-        <p className="font-medium">{AI_DISCLAIMER_EMERGENCY}</p>
+      <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+      <div className="space-y-1">
+        {/* Title inline with the body: the same words as before, in a fraction of the height. */}
+        <div>
+          <h2 className="inline font-semibold">{AI_DISCLAIMER_TITLE}.</h2> {AI_DISCLAIMER_BODY}
+        </div>
+        <p className="font-semibold">{AI_DISCLAIMER_EMERGENCY}</p>
       </div>
     </section>
   )

@@ -44,6 +44,23 @@ describe("HealthTipCard", () => {
     expect(screen.getByText(/See a professional if: poor sleep lasts/)).toBeInTheDocument()
   })
 
+  it("lets each step be ticked off and back on, counting what is done", () => {
+    render(<HealthTipCard tip={{ ...TEXT_TIP, steps: ["Pick a wake-up time", "Dim the lights"] }} />)
+    const first = screen.getByRole("button", { name: "Pick a wake-up time" })
+    expect(screen.getByText("0 of 2 done")).toBeInTheDocument()
+
+    fireEvent.click(first)
+    expect(first).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByText("1 of 2 done")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "Dim the lights" }))
+    expect(screen.getByText(/All done/)).toBeInTheDocument()
+
+    fireEvent.click(first)
+    expect(first).toHaveAttribute("aria-pressed", "false")
+    expect(screen.queryByText(/All done/)).not.toBeInTheDocument()
+  })
+
   it("renders the image with its alt text, lazily", () => {
     render(
       <HealthTipCard
