@@ -21,6 +21,7 @@ import { AiDisclaimer, AI_DISCLAIMER_EMERGENCY } from "@/components/health-tips/
 import { HealthTipCard } from "@/components/health-tips/HealthTipCard"
 import { HealthTipFeedback } from "@/components/health-tips/HealthTipFeedback"
 import { HealthTipReminder } from "@/components/health-tips/HealthTipReminder"
+import { HealthTipRemindersList } from "@/components/health-tips/HealthTipRemindersList"
 import { HealthTipQuestionCard } from "@/components/health-tips/HealthTipQuestionCard"
 import { EmptyState } from "@/components/ui/empty-state"
 import { createHealthTipReminder } from "@/utils/careconnect/services/healthTipRemindersService"
@@ -116,6 +117,8 @@ export default function HealthTipsPage() {
   const [status, setStatus] = useState<Status>("idle")
   const [result, setResult] = useState<HealthTipsResult | null>(null)
   const [errorMessage, setErrorMessage] = useState("")
+  // Bumped when a reminder is set, so "Your reminders" reloads.
+  const [remindersKey, setRemindersKey] = useState(0)
   // Off until the person turns it on. Deliberately not remembered between visits.
   const [personalize, setPersonalize] = useState(false)
   // Guards against an older, slower response overwriting a newer search.
@@ -370,7 +373,11 @@ export default function HealthTipsPage() {
                 <HealthTipReminder
                   key={`reminder-${result.tip.title}`}
                   tip={result.tip}
-                  onCreate={createHealthTipReminder}
+                  onCreate={async (input) => {
+                    const created = await createHealthTipReminder(input)
+                    setRemindersKey((key) => key + 1)
+                    return created
+                  }}
                 />
               </div>
             )}
@@ -383,6 +390,8 @@ export default function HealthTipsPage() {
             )}
           </section>
         )}
+
+        <HealthTipRemindersList refreshKey={remindersKey} />
       </div>
     </div>
   )

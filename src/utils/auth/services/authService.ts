@@ -297,6 +297,8 @@ export interface NotificationPreferences {
   messages: boolean
   shifts: boolean
   approvals: boolean
+  /** Health tip reminders the person set themselves. */
+  wellness: boolean
 }
 
 /**
