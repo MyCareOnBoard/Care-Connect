@@ -1,13 +1,29 @@
-import { useRef, useState, type FormEvent } from "react"
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react"
 import { toast } from "sonner"
-import { AlertTriangle, Search, Sparkles } from "lucide-react"
+import {
+  AlertTriangle,
+  Armchair,
+  Brain,
+  ChevronDown,
+  Droplets,
+  Footprints,
+  Lightbulb,
+  Loader2,
+  Moon,
+  Salad,
+  Search,
+  Sparkles,
+  UserRound,
+  type LucideIcon,
+} from "lucide-react"
 import { PageHeader } from "@/components/app/PageHeader"
 import { AiDisclaimer, AI_DISCLAIMER_EMERGENCY } from "@/components/health-tips/AiDisclaimer"
 import { HealthTipCard } from "@/components/health-tips/HealthTipCard"
 import { HealthTipFeedback } from "@/components/health-tips/HealthTipFeedback"
+import { HealthTipReminder } from "@/components/health-tips/HealthTipReminder"
 import { HealthTipQuestionCard } from "@/components/health-tips/HealthTipQuestionCard"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/ui/empty-state"
+import { createHealthTipReminder } from "@/utils/careconnect/services/healthTipRemindersService"
 import {
   HealthTipsQueryError,
   MAX_QUERY_LENGTH,
@@ -37,20 +53,56 @@ import {
  * rating is sent.
  */
 
-const SUGGESTIONS = [
-  "Sleeping better",
-  "Staying hydrated in hot weather",
-  "Managing stress",
-  "Healthy eating on a budget",
-  "Getting started with walking",
-  "Protecting my back at a desk",
+const SUGGESTIONS: { text: string; icon: LucideIcon }[] = [
+  { text: "Sleeping better", icon: Moon },
+  { text: "Staying hydrated in hot weather", icon: Droplets },
+  { text: "Managing stress", icon: Brain },
+  { text: "Healthy eating on a budget", icon: Salad },
+  { text: "Getting started with walking", icon: Footprints },
+  { text: "Protecting my back at a desk", icon: Armchair },
 ]
 
 type Status = "idle" | "loading" | "asking" | "done" | "error"
 
-// One block, because one tip comes back — not a stack of placeholder cards.
+/** Stagger for things that rise into place one after another (see styles/health-tips.css). */
+const delay = (index: number, step = 60, start = 0) =>
+  ({ "--ht-delay": `${start + index * step}ms` }) as CSSProperties
+
+const THINKING = ["Reading your question…", "Picking the best tip…", "Checking it reads safely…"]
+
+/**
+ * One card, because one tip comes back — not a stack of placeholder cards. A pulsing bulb and
+ * a line that changes every so often show the search is moving; the changing line is hidden
+ * from screen readers, which hear the one steady label instead.
+ */
 function ResultsSkeleton() {
-  return <Skeleton className="h-40 rounded-2xl" aria-hidden="true" />
+  const [line, setLine] = useState(0)
+  useEffect(() => {
+    const timer = setInterval(() => setLine((current) => (current + 1) % THINKING.length), 1600)
+    return () => clearInterval(timer)
+  }, [])
+
+  return (
+    <div
+      role="status"
+      aria-label="Finding a tip"
+      className="ht-rise rounded-2xl bg-white p-5 ring-1 ring-[#e2e6ea] sm:p-6"
+    >
+      <div className="flex items-center gap-3">
+        <span className="ht-glow flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#e3f8f8] text-[#00898c]">
+          <Lightbulb className="size-4.5" aria-hidden="true" />
+        </span>
+        <p key={line} aria-hidden="true" className="ht-fade-swap text-sm font-medium text-[#4a5260]">
+          {THINKING[line]}
+        </p>
+      </div>
+      <div className="mt-5 space-y-2.5" aria-hidden="true">
+        {["w-3/4", "w-full", "w-5/6", "w-2/3"].map((width) => (
+          <div key={width} className={`skeleton-shimmer h-3 rounded-full bg-[#eef1f3] ${width}`} />
+        ))}
+      </div>
+    </div>
+  )
 }
 
 /** The result is a set of questions, not a tip: an emergency or a tip always wins over them. */
@@ -143,46 +195,98 @@ export default function HealthTipsPage() {
             <button
               type="submit"
               disabled={status === "loading"}
-              className="h-12 shrink-0 rounded-full bg-[#00b4b8] px-6 text-sm font-semibold text-white transition hover:bg-[#00989c] disabled:opacity-60"
+              className="inline-flex h-12 shrink-0 items-center gap-2 rounded-full bg-[#00b4b8] px-6 text-sm font-semibold text-white shadow-sm shadow-[#00b4b8]/30 transition hover:-translate-y-0.5 hover:bg-[#00989c] hover:shadow-md active:translate-y-0 active:scale-[0.97] disabled:translate-y-0 disabled:opacity-60"
             >
+              {status === "loading" && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
               {status === "loading" ? "Searching…" : "Search"}
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-2" aria-label="Suggested topics">
-            {SUGGESTIONS.map((text) => (
+          <div className="flex flex-wrap items-center gap-2" aria-label="Suggested topics">
+            <span className="text-xs font-medium text-[#8a94a3]">Try:</span>
+            {SUGGESTIONS.map(({ text, icon: Icon }, index) => (
               <button
                 key={text}
                 type="button"
                 onClick={() => pickSuggestion(text)}
                 disabled={status === "loading"}
-                className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-[#4a5260] ring-1 ring-[#e2e6ea] transition hover:bg-[#e3f8f8] hover:text-[#00898c] disabled:opacity-60"
+                style={delay(index)}
+                className={`ht-rise group inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition hover:-translate-y-0.5 hover:bg-[#e3f8f8] hover:text-[#00898c] hover:shadow-sm hover:ring-[#b3e8e9] active:translate-y-0 active:scale-95 disabled:translate-y-0 disabled:opacity-60 ${
+                  query === text ? "bg-[#e3f8f8] text-[#00898c] ring-[#b3e8e9]" : "bg-white text-[#4a5260] ring-[#e2e6ea]"
+                }`}
               >
+                <Icon
+                  className="size-3.5 text-[#00b4b8] transition-transform group-hover:-rotate-6 group-hover:scale-110"
+                  aria-hidden="true"
+                />
                 {text}
               </button>
             ))}
           </div>
 
-          <div className="rounded-2xl bg-white p-4 ring-1 ring-[#e2e6ea]">
-            <Checkbox
-              label="Personalize using my health profile"
-              checked={personalize}
-              disabled={status === "loading"}
-              onChange={(event) => onTogglePersonalize(event.target.checked)}
-              aria-describedby="health-tips-personalize-note"
-            />
-            <p
-              id="health-tips-personalize-note"
-              className="mt-2 text-xs leading-5 text-[#657080]"
-            >
-              Tailors the tip using your age group, how you get around, and your smoking and
-              alcohol use from your health profile, plus a few quick multiple-choice questions
-              about what you&apos;re after. You&apos;re never asked about symptoms, medicines,
-              allergies or conditions, and your name is never used. This is sent to an AI
-              service to write the tip. Off unless you turn it on.
+          {/* A native checkbox drawn as a switch, so it stays a checkbox to assistive tech. */}
+          <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-[#e2e6ea]">
+            <label className="flex cursor-pointer items-center gap-3">
+              <UserRound className="size-4 shrink-0 text-[#00898c]" aria-hidden="true" />
+              <span className="flex-1 text-sm font-medium text-[#141922]">
+                Personalize using my health profile
+              </span>
+              <input
+                type="checkbox"
+                checked={personalize}
+                disabled={status === "loading"}
+                onChange={(event) => onTogglePersonalize(event.target.checked)}
+                aria-describedby="health-tips-personalize-note"
+                className="peer sr-only"
+              />
+              <span
+                aria-hidden="true"
+                className="relative h-6 w-11 shrink-0 rounded-full bg-[#e2e8f0] transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-5 after:rounded-full after:bg-white after:shadow after:transition-transform after:duration-300 after:ease-[cubic-bezier(0.34,1.56,0.64,1)] peer-checked:bg-[#00b4b8] peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-[#00b4b8]/30 peer-disabled:opacity-50"
+              />
+            </label>
+            <p id="health-tips-personalize-note" className="mt-1.5 pl-7 text-xs leading-5 text-[#657080]">
+              Off unless you turn it on. Your name is never used.
             </p>
+            <details className="group mt-1 pl-7">
+              <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-xs font-semibold text-[#00898c] [&::-webkit-details-marker]:hidden">
+                What&apos;s used
+                <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" aria-hidden="true" />
+              </summary>
+              <p className="ht-rise mt-1.5 text-xs leading-5 text-[#657080]">
+                Your age group, how you get around, and your smoking and alcohol use from your
+                health profile, plus a few quick multiple-choice questions about what you&apos;re
+                after. You&apos;re never asked about symptoms, medicines, allergies or conditions.
+                This is sent to an AI service to write the tip.
+              </p>
+            </details>
           </div>
         </form>
+
+        {status === "idle" && (
+          <EmptyState
+            className="ht-rise"
+            icon={
+              <span className="relative">
+                <span className="ht-float ht-glow flex size-14 items-center justify-center rounded-2xl bg-[#e3f8f8] text-[#00898c]">
+                  <Lightbulb className="size-7" aria-hidden="true" />
+                </span>
+                <Sparkles
+                  className="ht-twinkle absolute -right-3 -top-2 size-4 text-[#00b4b8]"
+                  aria-hidden="true"
+                />
+                <Sparkles
+                  className="ht-twinkle absolute -bottom-1 -left-3 size-3 text-[#7fd9db]"
+                  style={delay(1, 700)}
+                  aria-hidden="true"
+                />
+              </span>
+            }
+            title="Ask about an everyday health topic"
+          >
+            Search above or pick a topic, and you&apos;ll get one practical tip with simple steps
+            to try.
+          </EmptyState>
+        )}
 
         {status === "loading" && <ResultsSkeleton />}
 
@@ -204,13 +308,13 @@ export default function HealthTipsPage() {
         )}
 
         {status === "error" && (
-          <div role="alert" className="rounded-2xl bg-white p-5 text-sm ring-1 ring-[#e2e6ea]">
+          <div role="alert" className="ht-rise rounded-2xl bg-white p-5 text-sm ring-1 ring-[#e2e6ea]">
             <p className="font-semibold text-[#141922]">{errorMessage}</p>
             <p className="mt-1 text-[#657080]">Check your connection and try again in a moment.</p>
             <button
               type="button"
               onClick={() => void runSearch(query)}
-              className="mt-3 rounded-full bg-[#00b4b8] px-4 py-2 text-xs font-semibold text-white"
+              className="mt-3 rounded-full bg-[#00b4b8] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#00989c] active:scale-95"
             >
               Try again
             </button>
@@ -222,7 +326,7 @@ export default function HealthTipsPage() {
             {result.urgent && (
               <div
                 role="alert"
-                className="flex gap-3 rounded-2xl border border-[#f2b8b5] bg-[#fdecea] p-4 text-sm text-[#8c1d18]"
+                className="ht-rise flex gap-3 rounded-2xl border border-[#f2b8b5] bg-[#fdecea] p-4 text-sm text-[#8c1d18]"
               >
                 <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                 {/* The server's own wording first; the shared emergency line only if it sent none. */}
@@ -231,20 +335,23 @@ export default function HealthTipsPage() {
             )}
 
             {!result.urgent && result.tip && (
-              <h2 className="flex items-center gap-2 text-lg font-bold text-[#141922]">
-                <Sparkles className="size-4 text-[#00b4b8]" aria-hidden="true" />
-                A tip for &ldquo;{result.query}&rdquo;
-              </h2>
-            )}
-
-            {!result.urgent && result.tip && result.personalized && (
-              <p className="-mt-2 text-xs font-medium text-[#00898c]">Personalized for you</p>
+              <div className="ht-rise flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <h2 className="flex items-center gap-2 text-base font-semibold text-[#4a5260]">
+                  <Sparkles className="size-4 text-[#00b4b8]" aria-hidden="true" />
+                  A tip for &ldquo;{result.query}&rdquo;
+                </h2>
+                {result.personalized && (
+                  <p className="ht-pop rounded-full bg-[#e3f8f8] px-2.5 py-0.5 text-xs font-medium text-[#00898c]">
+                    Personalized for you
+                  </p>
+                )}
+              </div>
             )}
 
             {result.urgent ? null : !result.tip ? (
               // No tip and no emergency: the server declined (a diagnosis or dose question) or
               // nothing safe came back. Say why when it told us; otherwise suggest rewording.
-              <p className="rounded-2xl bg-white p-5 text-sm text-[#657080] ring-1 ring-[#e2e6ea]">
+              <p className="ht-rise rounded-2xl bg-white p-5 text-sm text-[#657080] ring-1 ring-[#e2e6ea]">
                 {result.notice ??
                   "No tip came back for that. Try rewording it, or pick one of the topics above."}
               </p>
@@ -253,18 +360,27 @@ export default function HealthTipsPage() {
             )}
 
             {!result.urgent && result.tip && (
-              <div className="space-y-3">
+              <div className="ht-rise space-y-3" style={delay(0, 0, 250)}>
                 <HealthTipFeedback
                   key={result.tip.title}
                   tip={result.tip}
                   personalized={result.personalized}
                   onSubmit={sendHealthTipFeedback}
                 />
+                <HealthTipReminder
+                  key={`reminder-${result.tip.title}`}
+                  tip={result.tip}
+                  onCreate={createHealthTipReminder}
+                />
               </div>
             )}
 
             {/* Only where there is AI-written content for it to qualify. */}
-            {!result.urgent && result.tip && <AiDisclaimer variant="inline" />}
+            {!result.urgent && result.tip && (
+              <div className="ht-rise" style={delay(0, 0, 350)}>
+                <AiDisclaimer variant="inline" />
+              </div>
+            )}
           </section>
         )}
       </div>

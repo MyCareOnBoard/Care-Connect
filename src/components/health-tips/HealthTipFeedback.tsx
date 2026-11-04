@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ThumbsDown, ThumbsUp } from "lucide-react"
+import { CircleCheck, ThumbsDown, ThumbsUp } from "lucide-react"
 import type {
   HealthTip,
   HealthTipFeedback as Feedback,
@@ -67,8 +67,11 @@ export function HealthTipFeedback({ tip, personalized, onSubmit }: Props) {
 
   if (step === "sent") {
     return (
-      <div role="status" className="text-xs text-[#657080]">
-        <p>Thanks for letting us know.</p>
+      <div role="status" className="ht-rise text-xs text-[#657080]">
+        <p className="flex items-center gap-1.5 font-medium text-[#00898c]">
+          <CircleCheck className="animate-check-pop size-4" aria-hidden="true" />
+          Thanks for letting us know.
+        </p>
         {sentConcerning && (
           <p className="mt-1">
             If something about your health is worrying you, a doctor, nurse or pharmacist can help.
@@ -79,7 +82,7 @@ export function HealthTipFeedback({ tip, personalized, onSubmit }: Props) {
   }
 
   const chip =
-    "rounded-full bg-white px-3 py-1.5 text-xs font-medium text-[#4a5260] ring-1 ring-[#e2e6ea] transition hover:bg-[#e3f8f8] hover:text-[#00898c] focus-visible:outline-2 focus-visible:outline-[#00b4b8] disabled:opacity-60"
+    "rounded-full bg-white px-3 py-1.5 text-xs font-medium text-[#4a5260] ring-1 ring-[#e2e6ea] transition hover:-translate-y-0.5 hover:bg-[#e3f8f8] hover:text-[#00898c] active:translate-y-0 active:scale-95 focus-visible:outline-2 focus-visible:outline-[#00b4b8] disabled:opacity-60"
 
   return (
     <section aria-label="Feedback on this tip" className="space-y-3">
@@ -88,25 +91,25 @@ export function HealthTipFeedback({ tip, personalized, onSubmit }: Props) {
           <p className="mr-1 text-xs font-medium text-[#4a5260]">Was this tip helpful?</p>
           <button
             type="button"
-            className={`${chip} inline-flex items-center gap-1.5`}
+            className={`${chip} group inline-flex items-center gap-1.5`}
             disabled={sending}
             onClick={() => void send({ rating: "up" })}
           >
-            <ThumbsUp className="size-3.5" aria-hidden="true" />
+            <ThumbsUp className="size-3.5 transition-transform group-hover:-rotate-12 group-hover:scale-110" aria-hidden="true" />
             Yes
           </button>
           <button
             type="button"
-            className={`${chip} inline-flex items-center gap-1.5`}
+            className={`${chip} group inline-flex items-center gap-1.5`}
             disabled={sending}
             onClick={() => setStep("reasons")}
           >
-            <ThumbsDown className="size-3.5" aria-hidden="true" />
+            <ThumbsDown className="size-3.5 transition-transform group-hover:rotate-12 group-hover:scale-110" aria-hidden="true" />
             No
           </button>
         </div>
       ) : (
-        <fieldset disabled={sending} className="min-w-0 space-y-3">
+        <fieldset disabled={sending} className="ht-rise min-w-0 space-y-3">
           <legend className="text-xs font-medium text-[#4a5260]">What was wrong? (optional)</legend>
           <div className="flex flex-wrap gap-2">
             {reasons.map((reason) => (

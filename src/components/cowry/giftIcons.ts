@@ -409,6 +409,19 @@ function matchWords(words: string): GiftIconRule | null {
   return null
 }
 
+/**
+ * Whether a gift's name — or its id, if the name says nothing — has any of these words, by
+ * the same rules as the icons. For lists keyed by name rather than by icon (giftVideos.ts).
+ */
+export function giftNameHas(gift: GiftLike | null | undefined, words: string[]): boolean {
+  const has = (value: string) => {
+    const text = ` ${value} `.toLowerCase()
+    return Boolean(text.trim()) && words.some((word) => wordPattern(word).test(text))
+  }
+  const label = gift?.label ?? ""
+  return label.trim() ? has(label) : has((gift?.id ?? "").replace(/[_\-.]+/g, " "))
+}
+
 /** The rule an icon override names, if it names one ("earth-harvest", "flower"…). */
 export function overrideRule(gift: GiftLike | null | undefined): GiftIconRule | null {
   const override = gift?.icon?.trim().toLowerCase()

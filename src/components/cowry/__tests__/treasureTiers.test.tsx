@@ -150,6 +150,13 @@ describe("how each band arrives", () => {
     expect(document.querySelector("video")).not.toBeNull()
   })
 
+  it("plays a Special treasure's own film", () => {
+    HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined)
+    show("Masai Shield", 3000, "special")
+    expect(document.querySelector("video")?.getAttribute("src")).toMatch(/Masai-Shield[.]mp4$/)
+    expect(screen.getByText("Masai Shield")).toBeInTheDocument()
+  })
+
   it("keeps the gold scene for a Premium treasure with no film yet, and the shower for the sender", () => {
     show("The Golden Journey", 2500, "premium")
     expect(document.querySelector("video")).toBeNull()
@@ -185,10 +192,10 @@ describe("how each band arrives", () => {
     expect(screen.getByText(/sent you The Thank You/)).toBeInTheDocument()
   })
 
-  it("plays the Jollof Table's film with its meaning under its name", () => {
-    HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined)
+  it("plays the Jollof Table's drawn scene with its meaning under its name", () => {
     show("The Jollof Table", 450, "food_table")
-    expect(document.querySelector("video")?.getAttribute("src")).toMatch(/Jollof-Table[.]mp4$/)
+    // Its film was taken out; the Nigerian Jollof film is a Treasure of its own.
+    expect(document.querySelector("video")).toBeNull()
     expect(screen.getByText("Congratulations on the 450 Treasure")).toBeInTheDocument()
     expect(screen.getByText("The Jollof Table")).toBeInTheDocument()
     expect(screen.getByText("Meaning:")).toBeInTheDocument()
