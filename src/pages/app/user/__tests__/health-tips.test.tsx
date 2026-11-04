@@ -1,11 +1,26 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { MemoryRouter } from "react-router"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import HealthTipsPage from "../health-tips"
 import type { HealthTipsResult } from "@/utils/careconnect/services/healthTipsService"
 
 // The real axios client initialises Firebase on import; these tests are about the page.
 vi.mock("@/lib/axios", () => ({ default: { post: vi.fn() } }))
+
+const getHealthTipReminderTip = vi.hoisted(() => vi.fn())
+vi.mock("@/utils/careconnect/services/healthTipRemindersService", async () => ({
+  ...(await vi.importActual<object>("@/utils/careconnect/services/healthTipRemindersService")),
+  getHealthTipReminderTip,
+  // "Your reminders" is not what these tests are about; it renders nothing without any.
+  listHealthTipReminders: vi.fn().mockResolvedValue({ reminders: [], max: 5 }),
+}))
+
+const listSavedHealthTips = vi.hoisted(() => vi.fn())
+vi.mock("@/utils/careconnect/services/savedHealthTipsService", async () => ({
+  ...(await vi.importActual<object>("@/utils/careconnect/services/savedHealthTipsService")),
+  listSavedHealthTips,
+}))
 
 const searchHealthTips = vi.hoisted(() => vi.fn())
 const sendHealthTipFeedback = vi.hoisted(() => vi.fn())
@@ -48,11 +63,23 @@ async function search(user: ReturnType<typeof userEvent.setup>, text = "sleeping
   await user.click(screen.getByRole("button", { name: "Search" }))
 }
 
+/** The page needs a router (it reads `?reminder=`); a reminder notification opens it with one. */
+function renderPage(url = "/user/health-tips") {
+  return render(
+    <MemoryRouter initialEntries={[url]}>
+      <HealthTipsPage />
+    </MemoryRouter>,
+  )
+}
+
 const personalizeBox = () => screen.getByRole("checkbox", { name: /Personalize using my health profile/ })
 
 describe("Health tips page", () => {
   beforeEach(() => {
     searchHealthTips.mockReset()
+    getHealthTipReminderTip.mockReset()
+    listSavedHealthTips.mockReset()
+    listSavedHealthTips.mockResolvedValue({ tips: [], max: 50 })
     sendHealthTipFeedback.mockReset()
     sendHealthTipFeedback.mockResolvedValue(undefined)
   })
@@ -60,7 +87,7 @@ describe("Health tips page", () => {
   it("shows one tip, not a list", async () => {
     searchHealthTips.mockResolvedValue(result({ tip: TIP }))
     const user = userEvent.setup()
-    render(<HealthTipsPage />)
+    renderPage()
     await search(user)
 
     expect(await screen.findByRole("heading", { name: TIP.title })).toBeInTheDocument()
@@ -72,7 +99,7 @@ describe("Health tips page", () => {
   it("is off by default, says what it uses, and asks nothing when it is off", async () => {
     searchHealthTips.mockResolvedValue(result({ tip: TIP }))
     const user = userEvent.setup()
-    render(<HealthTipsPage />)
+    renderPage()
 
     expect(personalizeBox()).not.toBeChecked()
     expect(personalizeBox()).toHaveAccessibleDescription(/never used/)
@@ -87,7 +114,7 @@ describe("Health tips page", () => {
       .mockResolvedValueOnce(result({ needs: [AGE_QUESTION] }))
       .mockResolvedValueOnce(result({ tip: TIP, personalized: true }))
     const user = userEvent.setup()
-    render(<HealthTipsPage />)
+    renderPage()
 
     await user.click(personalizeBox())
     await search(user)
@@ -117,7 +144,7 @@ describe("Health tips page", () => {
       .mockResolvedValueOnce(result({ needs: [AGE_QUESTION] }))
       .mockResolvedValueOnce(result({ tip: TIP }))
     const user = userEvent.setup()
-    render(<HealthTipsPage />)
+    renderPage()
 
     await user.click(personalizeBox())
     await search(user)
@@ -133,7 +160,7 @@ describe("Health tips page", () => {
       result({ urgent: true, notice: "Call your local emergency number.", needs: [AGE_QUESTION] }),
     )
     const user = userEvent.setup()
-    render(<HealthTipsPage />)
+    renderPage()
 
     await user.click(personalizeBox())
     await search(user, "she has gone blue and floppy")
@@ -147,7 +174,7 @@ describe("Health tips page", () => {
       .mockResolvedValueOnce(result({ needs: [AGE_QUESTION] }))
       .mockResolvedValueOnce(result({ needs: [AGE_QUESTION] }))
     const user = userEvent.setup()
-    render(<HealthTipsPage />)
+    renderPage()
 
     await user.click(personalizeBox())
     await search(user)
@@ -161,7 +188,7 @@ describe("Health tips page", () => {
   it("drops the questions when personalising is turned off", async () => {
     searchHealthTips.mockResolvedValue(result({ needs: [AGE_QUESTION] }))
     const user = userEvent.setup()
-    render(<HealthTipsPage />)
+    renderPage()
 
     await user.click(personalizeBox())
     await search(user)
@@ -175,7 +202,7 @@ describe("Health tips page", () => {
     it("sends a rating for the tip on screen", async () => {
       searchHealthTips.mockResolvedValue(result({ tip: TIP, personalized: true }))
       const user = userEvent.setup()
-      render(<HealthTipsPage />)
+      renderPage()
       await search(user)
       await screen.findByRole("heading", { name: TIP.title })
 
@@ -189,7 +216,7 @@ describe("Health tips page", () => {
         .mockResolvedValueOnce(result({ tip: TIP }))
         .mockResolvedValueOnce(result({ tip: { id: "tip-1", title: "Limit late caffeine", summary: "S." } }))
       const user = userEvent.setup()
-      render(<HealthTipsPage />)
+      renderPage()
       await search(user)
       await user.click(await screen.findByRole("button", { name: "Yes" }))
       await screen.findByText("Thanks for letting us know.")
@@ -223,7 +250,7 @@ describe("Health tips page", () => {
         .mockResolvedValueOnce(result({ needs: [AIM, TIME], followUpToken: "signed.token" }))
         .mockResolvedValueOnce(result({ tip: TIP, personalized: true }))
       const user = userEvent.setup()
-      render(<HealthTipsPage />)
+      renderPage()
       await user.click(personalizeBox())
       await search(user)
 
@@ -245,7 +272,7 @@ describe("Health tips page", () => {
         .mockResolvedValueOnce(result({ needs: [AIM, TIME], followUpToken: "signed.token" }))
         .mockResolvedValueOnce(result({ tip: TIP }))
       const user = userEvent.setup()
-      render(<HealthTipsPage />)
+      renderPage()
       await user.click(personalizeBox())
       await search(user)
       await user.click(await screen.findByRole("button", { name: "Stay active" }))
@@ -260,13 +287,55 @@ describe("Health tips page", () => {
         .mockResolvedValueOnce(result({ needs: [AIM], followUpToken: "signed.token" }))
         .mockResolvedValueOnce(result({ needs: [AIM], followUpToken: "signed.token" }))
       const user = userEvent.setup()
-      render(<HealthTipsPage />)
+      renderPage()
       await user.click(personalizeBox())
       await search(user)
       await user.click(await screen.findByRole("button", { name: "Stay active" }))
 
       expect(await screen.findByText(/No tip came back/)).toBeInTheDocument()
       expect(screen.queryByText(AIM.question)).not.toBeInTheDocument()
+    })
+  })
+  describe("opened from a reminder notification", () => {
+    it("shows the tip the reminder was set from, without searching", async () => {
+      getHealthTipReminderTip.mockResolvedValue(TIP)
+      renderPage("/user/health-tips?reminder=abc123")
+
+      expect(await screen.findByRole("heading", { name: TIP.title })).toBeInTheDocument()
+      expect(screen.getByText(TIP.summary)).toBeInTheDocument()
+      expect(getHealthTipReminderTip).toHaveBeenCalledWith("abc123")
+      expect(searchHealthTips).not.toHaveBeenCalled()
+    })
+
+    it("falls back to the normal page when the tip cannot be opened", async () => {
+      getHealthTipReminderTip.mockResolvedValue(null)
+      renderPage("/user/health-tips?reminder=gone")
+
+      await waitFor(() => expect(getHealthTipReminderTip).toHaveBeenCalled())
+      expect(await screen.findByLabelText("What would you like tips on?")).toBeInTheDocument()
+      expect(screen.queryByRole("article")).not.toBeInTheDocument()
+      expect(searchHealthTips).not.toHaveBeenCalled()
+    })
+
+    it("does nothing special without a reminder in the address", async () => {
+      renderPage()
+      expect(await screen.findByLabelText("What would you like tips on?")).toBeInTheDocument()
+      expect(getHealthTipReminderTip).not.toHaveBeenCalled()
+    })
+  })
+  describe("saved tips", () => {
+    const SAVED_ID = "0123456789abcdef0123456789abcdef"
+
+    it("opens a saved tip in full without searching", async () => {
+      listSavedHealthTips.mockResolvedValue({ tips: [{ id: SAVED_ID, tip: TIP, savedAt: "2026-11-04T10:00:00.000Z" }], max: 50 })
+      window.scrollTo = vi.fn() as unknown as typeof window.scrollTo
+      const user = userEvent.setup()
+      renderPage()
+
+      await user.click(await screen.findByRole("button", { name: "Open" }))
+      expect(await screen.findByRole("article")).toBeInTheDocument()
+      expect(screen.getAllByText(TIP.summary).length).toBeGreaterThan(0)
+      expect(searchHealthTips).not.toHaveBeenCalled()
     })
   })
 })
