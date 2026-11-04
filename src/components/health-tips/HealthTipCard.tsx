@@ -1,7 +1,30 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react"
-import { Check, Copy, Lightbulb, PartyPopper, Stethoscope } from "lucide-react"
+import { useState, type CSSProperties } from "react"
+import { Lightbulb, PartyPopper, Stethoscope } from "lucide-react"
 import type { HealthTip } from "@/utils/careconnect/services/healthTipsService"
+import { TipActions } from "./TipActions"
 import { useTipImage } from "./useTipImage"
+
+/** Confetti for finishing every step: a ring of dots flung out from the popper. */
+const BURST_COLORS = ["#00b4b8", "#7fd9db", "#f5a524", "#f17a6c", "#7c8cf5"]
+function Burst() {
+  return (
+    <span className="pointer-events-none absolute left-2 top-1/2" aria-hidden="true">
+      {Array.from({ length: 10 }, (_, i) => (
+        <span
+          key={i}
+          className="ht-burst absolute size-1.5 rounded-full"
+          style={
+            {
+              "--ht-angle": `${i * 36}deg`,
+              "--ht-distance": `${22 + (i % 3) * 8}px`,
+              backgroundColor: BURST_COLORS[i % BURST_COLORS.length],
+            } as CSSProperties
+          }
+        />
+      ))}
+    </span>
+  )
+}
 
 /**
  * The one tip shown for a search.
@@ -29,26 +52,8 @@ export function HealthTipCard({ tip }: { tip: HealthTip }) {
   const doneCount = done.filter(Boolean).length
   const allDone = steps.length > 0 && doneCount === steps.length
 
-  const [copied, setCopied] = useState(false)
-  const copiedTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
-  useEffect(() => () => clearTimeout(copiedTimer.current), [])
-
   function toggleStep(index: number) {
     setDone((current) => current.map((value, i) => (i === index ? !value : value)))
-  }
-
-  async function copyTip() {
-    const lines = [tip.title, "", tip.summary]
-    if (steps.length > 0) lines.push("", ...steps.map((step, index) => `${index + 1}. ${step}`))
-    if (tip.whenToSeeAProfessional) lines.push("", `See a professional if: ${tip.whenToSeeAProfessional}`)
-    try {
-      await navigator.clipboard.writeText(lines.join("\n"))
-      setCopied(true)
-      clearTimeout(copiedTimer.current)
-      copiedTimer.current = setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // Clipboard blocked (insecure context or permission): the button simply does nothing.
-    }
   }
 
   return (
@@ -93,18 +98,6 @@ export function HealthTipCard({ tip }: { tip: HealthTip }) {
             <h3 className="text-lg font-bold leading-snug text-[#141922]">{tip.title}</h3>
             <p className="mt-1.5 text-sm leading-6 text-[#4a5260]">{tip.summary}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => void copyTip()}
-            className="inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-semibold text-[#00898c] transition hover:bg-[#e3f8f8] active:scale-95"
-          >
-            {copied ? (
-              <Check className="ht-pop size-3.5" aria-hidden="true" />
-            ) : (
-              <Copy className="size-3.5" aria-hidden="true" />
-            )}
-            {copied ? "Copied" : "Copy"}
-          </button>
         </div>
 
         {steps.length > 0 && (
@@ -114,7 +107,11 @@ export function HealthTipCard({ tip }: { tip: HealthTip }) {
                 How to do it
               </p>
               <p className="text-xs font-medium text-[#657080]" aria-live="polite">
-                {doneCount} of {steps.length} done
+                {/* Keyed so the number pops each time it changes. */}
+                <span key={doneCount} className="ht-pop inline-block tabular-nums">
+                  {doneCount}
+                </span>{" "}
+                of {steps.length} done
               </p>
             </div>
             <div
@@ -148,7 +145,8 @@ export function HealthTipCard({ tip }: { tip: HealthTip }) {
             </ol>
 
             {allDone && (
-              <p className="ht-rise mt-3 flex items-center gap-2 rounded-xl bg-[#e3f8f8] px-3.5 py-2.5 text-sm font-semibold text-[#00898c]">
+              <p className="ht-rise relative mt-3 flex items-center gap-2 rounded-xl bg-[#e3f8f8] px-3.5 py-2.5 text-sm font-semibold text-[#00898c]">
+                <Burst />
                 <PartyPopper className="ht-pop size-4 shrink-0" aria-hidden="true" />
                 All done — nice work looking after yourself.
               </p>
@@ -164,6 +162,10 @@ export function HealthTipCard({ tip }: { tip: HealthTip }) {
             </p>
           </div>
         )}
+
+        <div className="mt-5 border-t border-[#eef1f3] pt-4">
+          <TipActions tip={tip} />
+        </div>
       </div>
     </article>
   )

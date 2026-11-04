@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import HealthTipsPage from "../health-tips"
+import { RECENT_SEARCHES_KEY } from "@/components/health-tips/useRecentSearches"
 import type { HealthTipsResult } from "@/utils/careconnect/services/healthTipsService"
 
 // The real axios client initialises Firebase on import; these tests are about the page.
@@ -76,6 +77,7 @@ const personalizeBox = () => screen.getByRole("checkbox", { name: /Personalize u
 
 describe("Health tips page", () => {
   beforeEach(() => {
+    localStorage.clear()
     searchHealthTips.mockReset()
     getHealthTipReminderTip.mockReset()
     listSavedHealthTips.mockReset()
@@ -196,6 +198,55 @@ describe("Health tips page", () => {
 
     await user.click(personalizeBox())
     expect(screen.queryByText(AGE_QUESTION.question)).not.toBeInTheDocument()
+  })
+
+  describe("getting around", () => {
+    it("remembers searches that gave a tip, and clears them", async () => {
+      searchHealthTips.mockResolvedValue(result({ tip: TIP }))
+      const user = userEvent.setup()
+      render(<HealthTipsPage />)
+      expect(screen.queryByRole("group", { name: "Recent searches" })).not.toBeInTheDocument()
+
+      await search(user)
+      await screen.findByRole("heading", { name: TIP.title })
+      const recent = screen.getByRole("group", { name: "Recent searches" })
+      expect(within(recent).getByRole("button", { name: "sleeping better" })).toBeInTheDocument()
+
+      await user.click(within(recent).getByRole("button", { name: "Clear" }))
+      expect(screen.queryByRole("group", { name: "Recent searches" })).not.toBeInTheDocument()
+      expect(localStorage.getItem(RECENT_SEARCHES_KEY)).toBeNull()
+    })
+
+    it("never remembers an emergency", async () => {
+      searchHealthTips.mockResolvedValue(result({ urgent: true, notice: "Call now." }))
+      const user = userEvent.setup()
+      render(<HealthTipsPage />)
+      await search(user, "chest pain")
+      await screen.findByRole("alert")
+      expect(screen.queryByRole("group", { name: "Recent searches" })).not.toBeInTheDocument()
+    })
+
+    it("jumps to the search box on /, but not while typing elsewhere", async () => {
+      const user = userEvent.setup()
+      render(<HealthTipsPage />)
+      const input = screen.getByLabelText("What would you like tips on?")
+
+      await user.keyboard("/")
+      expect(input).toHaveFocus()
+      await user.keyboard("/")
+      expect(input).toHaveValue("/")
+    })
+
+    it("browses topics by category and searches the one picked", async () => {
+      searchHealthTips.mockResolvedValue(result({ tip: TIP }))
+      const user = userEvent.setup()
+      render(<HealthTipsPage />)
+
+      await user.click(screen.getByRole("button", { name: "Mind" }))
+      expect(screen.getByRole("button", { name: "Mind" })).toHaveAttribute("aria-pressed", "true")
+      await user.click(screen.getByRole("button", { name: "Taking screen breaks" }))
+      expect(searchHealthTips).toHaveBeenCalledWith("Taking screen breaks", expect.anything())
+    })
   })
 
   describe("feedback", () => {

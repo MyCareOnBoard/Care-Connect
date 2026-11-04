@@ -186,7 +186,13 @@ const PSEUDO = {
   "aria-pressed": '[aria-pressed="true"]',
   "aria-selected": '[aria-selected="true"]',
 }
-const GROUP = { "group-hover": ".group:hover", "group-focus-visible": ".group:focus-visible" }
+// Pseudo-elements go at the very end of a selector, after any state, so they are kept apart.
+const PSEUDO_ELEMENT = { before: "::before", after: "::after" }
+const GROUP = {
+  "group-hover": ".group:hover",
+  "group-focus-visible": ".group:focus-visible",
+  "peer-checked": ".peer:checked ~",
+}
 const MEDIA = { sm: "40rem", md: "48rem", lg: "64rem", xl: "80rem", "2xl": "96rem" }
 
 function escapeClass(name) {
@@ -232,11 +238,13 @@ for (const file of walk(srcDir)) {
 
     const variants = variantChain ? variantChain.slice(0, -1).split(":") : []
     let pseudo = ""
+    let pseudoElement = ""
     let groupPrefix = ""
     let media = ""
     let ok = true
     for (const variant of variants) {
       if (PSEUDO[variant]) pseudo += PSEUDO[variant]
+      else if (PSEUDO_ELEMENT[variant]) pseudoElement = PSEUDO_ELEMENT[variant]
       else if (GROUP[variant]) groupPrefix = `${GROUP[variant]} `
       else if (MEDIA[variant]) media = MEDIA[variant]
       else ok = false
@@ -246,7 +254,7 @@ for (const file of walk(srcDir)) {
       continue
     }
 
-    let selector = `html.dark ${groupPrefix}.${escapeClass(full)}${pseudo}`
+    let selector = `html.dark ${groupPrefix}.${escapeClass(full)}${pseudo}${pseudoElement}`
     if (spec.divide) selector = `html.dark .${escapeClass(full)} > :not(:last-child)`
     const bucket = rules.get(media) ?? new Map()
     bucket.set(selector, spec.decl(color))
