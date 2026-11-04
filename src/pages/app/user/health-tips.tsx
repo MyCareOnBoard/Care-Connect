@@ -20,8 +20,10 @@ import { PageHeader } from "@/components/app/PageHeader"
 import { AiDisclaimer, AI_DISCLAIMER_EMERGENCY } from "@/components/health-tips/AiDisclaimer"
 import { HealthTipCard } from "@/components/health-tips/HealthTipCard"
 import { HealthTipFeedback } from "@/components/health-tips/HealthTipFeedback"
+import { HealthTipReminder } from "@/components/health-tips/HealthTipReminder"
 import { HealthTipQuestionCard } from "@/components/health-tips/HealthTipQuestionCard"
 import { EmptyState } from "@/components/ui/empty-state"
+import { createHealthTipReminder } from "@/utils/careconnect/services/healthTipRemindersService"
 import {
   HealthTipsQueryError,
   MAX_QUERY_LENGTH,
@@ -364,6 +366,11 @@ export default function HealthTipsPage() {
                   tip={result.tip}
                   personalized={result.personalized}
                   onSubmit={sendHealthTipFeedback}
+                />
+                <HealthTipReminder
+                  key={`reminder-${result.tip.title}`}
+                  tip={result.tip}
+                  onCreate={createHealthTipReminder}
                 />
               </div>
             )}
