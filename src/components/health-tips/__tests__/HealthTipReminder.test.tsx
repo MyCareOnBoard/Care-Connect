@@ -34,7 +34,7 @@ describe("HealthTipReminder", () => {
     const { user, onCreate } = setup()
     await user.click(screen.getByRole("button", { name: "Remind me" }))
     await user.click(screen.getByRole("button", { name: "Set reminder" }))
-    expect(onCreate).toHaveBeenCalledWith({ label: TIP.title, time: "08:00", recurrence: "daily" })
+    expect(onCreate).toHaveBeenCalledWith({ label: TIP.title, time: "08:00", recurrence: "daily", tip: TIP })
     expect(await screen.findByText(/Reminder set for 8:00 AM, every day/)).toBeInTheDocument()
   })
 
@@ -44,7 +44,7 @@ describe("HealthTipReminder", () => {
     await user.click(screen.getByRole("button", { name: /Evening/ }))
     await user.click(screen.getByRole("button", { name: "Once" }))
     await user.click(screen.getByRole("button", { name: "Set reminder" }))
-    expect(onCreate).toHaveBeenCalledWith({ label: TIP.title, time: "18:00", recurrence: "once" })
+    expect(onCreate).toHaveBeenCalledWith({ label: TIP.title, time: "18:00", recurrence: "once", tip: TIP })
   })
 
   it("says the reminder will not mention the topic, before and after", async () => {

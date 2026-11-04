@@ -6,12 +6,17 @@
  *
  * The time is the person's own clock; the browser's IANA time zone travels with it so the
  * server fires it at that wall-clock time, also after a clock change. `label` is the tip's
- * title, kept only so the person can recognise the reminder in their own list. The query and
- * the tip's text are never sent, and the notification itself is generic text written by the
- * server, so it says nothing about the person's health on a lock screen.
+ * title, shown in their own list. The tip itself (title, summary, steps) is sent too, so that
+ * opening the reminder shows it; the server checks it like model output. The search text is
+ * never sent, and the notification is generic text written by the server, so it says nothing
+ * about the person's health on a lock screen.
+ *
+ *   GET /careconnectHealthTips/reminders/:id  -> the reminder and its saved tip (what the
+ *   notification opens: /user/health-tips?reminder=<id>)
  */
 
 import axiosClient from "@/lib/axios"
+import type { HealthTip } from "@/utils/careconnect/services/healthTipsService"
 
 export const HEALTH_TIP_REMINDERS_PATH = "/careconnectHealthTips/reminders"
 
@@ -22,6 +27,8 @@ export interface NewHealthTipReminder {
   /** 24-hour "HH:MM" on the person's own clock. */
   time: string
   recurrence: ReminderRecurrence
+  /** The tip the reminder is set from, so opening the reminder can show it. */
+  tip?: HealthTip
 }
 
 export interface HealthTipReminder {
@@ -95,6 +102,50 @@ export function reminderErrorMessage(error: unknown): string {
   return FALLBACK_ERROR
 }
 
+/** Only the text fields. The picture, ids and anything else a tip carries stay behind. */
+function tipPayload(tip: HealthTip) {
+  return {
+    title: tip.title,
+    summary: tip.summary,
+    ...(tip.steps?.length ? { steps: tip.steps } : {}),
+    ...(tip.whenToSeeAProfessional ? { whenToSeeAProfessional: tip.whenToSeeAProfessional } : {}),
+  }
+}
+
+const REMINDER_ID = /^[A-Za-z0-9_-]{1,128}$/
+
+function mapTip(raw: unknown): HealthTip | null {
+  if (!raw || typeof raw !== "object") return null
+  const t = raw as Record<string, unknown>
+  if (typeof t.title !== "string" || !t.title.trim()) return null
+  if (typeof t.summary !== "string" || !t.summary.trim()) return null
+  const steps = Array.isArray(t.steps) ? t.steps.filter((s): s is string => typeof s === "string" && !!s.trim()) : []
+  return {
+    id: typeof t.id === "string" && t.id ? t.id : "tip-1",
+    title: t.title,
+    summary: t.summary,
+    ...(steps.length ? { steps } : {}),
+    ...(typeof t.whenToSeeAProfessional === "string" && t.whenToSeeAProfessional.trim()
+      ? { whenToSeeAProfessional: t.whenToSeeAProfessional }
+      : {}),
+  }
+}
+
+/**
+ * The tip a reminder was set from, for the page a reminder notification opens. Null when the
+ * id is not one of ours, the reminder is gone, or no tip was kept: the page then just shows
+ * its normal search.
+ */
+export async function getHealthTipReminderTip(id: string): Promise<HealthTip | null> {
+  if (!REMINDER_ID.test(id)) return null
+  try {
+    const { data } = await axiosClient.get(`${HEALTH_TIP_REMINDERS_PATH}/${encodeURIComponent(id)}`)
+    return mapTip(data?.data?.tip)
+  } catch {
+    return null
+  }
+}
+
 export async function createHealthTipReminder(input: NewHealthTipReminder): Promise<HealthTipReminder> {
   const label = input.label.replace(/\s+/g, " ").trim().slice(0, MAX_LABEL_CHARS)
   if (!label) throw new Error("A reminder needs a name.")
@@ -104,6 +155,7 @@ export async function createHealthTipReminder(input: NewHealthTipReminder): Prom
     time: input.time,
     timezone: browserTimezone(),
     recurrence: input.recurrence,
+    ...(input.tip ? { tip: tipPayload(input.tip) } : {}),
   })
   const reminder = mapReminder(data?.data)
   if (!reminder) throw new Error(FALLBACK_ERROR)
