@@ -16,6 +16,12 @@ vi.mock("@/utils/careconnect/services/healthTipRemindersService", async () => ({
   listHealthTipReminders: vi.fn().mockResolvedValue({ reminders: [], max: 5 }),
 }))
 
+const listSavedHealthTips = vi.hoisted(() => vi.fn())
+vi.mock("@/utils/careconnect/services/savedHealthTipsService", async () => ({
+  ...(await vi.importActual<object>("@/utils/careconnect/services/savedHealthTipsService")),
+  listSavedHealthTips,
+}))
+
 const searchHealthTips = vi.hoisted(() => vi.fn())
 const sendHealthTipFeedback = vi.hoisted(() => vi.fn())
 vi.mock("@/utils/careconnect/services/healthTipsService", async () => ({
@@ -72,6 +78,8 @@ describe("Health tips page", () => {
   beforeEach(() => {
     searchHealthTips.mockReset()
     getHealthTipReminderTip.mockReset()
+    listSavedHealthTips.mockReset()
+    listSavedHealthTips.mockResolvedValue({ tips: [], max: 50 })
     sendHealthTipFeedback.mockReset()
     sendHealthTipFeedback.mockResolvedValue(undefined)
   })
@@ -313,6 +321,21 @@ describe("Health tips page", () => {
       renderPage()
       expect(await screen.findByLabelText("What would you like tips on?")).toBeInTheDocument()
       expect(getHealthTipReminderTip).not.toHaveBeenCalled()
+    })
+  })
+  describe("saved tips", () => {
+    const SAVED_ID = "0123456789abcdef0123456789abcdef"
+
+    it("opens a saved tip in full without searching", async () => {
+      listSavedHealthTips.mockResolvedValue({ tips: [{ id: SAVED_ID, tip: TIP, savedAt: "2026-11-04T10:00:00.000Z" }], max: 50 })
+      window.scrollTo = vi.fn() as unknown as typeof window.scrollTo
+      const user = userEvent.setup()
+      renderPage()
+
+      await user.click(await screen.findByRole("button", { name: "Open" }))
+      expect(await screen.findByRole("article")).toBeInTheDocument()
+      expect(screen.getAllByText(TIP.summary).length).toBeGreaterThan(0)
+      expect(searchHealthTips).not.toHaveBeenCalled()
     })
   })
 })

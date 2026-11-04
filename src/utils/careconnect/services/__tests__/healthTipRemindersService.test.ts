@@ -155,3 +155,26 @@ describe("the tip kept with a reminder", () => {
     expect(await getHealthTipReminderTip("r1")).toBeNull()
   })
 })
+
+describe("also saving the tip", () => {
+  const TIP = { id: "tip-1", title: "T", summary: "S" }
+
+  it("asks the server to save it only when there is a tip and the person wants that", async () => {
+    post.mockResolvedValue({ data: { success: true, data: { ...SERVER, saved: true } } })
+    const out = await createHealthTipReminder({ label: "x", time: "08:00", recurrence: "once", tip: TIP, saveTip: true })
+    expect(post.mock.calls[0][1].saveTip).toBe(true)
+    expect(out.saved).toBe(true)
+
+    await createHealthTipReminder({ label: "x", time: "08:00", recurrence: "once", tip: TIP, saveTip: false })
+    expect("saveTip" in post.mock.calls[1][1]).toBe(false)
+
+    await createHealthTipReminder({ label: "x", time: "08:00", recurrence: "once", saveTip: true })
+    expect("saveTip" in post.mock.calls[2][1]).toBe(false)
+  })
+
+  it("reports saved: false unless the server says it saved it", async () => {
+    post.mockResolvedValue({ data: { success: true, data: SERVER } })
+    const out = await createHealthTipReminder({ label: "x", time: "08:00", recurrence: "once", tip: TIP, saveTip: true })
+    expect(out.saved).toBe(false)
+  })
+})

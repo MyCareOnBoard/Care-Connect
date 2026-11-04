@@ -23,6 +23,7 @@ import { HealthTipCard } from "@/components/health-tips/HealthTipCard"
 import { HealthTipFeedback } from "@/components/health-tips/HealthTipFeedback"
 import { HealthTipReminder } from "@/components/health-tips/HealthTipReminder"
 import { HealthTipRemindersList } from "@/components/health-tips/HealthTipRemindersList"
+import { SavedHealthTips } from "@/components/health-tips/SavedHealthTips"
 import { HealthTipQuestionCard } from "@/components/health-tips/HealthTipQuestionCard"
 import { EmptyState } from "@/components/ui/empty-state"
 import { createHealthTipReminder, getHealthTipReminderTip } from "@/utils/careconnect/services/healthTipRemindersService"
@@ -120,6 +121,8 @@ export default function HealthTipsPage() {
   const [errorMessage, setErrorMessage] = useState("")
   // Bumped when a reminder is set, so "Your reminders" reloads.
   const [remindersKey, setRemindersKey] = useState(0)
+  // Bumped when a reminder also saved its tip, so "Saved tips" reloads.
+  const [savedKey, setSavedKey] = useState(0)
   // Off until the person turns it on. Deliberately not remembered between visits.
   const [personalize, setPersonalize] = useState(false)
   // Guards against an older, slower response overwriting a newer search.
@@ -411,6 +414,7 @@ export default function HealthTipsPage() {
                   onCreate={async (input) => {
                     const created = await createHealthTipReminder(input)
                     setRemindersKey((key) => key + 1)
+                    if (created.saved) setSavedKey((key) => key + 1)
                     return created
                   }}
                 />
@@ -427,6 +431,24 @@ export default function HealthTipsPage() {
         )}
 
         <HealthTipRemindersList refreshKey={remindersKey} />
+
+        <SavedHealthTips
+          refreshKey={savedKey}
+          onOpen={(tip) => {
+            // Shown exactly like a fresh tip, with no search and no model call.
+            setResult({
+              query: tip.title,
+              tip,
+              urgent: false,
+              notice: null,
+              personalized: false,
+              needs: [],
+              followUpToken: null,
+            })
+            setStatus("done")
+            window.scrollTo({ top: 0, behavior: "smooth" })
+          }}
+        />
       </div>
     </div>
   )
