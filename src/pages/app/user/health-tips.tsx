@@ -1,26 +1,23 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react"
+import { flushSync } from "react-dom"
 import { toast } from "sonner"
 import {
   AlertTriangle,
-  Armchair,
-  Brain,
   ChevronDown,
-  Droplets,
-  Footprints,
+  History,
   Lightbulb,
   Loader2,
-  Moon,
-  Salad,
   Search,
   Sparkles,
   UserRound,
-  type LucideIcon,
 } from "lucide-react"
 import { PageHeader } from "@/components/app/PageHeader"
 import { AiDisclaimer, AI_DISCLAIMER_EMERGENCY } from "@/components/health-tips/AiDisclaimer"
 import { HealthTipCard } from "@/components/health-tips/HealthTipCard"
 import { HealthTipFeedback } from "@/components/health-tips/HealthTipFeedback"
 import { HealthTipQuestionCard } from "@/components/health-tips/HealthTipQuestionCard"
+import { TopicPicker } from "@/components/health-tips/TopicPicker"
+import { useRecentSearches } from "@/components/health-tips/useRecentSearches"
 import { EmptyState } from "@/components/ui/empty-state"
 import {
   HealthTipsQueryError,
@@ -49,16 +46,11 @@ import {
  *
  * One search, one tip: the single best recommendation. Each tip can be rated; only the
  * rating is sent.
+ *
+ * Getting around: "/" jumps to the search box from anywhere on the page, recent searches
+ * (kept in this browser only) sit under it, and once it has scrolled away a "New search"
+ * pill brings it back.
  */
-
-const SUGGESTIONS: { text: string; icon: LucideIcon }[] = [
-  { text: "Sleeping better", icon: Moon },
-  { text: "Staying hydrated in hot weather", icon: Droplets },
-  { text: "Managing stress", icon: Brain },
-  { text: "Healthy eating on a budget", icon: Salad },
-  { text: "Getting started with walking", icon: Footprints },
-  { text: "Protecting my back at a desk", icon: Armchair },
-]
 
 type Status = "idle" | "loading" | "asking" | "done" | "error"
 
@@ -66,7 +58,8 @@ type Status = "idle" | "loading" | "asking" | "done" | "error"
 const delay = (index: number, step = 60, start = 0) =>
   ({ "--ht-delay": `${start + index * step}ms` }) as CSSProperties
 
-const THINKING = ["Reading your question…", "Picking the best tip…", "Checking it reads safely…"]
+// Deliberately vague: these rotate on a timer and say nothing about what the server is doing.
+const THINKING = ["Finding a good tip…", "Putting it together…", "Still working on it…"]
 
 /**
  * One card, because one tip comes back — not a stack of placeholder cards. A pulsing bulb and
@@ -84,7 +77,7 @@ function ResultsSkeleton() {
     <div
       role="status"
       aria-label="Finding a tip"
-      className="ht-rise rounded-2xl bg-white p-5 ring-1 ring-[#e2e6ea] sm:p-6"
+      className="ht-result ht-rise rounded-2xl bg-white p-5 ring-1 ring-[#e2e6ea] sm:p-6"
     >
       <div className="flex items-center gap-3">
         <span className="ht-glow flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#e3f8f8] text-[#00898c]">
@@ -103,6 +96,32 @@ function ResultsSkeleton() {
   )
 }
 
+function prefersReducedMotion() {
+  try {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Applies a state change inside a view transition where the browser has them, so the loading
+ * card morphs into the result instead of blinking out. Elsewhere it is a plain update.
+ */
+function withViewTransition(update: () => void) {
+  if (typeof document.startViewTransition !== "function" || prefersReducedMotion()) {
+    update()
+    return
+  }
+  document.startViewTransition(() => flushSync(update))
+}
+
+/** Typing "/" in a field should type a slash, not jump away. */
+function isTypingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false
+  return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
+}
+
 /** The result is a set of questions, not a tip: an emergency or a tip always wins over them. */
 function isAsking(result: HealthTipsResult | null): boolean {
   if (!result) return false
@@ -118,6 +137,37 @@ export default function HealthTipsPage() {
   const [personalize, setPersonalize] = useState(false)
   // Guards against an older, slower response overwriting a newer search.
   const requestId = useRef(0)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+  const { recent, add: addRecent, clear: clearRecent } = useRecentSearches()
+  const [formOutOfView, setFormOutOfView] = useState(false)
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return
+      if (isTypingTarget(event.target)) return
+      event.preventDefault()
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    }
+    document.addEventListener("keydown", onKeyDown)
+    return () => document.removeEventListener("keydown", onKeyDown)
+  }, [])
+
+  // Watches the search form so the "New search" pill shows only once it has scrolled away.
+  useEffect(() => {
+    const form = formRef.current
+    if (!form || typeof IntersectionObserver === "undefined") return
+    const observer = new IntersectionObserver(([entry]) => setFormOutOfView(!entry.isIntersecting))
+    observer.observe(form)
+    return () => observer.disconnect()
+  }, [])
+
+  function backToSearch() {
+    formRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "center" })
+    inputRef.current?.focus({ preventScroll: true })
+    inputRef.current?.select()
+  }
 
   async function runSearch(text: string, answers?: HealthTipAnswers, followUp?: HealthTipFollowUp) {
     const id = ++requestId.current
@@ -125,10 +175,14 @@ export default function HealthTipsPage() {
     try {
       const next = await searchHealthTips(text, { personalize, answers, followUp })
       if (id !== requestId.current) return
-      setResult(next)
-      // Once the questions have been answered or skipped there is nothing left to ask, so a
-      // reply that still carries some is shown as it is rather than asked about again.
-      setStatus(answers === undefined && followUp === undefined && isAsking(next) ? "asking" : "done")
+      withViewTransition(() => {
+        setResult(next)
+        // Once the questions have been answered or skipped there is nothing left to ask, so a
+        // reply that still carries some is shown as it is rather than asked about again.
+        setStatus(answers === undefined && followUp === undefined && isAsking(next) ? "asking" : "done")
+      })
+      // Only searches that gave a tip are remembered: never an emergency, never a refusal.
+      if (next.tip && !next.urgent) addRecent(text)
     } catch (error) {
       if (id !== requestId.current) return
       if (error instanceof HealthTipsQueryError) {
@@ -170,7 +224,7 @@ export default function HealthTipsPage() {
       <div className="mx-auto max-w-3xl space-y-6 p-5 sm:p-8">
         <AiDisclaimer />
 
-        <form onSubmit={onSubmit} className="space-y-3" role="search">
+        <form ref={formRef} onSubmit={onSubmit} className="space-y-3" role="search">
           <label htmlFor="health-tips-query" className="sr-only">
             What would you like tips on?
           </label>
@@ -181,14 +235,22 @@ export default function HealthTipsPage() {
                 aria-hidden="true"
               />
               <input
+                ref={inputRef}
                 id="health-tips-query"
                 type="search"
                 value={query}
                 maxLength={MAX_QUERY_LENGTH}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="e.g. tips for sleeping better"
-                className="h-12 w-full rounded-full border border-[#dfe4ea] bg-white pl-10 pr-4 text-sm outline-none transition focus:border-[#00b4b8] focus:ring-2 focus:ring-[#00b4b8]/20"
+                className="peer h-12 w-full rounded-full border border-[#dfe4ea] bg-white pl-10 pr-4 text-sm outline-none transition focus:border-[#00b4b8] focus:ring-2 focus:ring-[#00b4b8]/20 sm:pr-12"
               />
+              {/* Keyboard hint; hidden on phones (no "/" key to speak of) and while typing. */}
+              <kbd
+                aria-hidden="true"
+                className="pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 rounded-md bg-[#f6f8f9] px-1.5 py-0.5 font-sans text-[11px] font-semibold text-[#8a94a3] ring-1 ring-[#e2e6ea] transition-opacity peer-focus:opacity-0 sm:block"
+              >
+                /
+              </kbd>
             </div>
             <button
               type="submit"
@@ -200,27 +262,31 @@ export default function HealthTipsPage() {
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2" aria-label="Suggested topics">
-            <span className="text-xs font-medium text-[#8a94a3]">Try:</span>
-            {SUGGESTIONS.map(({ text, icon: Icon }, index) => (
+          {recent.length > 0 && (
+            <div className="ht-rise flex flex-wrap items-center gap-2" role="group" aria-label="Recent searches">
+              <History className="size-3.5 text-[#8a94a3]" aria-hidden="true" />
+              {recent.map((text) => (
+                <button
+                  key={text}
+                  type="button"
+                  onClick={() => pickSuggestion(text)}
+                  disabled={status === "loading"}
+                  className="max-w-48 truncate rounded-full bg-[#f6f8f9] px-3 py-1 text-xs font-medium text-[#4a5260] transition hover:bg-[#e3f8f8] hover:text-[#00898c] active:scale-95 disabled:opacity-60"
+                >
+                  {text}
+                </button>
+              ))}
               <button
-                key={text}
                 type="button"
-                onClick={() => pickSuggestion(text)}
-                disabled={status === "loading"}
-                style={delay(index)}
-                className={`ht-rise group inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition hover:-translate-y-0.5 hover:bg-[#e3f8f8] hover:text-[#00898c] hover:shadow-sm hover:ring-[#b3e8e9] active:translate-y-0 active:scale-95 disabled:translate-y-0 disabled:opacity-60 ${
-                  query === text ? "bg-[#e3f8f8] text-[#00898c] ring-[#b3e8e9]" : "bg-white text-[#4a5260] ring-[#e2e6ea]"
-                }`}
+                onClick={clearRecent}
+                className="rounded-full px-2 py-1 text-xs font-semibold text-[#8a94a3] transition hover:text-[#00898c]"
               >
-                <Icon
-                  className="size-3.5 text-[#00b4b8] transition-transform group-hover:-rotate-6 group-hover:scale-110"
-                  aria-hidden="true"
-                />
-                {text}
+                Clear
               </button>
-            ))}
-          </div>
+            </div>
+          )}
+
+          <TopicPicker selected={query} disabled={status === "loading"} onPick={pickSuggestion} />
 
           {/* A native checkbox drawn as a switch, so it stays a checkbox to assistive tech. */}
           <div className="rounded-2xl bg-white px-4 py-3 ring-1 ring-[#e2e6ea]">
@@ -265,7 +331,7 @@ export default function HealthTipsPage() {
             className="ht-rise"
             icon={
               <span className="relative">
-                <span className="ht-float ht-glow flex size-14 items-center justify-center rounded-2xl bg-[#e3f8f8] text-[#00898c]">
+                <span className="ht-float flex size-14 items-center justify-center rounded-2xl bg-[#e3f8f8] text-[#00898c]">
                   <Lightbulb className="size-7" aria-hidden="true" />
                 </span>
                 <Sparkles
@@ -320,7 +386,7 @@ export default function HealthTipsPage() {
         )}
 
         {status === "done" && result && (
-          <section aria-live="polite" className="space-y-4">
+          <section aria-live="polite" className="ht-result space-y-4">
             {result.urgent && (
               <div
                 role="alert"
@@ -377,6 +443,23 @@ export default function HealthTipsPage() {
           </section>
         )}
       </div>
+
+      {/* Centred so it never sits on the global back-to-top button at the right. */}
+      {status !== "idle" && formOutOfView && (
+        <div
+          className="fixed left-1/2 z-30 -translate-x-1/2"
+          style={{ bottom: "calc(max(var(--app-bottom-inset, 0px), env(safe-area-inset-bottom, 0px)) + 20px)" }}
+        >
+          <button
+            type="button"
+            onClick={backToSearch}
+            className="ht-rise inline-flex items-center gap-2 rounded-full bg-[#00b4b8] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_10px_28px_-10px_rgba(0,137,140,0.7)] transition hover:-translate-y-0.5 hover:bg-[#00989c] active:translate-y-0 active:scale-95"
+          >
+            <Search className="size-4" aria-hidden="true" />
+            New search
+          </button>
+        </div>
+      )}
     </div>
   )
 }

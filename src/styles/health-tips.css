@@ -125,6 +125,48 @@
     transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+@keyframes htBurst {
+    0% {
+        opacity: 1;
+        transform: rotate(var(--ht-angle)) translateY(0) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: rotate(var(--ht-angle)) translateY(calc(-1 * var(--ht-distance, 26px))) scale(0.4);
+    }
+}
+
+/* The "all done" confetti: plays once, ends invisible. */
+.ht-burst {
+    animation: htBurst 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes htEq {
+    0%,
+    100% {
+        height: 30%;
+    }
+    50% {
+        height: 100%;
+    }
+}
+
+/* The little bars beside "Stop" while a tip is being read aloud. */
+.ht-eq {
+    height: 30%;
+    animation: htEq 0.8s ease-in-out infinite;
+}
+
+/* The loading card morphs into the tip (see startViewTransition in the page). */
+.ht-result {
+    view-transition-name: ht-result;
+}
+
+::view-transition-group(ht-result) {
+    animation-duration: 0.35s;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
     .ht-rise,
     .ht-slide-in,
@@ -133,8 +175,12 @@
     .ht-twinkle,
     .ht-pop,
     .ht-pop-badge::before,
-    .ht-fade-swap {
+    .ht-fade-swap,
+    .ht-eq {
         animation: none;
+    }
+    .ht-burst {
+        display: none;
     }
     .ht-progress {
         transition: none;

@@ -12,6 +12,10 @@ vi.mock("@/utils/careconnect/services/healthTipsService", async () => ({
 
 const KEY = "0123456789abcdef0123456789abcdef"
 
+/** The counter's number is its own element (so it can pop), so match the whole line. */
+const progress = (text: string) =>
+  screen.getByText((_, element) => element?.tagName === "P" && element.textContent === text)
+
 const TEXT_TIP: HealthTip = {
   id: "tip-1",
   title: "Keep a regular bedtime",
@@ -47,11 +51,11 @@ describe("HealthTipCard", () => {
   it("lets each step be ticked off and back on, counting what is done", () => {
     render(<HealthTipCard tip={{ ...TEXT_TIP, steps: ["Pick a wake-up time", "Dim the lights"] }} />)
     const first = screen.getByRole("button", { name: "Pick a wake-up time" })
-    expect(screen.getByText("0 of 2 done")).toBeInTheDocument()
+    expect(progress("0 of 2 done")).toBeInTheDocument()
 
     fireEvent.click(first)
     expect(first).toHaveAttribute("aria-pressed", "true")
-    expect(screen.getByText("1 of 2 done")).toBeInTheDocument()
+    expect(progress("1 of 2 done")).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole("button", { name: "Dim the lights" }))
     expect(screen.getByText(/All done/)).toBeInTheDocument()
@@ -59,6 +63,32 @@ describe("HealthTipCard", () => {
     fireEvent.click(first)
     expect(first).toHaveAttribute("aria-pressed", "false")
     expect(screen.queryByText(/All done/)).not.toBeInTheDocument()
+  })
+
+  it("copies the tip as text, and says so when the browser blocks it", async () => {
+    const writeText = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("blocked"))
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true })
+    render(<HealthTipCard tip={{ ...TEXT_TIP, steps: ["Pick a wake-up time"] }} />)
+
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Copy" })))
+    expect(writeText).toHaveBeenCalledWith(
+      `${TEXT_TIP.title}
+
+${TEXT_TIP.summary}
+
+1. Pick a wake-up time`,
+    )
+    expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument()
+
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Copied" })))
+    expect(screen.getByRole("alert")).toHaveTextContent(/Couldn.t copy/)
+  })
+
+  it("offers Listen and Share only where the browser supports them", () => {
+    render(<HealthTipCard tip={TEXT_TIP} />)
+    // jsdom has neither speech synthesis nor a share sheet.
+    expect(screen.queryByRole("button", { name: "Listen" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Share" })).not.toBeInTheDocument()
   })
 
   it("renders the image with its alt text, lazily", () => {
