@@ -49,7 +49,7 @@ export function HealthTipReminder({ tip, onCreate }: Props) {
     setSending(true)
     setError(null)
     try {
-      setCreated(await onCreate({ label: tip.title, time, recurrence }))
+      setCreated(await onCreate({ label: tip.title, time, recurrence, tip }))
       setStep("set")
     } catch (caught) {
       setError(reminderErrorMessage(caught))

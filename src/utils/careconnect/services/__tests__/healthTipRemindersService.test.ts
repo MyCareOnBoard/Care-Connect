@@ -20,6 +20,7 @@ import {
   deleteHealthTipReminder,
   describeRecurrence,
   formatReminderTime,
+  getHealthTipReminderTip,
   listHealthTipReminders,
   reminderErrorMessage,
   setHealthTipReminderStatus,
@@ -109,5 +110,48 @@ describe("managing reminders", () => {
     del.mockResolvedValue({ data: { success: true } })
     await deleteHealthTipReminder("r1")
     expect(del).toHaveBeenCalledWith(`${HEALTH_TIP_REMINDERS_PATH}/r1`)
+  })
+})
+
+describe("the tip kept with a reminder", () => {
+  const TIP = {
+    id: "tip-1",
+    title: "Release a tight neck",
+    summary: "Gentle movement helps.",
+    steps: ["Sit tall", "Tilt slowly"],
+    whenToSeeAProfessional: "If it persists, ask a clinician.",
+    image: { status: "ready" as const, url: "https://cdn.example.com/a.png", alt: "A stretch", key: "0123456789abcdef0123456789abcdef" },
+  }
+
+  it("sends only the tip's text fields when setting a reminder — no picture, no id", async () => {
+    post.mockResolvedValue({ data: { success: true, data: SERVER } })
+    await createHealthTipReminder({ label: "x", time: "08:00", recurrence: "once", tip: TIP })
+    const body = post.mock.calls[0][1]
+    expect(body.tip).toEqual({
+      title: TIP.title,
+      summary: TIP.summary,
+      steps: TIP.steps,
+      whenToSeeAProfessional: TIP.whenToSeeAProfessional,
+    })
+  })
+
+  it("reads the saved tip back for the reminder a notification opens", async () => {
+    get.mockResolvedValue({ data: { data: { ...SERVER, tip: { id: "tip-1", title: "T", summary: "S", steps: ["a", 3, ""] } } } })
+    const tip = await getHealthTipReminderTip("abc_123")
+    expect(get).toHaveBeenCalledWith(`${HEALTH_TIP_REMINDERS_PATH}/abc_123`)
+    expect(tip).toEqual({ id: "tip-1", title: "T", summary: "S", steps: ["a"] })
+  })
+
+  it("returns null, and asks nothing, for an id that is not ours", async () => {
+    expect(await getHealthTipReminderTip("../etc/passwd")).toBeNull()
+    expect(await getHealthTipReminderTip("a b")).toBeNull()
+    expect(get).not.toHaveBeenCalled()
+  })
+
+  it("returns null when the reminder is gone, has no tip, or the request fails", async () => {
+    get.mockResolvedValueOnce({ data: { data: { ...SERVER, tip: null } } })
+    expect(await getHealthTipReminderTip("r1")).toBeNull()
+    get.mockRejectedValueOnce(new Error("404"))
+    expect(await getHealthTipReminderTip("r1")).toBeNull()
   })
 })

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react"
 import { toast } from "sonner"
+import { useSearchParams } from "react-router"
 import {
   AlertTriangle,
   Armchair,
@@ -24,7 +25,7 @@ import { HealthTipReminder } from "@/components/health-tips/HealthTipReminder"
 import { HealthTipRemindersList } from "@/components/health-tips/HealthTipRemindersList"
 import { HealthTipQuestionCard } from "@/components/health-tips/HealthTipQuestionCard"
 import { EmptyState } from "@/components/ui/empty-state"
-import { createHealthTipReminder } from "@/utils/careconnect/services/healthTipRemindersService"
+import { createHealthTipReminder, getHealthTipReminderTip } from "@/utils/careconnect/services/healthTipRemindersService"
 import {
   HealthTipsQueryError,
   MAX_QUERY_LENGTH,
@@ -123,6 +124,40 @@ export default function HealthTipsPage() {
   const [personalize, setPersonalize] = useState(false)
   // Guards against an older, slower response overwriting a newer search.
   const requestId = useRef(0)
+
+  // A reminder notification opens this page as /user/health-tips?reminder=<id>: show the tip
+  // that reminder was set from. Nothing is searched, so no model call is made. If it can't be
+  // loaded the page is just its normal self.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const reminderId = searchParams.get("reminder")
+  useEffect(() => {
+    if (!reminderId) return
+    let cancelled = false
+    setStatus("loading")
+    void getHealthTipReminderTip(reminderId).then((tip) => {
+      if (cancelled) return
+      if (tip) {
+        setResult({
+          query: tip.title,
+          tip,
+          urgent: false,
+          notice: null,
+          personalized: false,
+          needs: [],
+          followUpToken: null,
+        })
+        setStatus("done")
+      } else {
+        setStatus("idle")
+        toast.error("We couldn't open that reminder's tip. You can search for it below.")
+      }
+      // Drop the id from the address so a refresh or a share does not re-open it.
+      setSearchParams({}, { replace: true })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [reminderId, setSearchParams])
 
   async function runSearch(text: string, answers?: HealthTipAnswers, followUp?: HealthTipFollowUp) {
     const id = ++requestId.current
