@@ -109,3 +109,29 @@ export async function createHealthTipReminder(input: NewHealthTipReminder): Prom
   if (!reminder) throw new Error(FALLBACK_ERROR)
   return reminder
 }
+
+/** The person's own live reminders, soonest first, and the most they can have at once. */
+export async function listHealthTipReminders(): Promise<{ reminders: HealthTipReminder[]; max: number }> {
+  const { data } = await axiosClient.get(HEALTH_TIP_REMINDERS_PATH)
+  const raw = Array.isArray(data?.data?.reminders) ? data.data.reminders : []
+  const max = Number.isInteger(data?.data?.max) && data.data.max > 0 ? data.data.max : 5
+  return {
+    reminders: raw.map(mapReminder).filter((r: HealthTipReminder | null): r is HealthTipReminder => r !== null),
+    max,
+  }
+}
+
+/** Pause, or resume (which schedules the next one from now and renews the 30 days). */
+export async function setHealthTipReminderStatus(
+  id: string,
+  status: "active" | "paused",
+): Promise<HealthTipReminder> {
+  const { data } = await axiosClient.patch(`${HEALTH_TIP_REMINDERS_PATH}/${encodeURIComponent(id)}`, { status })
+  const reminder = mapReminder(data?.data)
+  if (!reminder) throw new Error(FALLBACK_ERROR)
+  return reminder
+}
+
+export async function deleteHealthTipReminder(id: string): Promise<void> {
+  await axiosClient.delete(`${HEALTH_TIP_REMINDERS_PATH}/${encodeURIComponent(id)}`)
+}

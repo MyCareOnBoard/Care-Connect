@@ -40,6 +40,7 @@ type NotificationKey =
   | "messages"
   | "shifts"
   | "approvals"
+  | "wellness"
 /**
  * Only settings the API enforces. `showEmailAddress` / `showPhoneNumber` were dropped —
  * the public profile response returns neither field, so there was nothing to hide — as was
@@ -437,6 +438,10 @@ export function ProfileModals({
                   { label: "Shifts & visits", key: "shifts" as NotificationKey },
                   { label: "Expenses & reimbursements", key: "approvals" as NotificationKey },
                 ],
+              },
+              {
+                title: "Wellness",
+                options: [{ label: "Health tip reminders", key: "wellness" as NotificationKey }],
               },
               {
                 title: "Delivery methods",

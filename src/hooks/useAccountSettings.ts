@@ -56,6 +56,7 @@ const defaultNotificationOptions = {
   messages: true,
   shifts: true,
   approvals: true,
+  wellness: true,
 }
 
 // Mirrors PRIVACY_DEFAULTS. Only settings the API enforces.
