@@ -29,6 +29,8 @@ export interface NewHealthTipReminder {
   recurrence: ReminderRecurrence
   /** The tip the reminder is set from, so opening the reminder can show it. */
   tip?: HealthTip
+  /** Also keep the tip in the person's saved tips. Best effort on the server. */
+  saveTip?: boolean
 }
 
 export interface HealthTipReminder {
@@ -41,6 +43,8 @@ export interface HealthTipReminder {
   /** ISO time of the next reminder; null while paused. */
   nextAt: string | null
   expiresAt: string
+  /** Set on the reply to creating one: whether the tip was also saved. */
+  saved?: boolean
 }
 
 const TIME = /^([01]\d|2[0-3]):([0-5]\d)$/
@@ -156,10 +160,11 @@ export async function createHealthTipReminder(input: NewHealthTipReminder): Prom
     timezone: browserTimezone(),
     recurrence: input.recurrence,
     ...(input.tip ? { tip: tipPayload(input.tip) } : {}),
+    ...(input.tip && input.saveTip ? { saveTip: true } : {}),
   })
   const reminder = mapReminder(data?.data)
   if (!reminder) throw new Error(FALLBACK_ERROR)
-  return reminder
+  return { ...reminder, saved: data?.data?.saved === true }
 }
 
 /** The person's own live reminders, soonest first, and the most they can have at once. */

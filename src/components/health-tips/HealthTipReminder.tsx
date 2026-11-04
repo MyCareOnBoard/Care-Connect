@@ -44,12 +44,14 @@ export function HealthTipReminder({ tip, onCreate }: Props) {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<Reminder | null>(null)
+  // On by default and said plainly: setting a reminder also keeps the tip in "Saved tips".
+  const [saveTip, setSaveTip] = useState(true)
 
   async function submit() {
     setSending(true)
     setError(null)
     try {
-      setCreated(await onCreate({ label: tip.title, time, recurrence, tip }))
+      setCreated(await onCreate({ label: tip.title, time, recurrence, tip, saveTip }))
       setStep("set")
     } catch (caught) {
       setError(reminderErrorMessage(caught))
@@ -72,7 +74,10 @@ export function HealthTipReminder({ tip, onCreate }: Props) {
           <CircleCheck className="animate-check-pop size-4" aria-hidden="true" />
           Reminder set for {formatReminderTime(created.time)}, {describeRecurrence(created.recurrence)}.
         </p>
-        <p className="mt-1">It will be a short note that doesn't mention the topic.</p>
+        <p className="mt-1">
+          It will be a short note that doesn't mention the topic.
+          {created.saved ? " The tip is saved under Saved tips." : ""}
+        </p>
       </div>
     )
   }
@@ -140,6 +145,17 @@ export function HealthTipReminder({ tip, onCreate }: Props) {
         The reminder is a short note that doesn't mention the topic. Reminders stop after 30 days
         unless you renew them.
       </p>
+
+      <label className="flex items-center gap-2 text-xs text-[#4a5260]">
+        <input
+          type="checkbox"
+          checked={saveTip}
+          disabled={sending}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => setSaveTip(event.target.checked)}
+          className="size-3.5 accent-[#00898c]"
+        />
+        Also save this tip, so I can find it later
+      </label>
 
       {error && (
         <p role="alert" className="text-xs text-[#b42318]">

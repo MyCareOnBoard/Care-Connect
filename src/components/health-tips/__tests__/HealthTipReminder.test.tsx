@@ -34,7 +34,7 @@ describe("HealthTipReminder", () => {
     const { user, onCreate } = setup()
     await user.click(screen.getByRole("button", { name: "Remind me" }))
     await user.click(screen.getByRole("button", { name: "Set reminder" }))
-    expect(onCreate).toHaveBeenCalledWith({ label: TIP.title, time: "08:00", recurrence: "daily", tip: TIP })
+    expect(onCreate).toHaveBeenCalledWith({ label: TIP.title, time: "08:00", recurrence: "daily", tip: TIP, saveTip: true })
     expect(await screen.findByText(/Reminder set for 8:00 AM, every day/)).toBeInTheDocument()
   })
 
@@ -44,7 +44,32 @@ describe("HealthTipReminder", () => {
     await user.click(screen.getByRole("button", { name: /Evening/ }))
     await user.click(screen.getByRole("button", { name: "Once" }))
     await user.click(screen.getByRole("button", { name: "Set reminder" }))
-    expect(onCreate).toHaveBeenCalledWith({ label: TIP.title, time: "18:00", recurrence: "once", tip: TIP })
+    expect(onCreate).toHaveBeenCalledWith({ label: TIP.title, time: "18:00", recurrence: "once", tip: TIP, saveTip: true })
+  })
+
+  it("also saves the tip by default, says so, and lets the person untick it", async () => {
+    const { user, onCreate } = setup()
+    await user.click(screen.getByRole("button", { name: "Remind me" }))
+    const box = screen.getByRole("checkbox", { name: /Also save this tip/ })
+    expect(box).toBeChecked()
+    await user.click(box)
+    await user.click(screen.getByRole("button", { name: "Set reminder" }))
+    expect(onCreate).toHaveBeenCalledWith({ label: TIP.title, time: "08:00", recurrence: "daily", tip: TIP, saveTip: false })
+  })
+
+  it("confirms the tip was saved only when the server says it was", async () => {
+    const { user } = setup(vi.fn().mockResolvedValue({ ...CREATED, saved: true }))
+    await user.click(screen.getByRole("button", { name: "Remind me" }))
+    await user.click(screen.getByRole("button", { name: "Set reminder" }))
+    expect(await screen.findByText(/saved under Saved tips/)).toBeInTheDocument()
+  })
+
+  it("does not claim it saved the tip when it did not", async () => {
+    const { user } = setup(vi.fn().mockResolvedValue({ ...CREATED, saved: false }))
+    await user.click(screen.getByRole("button", { name: "Remind me" }))
+    await user.click(screen.getByRole("button", { name: "Set reminder" }))
+    await screen.findByText(/Reminder set for/)
+    expect(screen.queryByText(/saved under Saved tips/)).not.toBeInTheDocument()
   })
 
   it("says the reminder will not mention the topic, before and after", async () => {
