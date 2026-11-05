@@ -14,6 +14,9 @@ import { MomentCaption } from "@/components/cowry/moments/MomentCaption"
  * It never leaves a blank screen. If the video fails, or has not started within a few seconds
  * (a slow connection, a blocked file), `fallback` — the gift's drawn scene — plays instead. With
  * reduced motion there is no playback: one held frame of the video, briefly, with the caption.
+ *
+ * `poster` is the film's first frame as a small image. It is on screen the moment this opens,
+ * while the video itself is still loading, and playback picks up from it without a jump.
  */
 
 /** How long to wait for the first frame before falling back to the drawn scene. */
@@ -29,11 +32,14 @@ function prefersReducedMotion(): boolean {
 
 export function VideoMoment({
   src,
+  poster,
   label,
   onDone,
   fallback,
 }: {
   src: string
+  /** The still shown until the first frame plays (giftVideos.ts videoPosterFor). */
+  poster?: string
   /** What is happening, for screen readers: "A Golden Lion roars". */
   label: string
   onDone: () => void
@@ -117,6 +123,7 @@ export function VideoMoment({
       <video
         ref={videoRef}
         src={src}
+        poster={poster}
         playsInline
         preload="auto"
         // Muted until the effect decides; a video that starts unmuted is the one browsers block.

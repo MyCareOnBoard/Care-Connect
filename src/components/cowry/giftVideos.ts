@@ -11,6 +11,13 @@ import { giftNameHas, type GiftLike } from "@/components/cowry/giftIcons"
  * To give another legendary gift a video: put the MP4 in public/videos (H.264, 720p or more,
  * 10 seconds or so, the action kept to the middle third so a phone's crop keeps it) and add
  * its arrival here.
+ *
+ * Every video also has a poster: its first frame, at public/videos/posters/<same name>.webp.
+ * It shows the instant the moment opens, while the film is still loading, so the screen is
+ * never black. The first frame rather than a later one, so playback starts without a jump.
+ * Make it with:
+ *   ffmpeg -i Name.mp4 -frames:v 1 -c:v libwebp -quality 72 -compression_level 6 posters/Name.webp
+ * A missing poster only means the old black wait.
  */
 const VIDEOS: Partial<Record<GiftArrival, string>> = {
   "eagle-flight": "Golden-Eagle-Flying-in-Jungle.mp4",
@@ -51,4 +58,10 @@ const TREASURE_VIDEOS: { match: string[]; file: string }[] = [
 export function treasureVideoFor(gift: GiftLike | null | undefined): string | null {
   const file = TREASURE_VIDEOS.find((film) => giftNameHas(gift, film.match))?.file
   return file ? `${import.meta.env.BASE_URL}videos/${file}` : null
+}
+
+/** The still shown before a video's first frame: `videos/Name.mp4` → `videos/posters/Name.webp`. */
+export function videoPosterFor(src: string): string | undefined {
+  const poster = src.replace(/\/videos\/([^/]+)\.mp4$/, "/videos/posters/$1.webp")
+  return poster === src ? undefined : poster
 }
