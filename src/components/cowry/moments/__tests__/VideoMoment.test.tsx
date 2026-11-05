@@ -2,7 +2,9 @@ import { act, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { VideoMoment } from "../VideoMoment"
 import { MomentCaptionContext, congratulationsFor } from "../captionContext"
-import { giftVideoFor, treasureVideoFor } from "@/components/cowry/giftVideos"
+import { existsSync, readdirSync } from "node:fs"
+import { join } from "node:path"
+import { giftVideoFor, treasureVideoFor, videoPosterFor } from "@/components/cowry/giftVideos"
 
 /**
  * A filmed legendary arrival.
@@ -25,16 +27,27 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-function show(onDone = vi.fn()) {
+function show(onDone = vi.fn(), poster?: string) {
   render(
     <MomentCaptionContext.Provider value={congratulationsFor(90000, "Golden Lion")}>
-      <VideoMoment src="/videos/lion.mp4" label="Golden Lion arrives" onDone={onDone} fallback={<p>drawn scene</p>} />
+      <VideoMoment
+        src="/videos/lion.mp4"
+        poster={poster}
+        label="Golden Lion arrives"
+        onDone={onDone}
+        fallback={<p>drawn scene</p>}
+      />
     </MomentCaptionContext.Provider>,
   )
   return onDone
 }
 
 describe("a filmed arrival", () => {
+  it("shows the poster while the film loads", () => {
+    show(vi.fn(), "/videos/posters/lion.webp")
+    expect(document.querySelector("video")?.getAttribute("poster")).toBe("/videos/posters/lion.webp")
+  })
+
   it("plays the video with the treasure's amount and name over it", async () => {
     show()
     await act(async () => {})
@@ -91,6 +104,23 @@ describe("which treasures are filmed", () => {
     expect(giftVideoFor("lion-storm")).toBeNull()
     expect(giftVideoFor("earth-harvest")).toMatch(/Dry-Earth-Transforms-into-Garden\.mp4$/)
     expect(giftVideoFor("rose-bloom")).toBeNull()
+  })
+})
+
+describe("posters", () => {
+  it("names a video's poster after it", () => {
+    expect(videoPosterFor("/videos/Sahara-Moon.mp4")).toBe("/videos/posters/Sahara-Moon.webp")
+    expect(videoPosterFor("/app/videos/Sahara-Moon.mp4")).toBe("/app/videos/posters/Sahara-Moon.webp")
+    expect(videoPosterFor("/elsewhere/clip.mov")).toBeUndefined()
+  })
+
+  // A film added without its poster would open on black again.
+  it("has a poster for every video in public/videos", () => {
+    const dir = join(process.cwd(), "public", "videos")
+    const missing = readdirSync(dir)
+      .filter((file) => file.endsWith(".mp4"))
+      .filter((file) => !existsSync(join(dir, "posters", file.replace(/\.mp4$/, ".webp"))))
+    expect(missing).toEqual([])
   })
 })
 

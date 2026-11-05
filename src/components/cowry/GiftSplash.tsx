@@ -18,7 +18,7 @@ import { HumanConnectionMoment } from "@/components/cowry/moments/HumanMoments"
 import { TreasureSceneMoment } from "@/components/cowry/moments/TreasureSceneMoment"
 import { treasureSceneFor } from "@/components/cowry/moments/scene/treasureScenes"
 import { THEMES, humanSceneFor, isHumanScene, themeFor, treasureMeaningFor, treasureTier } from "@/components/cowry/treasureTiers"
-import { giftVideoFor, treasureVideoFor } from "@/components/cowry/giftVideos"
+import { giftVideoFor, treasureVideoFor, videoPosterFor } from "@/components/cowry/giftVideos"
 import { OceanPearl } from "@/components/cowry/moments/OceanPearl"
 import { PhoenixRise } from "@/components/cowry/moments/PhoenixRise"
 import { RisingSun } from "@/components/cowry/moments/RisingSun"
@@ -157,7 +157,17 @@ export function GiftSplash({ data, onDone }: { data: GiftSplashData; onDone: () 
           : tier === 3 ? <SpotlightMoment gift={data.gift} colors={THEMES[theme].colors} label={arrives} onDone={showCard} />
           : <ThemeMoment gift={data.gift} theme={theme} label={arrives} onDone={showCard} />
         // The film, with the drawn scene behind it in case it will not play.
-        if (treasureVideo) return <VideoMoment src={treasureVideo} label={arrives} onDone={showCard} fallback={drawn} />
+        if (treasureVideo) {
+          return (
+            <VideoMoment
+              src={treasureVideo}
+              poster={videoPosterFor(treasureVideo)}
+              label={arrives}
+              onDone={showCard}
+              fallback={drawn}
+            />
+          )
+        }
         return drawn
       }
       // Filmed where there is a video for it; the drawn scene otherwise, and as its fallback.
@@ -168,7 +178,15 @@ export function GiftSplash({ data, onDone }: { data: GiftSplashData; onDone: () 
         : null
       const video = giftVideoFor(arrival)
       if (drawn && video) {
-        return <VideoMoment src={video} label={`${label} arrives`} onDone={showCard} fallback={drawn} />
+        return (
+          <VideoMoment
+            src={video}
+            poster={videoPosterFor(video)}
+            label={`${label} arrives`}
+            onDone={showCard}
+            fallback={drawn}
+          />
+        )
       }
       if (drawn) return drawn
       if (arrival === "rose-bloom") return <RoseBloom onDone={showCard} />
