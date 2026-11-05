@@ -204,7 +204,7 @@ describe("Health tips page", () => {
     it("remembers searches that gave a tip, and clears them", async () => {
       searchHealthTips.mockResolvedValue(result({ tip: TIP }))
       const user = userEvent.setup()
-      render(<HealthTipsPage />)
+      renderPage()
       expect(screen.queryByRole("group", { name: "Recent searches" })).not.toBeInTheDocument()
 
       await search(user)
@@ -220,7 +220,7 @@ describe("Health tips page", () => {
     it("never remembers an emergency", async () => {
       searchHealthTips.mockResolvedValue(result({ urgent: true, notice: "Call now." }))
       const user = userEvent.setup()
-      render(<HealthTipsPage />)
+      renderPage()
       await search(user, "chest pain")
       await screen.findByRole("alert")
       expect(screen.queryByRole("group", { name: "Recent searches" })).not.toBeInTheDocument()
@@ -228,7 +228,7 @@ describe("Health tips page", () => {
 
     it("jumps to the search box on /, but not while typing elsewhere", async () => {
       const user = userEvent.setup()
-      render(<HealthTipsPage />)
+      renderPage()
       const input = screen.getByLabelText("What would you like tips on?")
 
       await user.keyboard("/")
@@ -240,7 +240,7 @@ describe("Health tips page", () => {
     it("browses topics by category and searches the one picked", async () => {
       searchHealthTips.mockResolvedValue(result({ tip: TIP }))
       const user = userEvent.setup()
-      render(<HealthTipsPage />)
+      renderPage()
 
       await user.click(screen.getByRole("button", { name: "Mind" }))
       expect(screen.getByRole("button", { name: "Mind" })).toHaveAttribute("aria-pressed", "true")

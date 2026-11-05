@@ -228,6 +228,7 @@ html.dark .hover\:bg-\[\#eafaf1\]:hover { background-color: #213a2c; }
 html.dark .hover\:bg-\[\#eafbfb\]:hover { background-color: #1f3b3b; }
 html.dark .hover\:bg-\[\#edf3f5\]:hover { background-color: #283134; }
 html.dark .hover\:bg-\[\#eef1f3\]:hover { background-color: #2b3032; }
+html.dark .hover\:bg-\[\#f1f4f6\]:hover { background-color: #282d31; }
 html.dark .hover\:bg-\[\#f2f6f8\]:hover { background-color: #252d31; }
 html.dark .hover\:bg-\[\#f2f8f9\]:hover { background-color: #243032; }
 html.dark .hover\:bg-\[\#f2fbfb\]:hover { background-color: #203434; }
@@ -358,6 +359,7 @@ html.dark .text-\[\#8c1d18\] { color: #a8433e; }
 html.dark .text-\[\#9a7116\] { color: #b08d3d; }
 html.dark .text-\[\#a8793f\] { color: #b29572; }
 html.dark .text-\[\#b24a86\] { color: #b47e9d; }
+html.dark .text-\[\#b42318\] { color: #c15048; }
 html.dark .text-\[\#b4232a\] { color: #bd575c; }
 html.dark .text-\[\#b4372c\] { color: #bb6962; }
 html.dark .text-\[\#b7791f\] { color: #c09453; }

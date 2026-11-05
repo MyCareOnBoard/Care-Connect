@@ -157,6 +157,133 @@
     animation: htEq 0.8s ease-in-out infinite;
 }
 
+/* ── Light streaks (LightStreaks.tsx) ───────────────────────────────────────
+   Lines of light falling down the empty space either side of the column on large screens.
+   No `display` is set here: the component's `hidden lg:block` decides that, and only reduced
+   motion overrides it. The layer sits behind the content (the page wrapper isolates it). */
+
+.ht-streaks {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* The space beside the 48rem (max-w-3xl) column, each side. */
+.ht-gutter {
+    position: absolute;
+    inset-block: 0;
+    width: max(0px, calc(50% - 24rem));
+    /* A faint wash of light down the side, strongest near the column. */
+    background: linear-gradient(var(--ht-gutter-dir), transparent, rgb(0 180 184 / 0.05));
+    mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+.ht-gutter-left {
+    left: 0;
+    --ht-gutter-dir: 90deg;
+}
+
+.ht-gutter-right {
+    right: 0;
+    --ht-gutter-dir: 270deg;
+}
+
+@keyframes htFall {
+    0% {
+        opacity: 0;
+        transform: translateY(0);
+    }
+    10%,
+    85% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(calc(100% + var(--h)));
+    }
+}
+
+/* A lane the full height of the page; the streak rides just above its top edge, so moving
+   the lane down by its own height carries the streak from the top of the page to the bottom. */
+.ht-streak {
+    position: absolute;
+    inset-block: 0;
+    left: var(--x);
+    width: var(--w);
+    animation: htFall var(--dur) linear infinite;
+    animation-delay: var(--delay);
+    will-change: transform, opacity;
+}
+
+/* Bright at the bottom: the head leads, the tail fades out behind it. */
+.ht-streak::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 100%;
+    height: var(--h);
+    border-radius: 9999px;
+    background: linear-gradient(180deg, transparent, rgb(0 180 184 / 0.45) 65%, rgb(255 255 255 / 0.95));
+    box-shadow: 0 0 10px 1px rgb(0 180 184 / 0.35);
+}
+
+.ht-streak-dim::before {
+    opacity: 0.5;
+}
+
+html.dark .ht-streak::before {
+    background: linear-gradient(180deg, transparent, rgb(40 186 189 / 0.5) 65%, rgb(190 245 246 / 0.9));
+    box-shadow: 0 0 12px 1px rgb(40 186 189 / 0.4);
+}
+
+/* ── Tip card arrival ───────────────────────────────────────────────────────
+   One pass of light across the card as it lands, the same light as the streaks. */
+
+@keyframes htSheen {
+    from {
+        transform: translateX(-120%) skewX(-18deg);
+    }
+    to {
+        transform: translateX(220%) skewX(-18deg);
+    }
+}
+
+.ht-sheen {
+    position: relative;
+}
+
+.ht-sheen::after {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    width: 45%;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+    transform: translateX(-120%) skewX(-18deg);
+    animation: htSheen 1.1s cubic-bezier(0.22, 1, 0.36, 1) 0.35s 1 both;
+}
+
+html.dark .ht-sheen::after {
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.08), transparent);
+}
+
+/* A gentle lift for cards that can be hovered. */
+.ht-lift {
+    transition:
+        transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 0.25s ease;
+}
+
+@media (hover: hover) {
+    .ht-lift:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 32px -18px rgb(0 137 140 / 0.45);
+    }
+}
+
 /* The loading card morphs into the tip (see startViewTransition in the page). */
 .ht-result {
     view-transition-name: ht-result;
@@ -179,8 +306,15 @@
     .ht-eq {
         animation: none;
     }
-    .ht-burst {
+    .ht-burst,
+    .ht-streaks,
+    .ht-sheen::after {
         display: none;
+    }
+    .ht-lift,
+    .ht-lift:hover {
+        transform: none;
+        transition: none;
     }
     .ht-progress {
         transition: none;
