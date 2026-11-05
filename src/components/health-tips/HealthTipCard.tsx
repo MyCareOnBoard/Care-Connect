@@ -57,7 +57,7 @@ export function HealthTipCard({ tip }: { tip: HealthTip }) {
   }
 
   return (
-    <article className="ht-rise overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-[#e2e6ea]">
+    <article className="ht-rise ht-sheen ht-lift overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-[#e2e6ea]">
       {picture.phase === "loading" && (
         <div className="bg-[#f6f8f9] p-4">
           <div

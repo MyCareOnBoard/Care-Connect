@@ -12,7 +12,6 @@ import {
   Sparkles,
   UserRound,
 } from "lucide-react"
-import { PageHeader } from "@/components/app/PageHeader"
 import { AiDisclaimer, AI_DISCLAIMER_EMERGENCY } from "@/components/health-tips/AiDisclaimer"
 import { HealthTipCard } from "@/components/health-tips/HealthTipCard"
 import { HealthTipFeedback } from "@/components/health-tips/HealthTipFeedback"
@@ -20,6 +19,8 @@ import { HealthTipReminder } from "@/components/health-tips/HealthTipReminder"
 import { HealthTipRemindersList } from "@/components/health-tips/HealthTipRemindersList"
 import { SavedHealthTips } from "@/components/health-tips/SavedHealthTips"
 import { HealthTipQuestionCard } from "@/components/health-tips/HealthTipQuestionCard"
+import { HealthTipsHeader } from "@/components/health-tips/HealthTipsHeader"
+import { LightStreaks } from "@/components/health-tips/LightStreaks"
 import { TopicPicker } from "@/components/health-tips/TopicPicker"
 import { useRecentSearches } from "@/components/health-tips/useRecentSearches"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -258,23 +259,25 @@ export default function HealthTipsPage() {
   }
 
   return (
-    <div className="animate-fade-in-up">
-      <PageHeader
+    // Isolated so the light streaks can sit behind everything without escaping the page.
+    <div className="animate-fade-in-up relative isolate">
+      <LightStreaks />
+      <HealthTipsHeader
         title="Health tips"
         description="Search for general wellness tips on everyday health topics."
       />
 
       <div className="mx-auto max-w-3xl space-y-6 p-5 sm:p-8">
-        <AiDisclaimer />
+        <AiDisclaimer className="ht-rise" />
 
-        <form ref={formRef} onSubmit={onSubmit} className="space-y-3" role="search">
+        <form ref={formRef} onSubmit={onSubmit} className="ht-rise space-y-3" style={delay(0, 0, 90)} role="search">
           <label htmlFor="health-tips-query" className="sr-only">
             What would you like tips on?
           </label>
           <div className="flex gap-2">
-            <div className="relative flex-1">
+            <div className="group relative flex-1">
               <Search
-                className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#8a94a3]"
+                className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#8a94a3] transition-[color,transform] duration-200 group-focus-within:scale-110 group-focus-within:text-[#00b4b8]"
                 aria-hidden="true"
               />
               <input
@@ -285,7 +288,7 @@ export default function HealthTipsPage() {
                 maxLength={MAX_QUERY_LENGTH}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="e.g. tips for sleeping better"
-                className="peer h-12 w-full rounded-full border border-[#dfe4ea] bg-white pl-10 pr-4 text-sm outline-none transition focus:border-[#00b4b8] focus:ring-2 focus:ring-[#00b4b8]/20 sm:pr-12"
+                className="peer h-12 w-full rounded-full border border-[#dfe4ea] bg-white pl-10 pr-4 text-sm outline-none transition focus:border-[#00b4b8] focus:shadow-[0_8px_24px_-12px_rgba(0,180,184,0.55)] focus:ring-4 focus:ring-[#00b4b8]/15 sm:pr-12"
               />
               {/* Keyboard hint; hidden on phones (no "/" key to speak of) and while typing. */}
               <kbd
@@ -371,7 +374,7 @@ export default function HealthTipsPage() {
 
         {status === "idle" && (
           <EmptyState
-            className="ht-rise"
+            className="ht-rise [--ht-delay:200ms]"
             icon={
               <span className="relative">
                 <span className="ht-float flex size-14 items-center justify-center rounded-2xl bg-[#e3f8f8] text-[#00898c]">
