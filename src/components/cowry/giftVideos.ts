@@ -37,7 +37,7 @@ export function giftVideoFor(arrival: GiftArrival): string | null {
  * with its price-band scene (treasureTiers.ts) as the fallback. The Special and Premium
  * films go here as they arrive: one line each, first match wins. The names are kept to the
  * film's own subject, so the everyday "The Baobab" or "Jollof Table" keep their drawn scenes,
- * as do "Victory Dance", "Coral Beads" and "Rising Moon".
+ * as do "Victory Dance", "Coral Beads", "Rising Moon", "Heart of Love" and "Eternal Flame".
  */
 const TREASURE_VIDEOS: { match: string[]; file: string }[] = [
   { match: ["timeless treasure"], file: "Timeless-Treasure.mp4" },
@@ -53,6 +53,16 @@ const TREASURE_VIDEOS: { match: string[]; file: string }[] = [
   { match: ["sahara*"], file: "Sahara-Moon.mp4" },
   { match: ["royal beads", "royal bead"], file: "Royal-Beads.mp4" },
   { match: ["mbira*"], file: "Mbira-Instrument.mp4" },
+  { match: ["iron smelt*"], file: "Ancient-Art-Iron-Smelting.mp4" },
+  // The usual spelling and the film's own, as a name may use either.
+  { match: ["assegai", "assagai", "assigai"], file: "The-Assigai-Spear.mp4" },
+  { match: ["queen edea", "queen idia", "edea mask", "idia mask"], file: "Queen-Edea-Mask.mp4" },
+  { match: ["oldowan*", "stone chopper"], file: "Oldowan-Stone-Chopper.mp4" },
+  { match: ["african love"], file: "African-love.mp4" },
+  { match: ["nok"], file: "Ancient-Nok-Terracata-Art.mp4" },
+  { match: ["eternal love", "love necklace"], file: "Eternal-Love-Necklace.mp4" },
+  // Hyphen or none: names keep their punctuation, ids do not.
+  { match: ["igbo ukwu", "igbo-ukwu", "ancient majesty"], file: "Ancient-Majesty-Igbo-Ukwu.mp4" },
 ]
 
 export function treasureVideoFor(gift: GiftLike | null | undefined): string | null {

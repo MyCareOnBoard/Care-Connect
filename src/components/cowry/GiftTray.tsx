@@ -71,6 +71,14 @@ export function GiftTray({
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState<CowryGiftCatalogItem | null>(null)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const previewRef = useRef<HTMLDivElement | null>(null)
+
+  // The preview opens below the grid, which on a phone can be off the bottom of the tray.
+  useEffect(() => {
+    if (!selected) return
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    previewRef.current?.scrollIntoView?.({ block: "nearest", behavior: reduced ? "auto" : "smooth" })
+  }, [selected])
 
   useEffect(() => {
     if (!open) return
@@ -195,7 +203,7 @@ export function GiftTray({
                 style={{ backgroundColor: giftColor(sent) }}
               />
               <span className="animate-cowry-pop relative flex size-16 items-center justify-center rounded-full bg-white shadow-[0_8px_20px_-8px_rgba(16,20,26,0.45)]">
-                <GiftIcon gift={sent} size={34} />
+                <GiftIcon gift={sent} size={34} className="animate-float-soft" />
               </span>
             </div>
             <p className="mt-4 text-lg font-bold text-[#141922]">{sent.label} sent</p>
@@ -296,8 +304,8 @@ export function GiftTray({
                               !affordable && "opacity-60",
                             )}
                           >
-                            <span className="mx-auto mb-1.5 flex size-11 items-center justify-center">
-                              <GiftIcon gift={gift} size={36} />
+                            <span className="cowry-wobble mx-auto mb-1.5 flex size-11 items-center justify-center">
+                              <GiftIcon gift={gift} size={36} className={active ? "animate-float-soft" : undefined} />
                             </span>
                             <span className="block truncate text-xs font-bold text-[#5a3b0c]">{gift.label}</span>
                             <CowryAmount amount={gift.cost} size={12} className="mt-1 text-xs font-bold text-[#7a5310]" />
@@ -320,7 +328,7 @@ export function GiftTray({
                         >
                           {/* Each gift wears its own icon — see giftIcons.ts. */}
                           <span className="flex items-center justify-center mx-auto mb-1 cowry-wobble size-8">
-                            <GiftIcon gift={gift} size={26} />
+                            <GiftIcon gift={gift} size={26} className={active ? "animate-float-soft" : undefined} />
                           </span>
                           <span className="block truncate text-xs font-medium text-[#141922]">
                             {gift.label}
@@ -334,6 +342,7 @@ export function GiftTray({
                   {selected && (
                     <div
                       key={selected.id}
+                      ref={previewRef}
                       className={cn(
                         "animate-fade-in-up space-y-3 rounded-xl border p-4",
                         isLegendary(selected)
@@ -341,12 +350,28 @@ export function GiftTray({
                           : "border-[#e2e6ea]",
                       )}
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="flex items-center gap-2 font-semibold">
-                          <GiftIcon gift={selected} size={isLegendary(selected) ? 28 : 22} />
-                          {selected.label}
+                      {/* The treasure at full size, as the tile is too small to show it properly. */}
+                      <div
+                        role="group"
+                        aria-label={`Preview of ${selected.label}`}
+                        className={cn(
+                          "cowry-hover flex flex-col items-center rounded-xl px-3 py-5 text-center",
+                          isLegendary(selected) && "bg-[radial-gradient(circle_at_50%_0%,#fff8e6,#fbeed2_60%,#f1d9a4)]",
+                        )}
+                        style={
+                          isLegendary(selected)
+                            ? undefined
+                            : { backgroundColor: `color-mix(in srgb, ${giftColor(selected)} 12%, transparent)` }
+                        }
+                      >
+                        {/* Each on its own element, as one element runs one animation: the pop, the wiggle, the float. */}
+                        <span className="animate-cowry-pop flex items-center justify-center">
+                          <span className="cowry-wobble flex items-center justify-center">
+                            <GiftIcon gift={selected} size={isLegendary(selected) ? 96 : 80} className="animate-float-soft" />
+                          </span>
                         </span>
-                        <CowryAmount amount={selected.cost} size={16} className="text-[#565656]" />
+                        <span className="mt-3 font-semibold text-[#141922]">{selected.label}</span>
+                        <CowryAmount amount={selected.cost} size={16} className="mt-1 text-[#565656]" />
                       </div>
 
                       <Input

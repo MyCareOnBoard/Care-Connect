@@ -140,10 +140,25 @@ describe("which Special and Premium treasures are filmed", () => {
     ["Sahara Moon", "Sahara-Moon"],
     ["Royal Beads", "Royal-Beads"],
     ["The Mbira", "Mbira-Instrument"],
+    ["Ancient Art of Iron Smelting", "Ancient-Art-Iron-Smelting"],
+    ["Iron Smelting", "Ancient-Art-Iron-Smelting"],
+    ["The Assigai Spear", "The-Assigai-Spear"],
+    ["The Assegai", "The-Assigai-Spear"],
+    ["Queen Edea Mask", "Queen-Edea-Mask"],
+    ["Queen Idia Mask", "Queen-Edea-Mask"],
+    ["Oldowan Stone Chopper", "Oldowan-Stone-Chopper"],
+    ["African Love", "African-love"],
+    ["Ancient Nok Terracotta Art", "Ancient-Nok-Terracata-Art"],
+    ["Nok Terracata", "Ancient-Nok-Terracata-Art"],
+    ["Eternal Love Necklace", "Eternal-Love-Necklace"],
+    ["Ancient Majesty: Igbo-Ukwu", "Ancient-Majesty-Igbo-Ukwu"],
+    ["Igbo Ukwu", "Ancient-Majesty-Igbo-Ukwu"],
     ["Mbira Instrument", "Mbira-Instrument"],
     ["The Timeless Treasure", "Timeless-Treasure"],
   ])("plays %s its own film", (label, file) => {
     expect(treasureVideoFor({ label })).toMatch(new RegExp(`/videos/${file}[.]mp4$`))
+    // Spelled as on disk: the live server is case-sensitive, so "African-Love" would not load.
+    expect(readdirSync(join(process.cwd(), "public", "videos"))).toContain(`${file}.mp4`)
   })
 
   it("finds the film by id when the name says nothing", () => {
@@ -157,5 +172,9 @@ describe("which Special and Premium treasures are filmed", () => {
     expect(treasureVideoFor({ label: "Victory Dance" })).toBeNull()
     expect(treasureVideoFor({ label: "Coral Beads" })).toBeNull()
     expect(treasureVideoFor({ label: "The Rising Moon" })).toBeNull()
+    expect(treasureVideoFor({ label: "Heart of Love" })).toBeNull()
+    expect(treasureVideoFor({ label: "Eternal Flame" })).toBeNull()
+    expect(treasureVideoFor({ label: "Queen Bee" })).toBeNull()
+    expect(treasureVideoFor({ label: "Knock Knock" })).toBeNull()
   })
 })

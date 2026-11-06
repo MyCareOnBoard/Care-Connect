@@ -61,12 +61,13 @@ export function TreasureShowcase() {
       </div>
 
       <ul key={current} className="animate-fade-in-up mt-4 grid grid-cols-4 gap-2 sm:gap-3">
-        {shown.map((item) => (
+        {shown.map((item, index) => (
           <li
             key={item.giftId}
             className="flex flex-col items-center gap-1.5 rounded-2xl bg-[#fdf6fa] px-1 py-3 text-center ring-1 ring-[#f6e1ee]"
           >
-            <span className="relative">
+            {/* Out of step with each other, so the shelf drifts rather than bobbing as one. */}
+            <span className="animate-float-soft relative inline-flex" style={{ animationDelay: `${index * -0.7}s` }}>
               <GiftIcon gift={{ id: item.giftId, label: item.label, icon: item.icon }} size={36} />
               {item.count > 1 && (
                 <span className="absolute -right-2.5 -top-1.5 rounded-full bg-[#c0438f] px-1.5 text-[10px] font-bold leading-4 text-white tabular-nums">

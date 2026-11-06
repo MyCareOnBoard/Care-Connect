@@ -40,6 +40,15 @@ describe("TreasureShowcase", () => {
     expect(screen.getByText(/from 3/)).toBeInTheDocument()
   })
 
+  it("floats each treasure with its count, out of step with the next", async () => {
+    listGifts.mockResolvedValue([gift(1), gift(2, "s2"), gift(2, "s3")])
+    render(<TreasureShowcase />)
+    const tiles = await screen.findAllByRole("listitem")
+    const floats = tiles.map((tile) => tile.querySelector<HTMLElement>(".animate-float-soft"))
+    expect(floats[0]).toContainElement(within(tiles[0]).getByText("×2"))
+    expect(floats[0]?.style.animationDelay).not.toBe(floats[1]?.style.animationDelay)
+  })
+
   it("turns a full shelf over with next and previous", async () => {
     listGifts.mockResolvedValue(Array.from({ length: 10 }, (_, i) => gift(i)))
     render(<TreasureShowcase />)

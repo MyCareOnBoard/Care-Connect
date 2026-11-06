@@ -263,7 +263,7 @@ export function GiftSplash({ data, onDone }: { data: GiftSplashData; onDone: () 
                 className="animate-cowry-pop relative flex size-16 items-center justify-center rounded-full bg-white shadow-[0_8px_20px_-8px_rgba(16,20,26,0.45)] ring-4"
                 style={{ ["--tw-ring-color" as string]: `${color}33` }}
               >
-                <GiftIcon gift={data.gift} size={36} />
+                <GiftIcon gift={data.gift} size={36} className="animate-float-soft" />
               </span>
             </span>
 
