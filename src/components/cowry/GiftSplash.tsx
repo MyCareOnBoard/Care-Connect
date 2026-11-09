@@ -5,6 +5,7 @@ import { X } from "lucide-react"
 import { GiftIcon } from "@/components/cowry/GiftIcon"
 import { EagleFlight } from "@/components/cowry/EagleFlight"
 import { giftColor, matchGiftByName, type GiftLike } from "@/components/cowry/giftIcons"
+import { isGiftIllustration } from "@/components/cowry/giftIllustrationKinds"
 import { IconRain, RAIN_MS } from "@/components/cowry/CowryRain"
 import { AncestralMark } from "@/components/cowry/moments/AncestralMark"
 import { CityOfLights } from "@/components/cowry/moments/CityOfLights"
@@ -147,7 +148,9 @@ export function GiftSplash({ data, onDone }: { data: GiftSplashData; onDone: () 
         const rule = matchGiftByName(data.gift)
         // Premium — by its category, or by being one of the gold pieces — plays its film, and
         // the gold scene until it has one. Every other Treasure has a scene of its own.
-        const premium = themeFor(data.set, 1) === "premium" || Boolean(rule?.legendary && rule.icon === "art")
+        // The legendary catalogue gifts are drawn too (giftIllustrations.tsx) but are not gold pieces.
+        const goldPiece = Boolean(rule?.legendary && rule.icon === "art" && !isGiftIllustration(rule.art ?? ""))
+        const premium = themeFor(data.set, 1) === "premium" || goldPiece
         const own = premium ? null : treasureSceneFor(data.gift)
         const drawn =
           own ? <TreasureSceneMoment scene={own} gift={data.gift} label={arrives} onDone={showCard} />

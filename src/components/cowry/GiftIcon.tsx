@@ -146,7 +146,8 @@ export function GiftIcon({
     )
   }
   if (rule.icon === "art") {
-    // A Premium Treasure, drawn in gold, on the top tier's warm glow.
+    // A drawn piece: a Treasure, a Premium piece in gold, or a named catalogue gift. The
+    // legendary ones sit on the top tier's warm glow.
     return (
       <span className={cn("relative inline-flex shrink-0 items-center justify-center", className)} style={box} aria-hidden="true">
         {rule.legendary && <span className="legendary-aura absolute inset-[-12%] rounded-full" />}

@@ -2,6 +2,8 @@ import { useId } from "react"
 import { cn } from "@/lib/utils"
 import { drawIllustration } from "@/components/cowry/treasureIllustrations"
 import { isIllustration, type IllustrationKind } from "@/components/cowry/treasureIllustrationKinds"
+import { drawGiftIllustration } from "@/components/cowry/giftIllustrations"
+import { isGiftIllustration, type GiftIllustrationKind } from "@/components/cowry/giftIllustrationKinds"
 
 /**
  * The Premium Treasures, drawn rather than taken from the icon set, in the same hand-shaded
@@ -20,8 +22,11 @@ type PremiumKind =
   | "golden-memory"
   | "timeless-treasure"
 
-/** Every drawn Treasure: Premium in gold here, the rest in treasureIllustrations.tsx. */
-export type TreasureArtKind = PremiumKind | IllustrationKind
+/**
+ * Every drawn piece: Premium in gold here, the other Treasures in treasureIllustrations.tsx,
+ * and the named catalogue gifts (Clap to Earth Harvest) in giftIllustrations.tsx.
+ */
+export type TreasureArtKind = PremiumKind | IllustrationKind | GiftIllustrationKind
 
 /** The shared gold, so every Premium piece is cut from the same metal. */
 function Golds({ id }: { id: string }) {
@@ -199,7 +204,9 @@ const ART: Record<PremiumKind, (props: { id: string }) => React.JSX.Element> = {
 
 export function TreasureArt({ kind, size = 24, className }: { kind: TreasureArtKind; size?: number; className?: string }) {
   const id = `ta-${useId().replace(/:/g, "")}`
-  const everyday = isIllustration(kind)
+  const treasure = isIllustration(kind)
+  const catalogue = isGiftIllustration(kind)
+  const everyday = treasure || catalogue
   const Art = everyday ? null : ART[kind as PremiumKind]
   return (
     <svg
@@ -215,8 +222,10 @@ export function TreasureArt({ kind, size = 24, className }: { kind: TreasureArtK
       aria-hidden="true"
       focusable="false"
     >
-      {everyday ? (
+      {treasure ? (
         drawIllustration(kind as IllustrationKind, id)
+      ) : catalogue ? (
+        drawGiftIllustration(kind as GiftIllustrationKind, id)
       ) : (
         <>
           <Golds id={id} />

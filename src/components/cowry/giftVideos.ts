@@ -63,6 +63,15 @@ const TREASURE_VIDEOS: { match: string[]; file: string }[] = [
   { match: ["eternal love", "love necklace"], file: "Eternal-Love-Necklace.mp4" },
   // Hyphen or none: names keep their punctuation, ids do not.
   { match: ["igbo ukwu", "igbo-ukwu", "ancient majesty"], file: "Ancient-Majesty-Igbo-Ukwu.mp4" },
+  // British and American spelling, and "jewel" on its own.
+  { match: ["nubian royal", "nubian jewel*"], file: "Nubian-Royal-Jewellery.mp4" },
+  { match: ["mossi*"], file: "The-Mossi-Horsemen.mp4" },
+  { match: ["swahili brass", "brass incense", "incense burner*"], file: "Swahili-Brass-Incense-Burner.mp4" },
+  // A whole word, so "Kissing" never finds it.
+  { match: ["kissi"], file: "Kissi-Stone-Figure.mp4" },
+  // The drum is spelled both ways.
+  { match: ["fontomfrom*", "fontonfrom*"], file: "The-Fontomfrom-Royal-Drum.mp4" },
+  { match: ["timbuktu*", "tombouctou"], file: "Timbuktu-Manuscripts-From-Mali.mp4" },
 ]
 
 export function treasureVideoFor(gift: GiftLike | null | undefined): string | null {
