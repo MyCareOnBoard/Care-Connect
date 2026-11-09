@@ -36,6 +36,9 @@ describe("treasure icons", () => {
     expect(keyOf({ label: "The Fontomfrom Royal Drum" })).toBe("fontomfrom-drum") // not the crown or drum
     expect(keyOf({ label: "Timbuktu Manuscripts From Mali" })).toBe("timbuktu-manuscripts")
     expect(keyOf({ label: "Kissing Hearts" })).not.toBe("kissi-figure")
+    expect(keyOf({ label: "Masquerade Dance" })).toBe("masquerade") // not the Victory Dance
+    expect(keyOf({ label: "The Masquerade" })).toBe("masquerade")
+    expect(keyOf({ label: "Victory Dance" })).toBe("victory-dance")
   })
 
   it("reads the id when the name says nothing", () => {

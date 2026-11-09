@@ -35,7 +35,8 @@ const PALETTE = {
   dark: ["#94a3b8", "#334155", "#0f172a"],
   night: ["#a5b4fc", "#3730a3", "#1e1b4b"],
   // For the catalogue gifts (giftIllustrations.tsx): bronze castings, coral, deeper skin,
-  // emerald, the magenta of a gele, red-brown earth, knapped flint, brass and soapstone.
+  // emerald, the magenta of a gele, red-brown earth, knapped flint, brass, soapstone
+  // and the pale tan of a box mbira.
   bronze: ["#f3c6a0", "#b87333", "#5a2e12"],
   coral: ["#ffd5cc", "#ff6f61", "#9b2c1f"],
   umber: ["#d6a27a", "#8a5232", "#3d1f0e"],
@@ -45,6 +46,7 @@ const PALETTE = {
   flint: ["#ece3d4", "#9c8a73", "#4a3f33"],
   brass: ["#fff1c1", "#d4a537", "#6b4a12"],
   soapstone: ["#dfe5d6", "#7d8b74", "#2f3a2c"],
+  pine: ["#fde7cc", "#dc9a62", "#8a4f22"],
 } as const
 
 export type Colour = keyof typeof PALETTE

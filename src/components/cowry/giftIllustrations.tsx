@@ -678,28 +678,88 @@ const earthHarvest = ({ L }: Paint) => (
 
 /* ── Treasures without a scene of their own ────────────────────────────────── */
 
-/** The mbira: metal keys fanned over a wooden board, set in a carved gourd resonator. */
-const mbira = ({ L, R }: Paint) => (
-  <>
-    <rect x="24" y="12" width="52" height="52" rx="6" fill={L("wood")} {...O} />
-    {Array.from({ length: 9 }, (_, i) => {
-      // The longest keys at the middle, shorter toward the edges, as the instrument is tuned.
-      const x = 30 + i * 5
-      const top = 18 + Math.abs(i - 4) * 3.2
-      return <rect key={i} x={x - 1.5} y={top} width="3" height={58 - top} rx="1.5" fill={L("stone")} stroke="rgba(40,22,10,0.35)" strokeWidth="0.6" />
-    })}
-    <rect x="26" y="38" width="48" height="5" rx="2" fill={L("dark")} {...O} strokeWidth="1" />
-    <path d="M8 52 Q 50 66 92 52 A42 40 0 0 1 8 52 Z" fill={R("brown")} {...O} />
-    <path d="M16 66 L22 61 L28 66 L34 61 L40 66 L46 61 L52 66 L58 61 L64 66 L70 61 L76 66 L82 61 L86 64" stroke="#4a2c0a" strokeWidth="1.6" fill="none" opacity="0.55" strokeLinejoin="round" />
-    {[[30, 78], [50, 82], [70, 78]].map(([x, y]) => (
-      <circle key={x} cx={x} cy={y} r="4" fill="none" stroke="#4a2c0a" strokeWidth="1.4" opacity="0.5" />
-    ))}
-    {[18, 34, 50, 66, 82].map((x) => (
-      <circle key={x} cx={x} cy={x === 50 ? 58.5 : x === 34 || x === 66 ? 57.5 : 55} r="2.2" fill={L("gold")} {...O} strokeWidth="0.8" />
-    ))}
-    <ellipse cx="26" cy="68" rx="4" ry="2" transform="rotate(35 26 68)" {...SHINE} />
-  </>
-)
+/**
+ * The mbira, as a box instrument: metal keys fanned over a wooden box, held down by a bar
+ * across a bridge, longest at the middle; below them a heart-shaped sound hole inside an
+ * engraved wreath.
+ */
+const mbira = ({ L }: Paint) => {
+  const keys = 11
+  return (
+    <>
+      {/* The box: its top face, and the edge below it that gives it depth. */}
+      <rect x="12" y="16" width="76" height="74" rx="7" fill={L("pine")} {...O} />
+      <path d="M12 82 H88 V83 C 88 87, 85 90, 81 90 H19 C 15 90, 12 87, 12 83 Z" fill="#5c300b" opacity="0.35" />
+      <rect x="15" y="19" width="70" height="60" rx="5" fill="none" stroke="#fef3c7" strokeWidth="1" opacity="0.35" />
+      {/* The keys: the longest at the middle, shorter toward the edges, as the instrument is tuned. */}
+      {Array.from({ length: keys }, (_, i) => {
+        const x = 23 + i * 5.4
+        const end = 56 - Math.abs(i - (keys - 1) / 2) * 3.4
+        return <rect key={i} x={x - 1.8} y="20" width="3.6" height={end - 20} rx="1.8" fill={L("stone")} stroke="rgba(40,22,10,0.4)" strokeWidth="0.7" />
+      })}
+      <rect x="19" y="23" width="62" height="3.5" rx="1.5" fill={L("cream")} {...O} strokeWidth="0.9" />
+      <rect x="18" y="30" width="64" height="5" rx="2" fill={L("stone")} {...O} strokeWidth="1" />
+      {[30, 50, 70].map((x) => (
+        <circle key={x} cx={x} cy="32.5" r="1.3" fill="#334155" />
+      ))}
+      {/* The sound hole, and the wreath engraved round it. */}
+      {Array.from({ length: 24 }, (_, i) => {
+        // Round the heart from upper left to upper right, open at the top as a wreath is.
+        const a = ((120 + i * 13) * Math.PI) / 180
+        const [x, y] = [50 + Math.cos(a) * 13, 70 - Math.sin(a) * 11]
+        return <ellipse key={i} cx={x} cy={y} rx="2.6" ry="1.2" transform={`rotate(${(-a * 180) / Math.PI + 90} ${x} ${y})`} fill="#5c300b" opacity="0.75" />
+      })}
+      <path d={heart(50, 68, 0.95)} fill="#2b140a" {...O} strokeWidth="1" />
+      <ellipse cx="22" cy="72" rx="3" ry="7" transform="rotate(-15 22 72)" {...SHINE} opacity="0.35" />
+    </>
+  )
+}
+
+/**
+ * A masquerade dancer, as in the film: a dark carved mask with a long raffia mane, the
+ * costume hung in tiers of red, yellow and green fringe, arms flung out mid-step.
+ */
+const masquerade = ({ L, R }: Paint) => {
+  /** One tier of raffia: a band flaring out, its hem cut ragged. */
+  const tier = (top: number, bottom: number, topHalf: number, bottomHalf: number) => {
+    const teeth = Math.round((bottomHalf * 2) / 5)
+    const hem = Array.from({ length: teeth }, (_, i) => {
+      const x = 50 + bottomHalf - ((i + 0.5) * bottomHalf * 2) / teeth
+      return `L${x} ${bottom + (i % 2 ? 2 : 6)}`
+    }).join(" ")
+    return `M${50 - topHalf} ${top} L${50 + topHalf} ${top} L${50 + bottomHalf} ${bottom} ${hem} L${50 - bottomHalf} ${bottom} Z`
+  }
+  return (
+    <>
+      <ellipse cx="50" cy="92" rx="40" ry="6" fill={solid("amber")} opacity="0.3" />
+      {[[16, 88, 5], [84, 86, 4], [24, 92, 3.5]].map(([x, y, r]) => (
+        <circle key={x} cx={x} cy={y} r={r} fill={solid("brown")} opacity="0.25" />
+      ))}
+      <path d="M43 78 L36 85 L38 93 M57 78 L65 86 L62 93" stroke={solid("green")} strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M36.5 86 L41 84 M63 85 L67 88" stroke={solid("red")} strokeWidth="2" />
+      <path d="M42 40 L22 30 M58 40 L80 22" stroke={solid("red")} strokeWidth="6" strokeLinecap="round" />
+      <path d="M20 31 L15 44 M24 33 L21 46 M28 35 L27 46 M78 23 L82 36 M82 21 L88 32 M85 19 L93 27" stroke={solid("amber")} strokeWidth="2.4" strokeLinecap="round" />
+      <path d={tier(64, 78, 26, 32)} fill={L("green")} {...O} />
+      <path d={tier(50, 65, 20, 28)} fill={L("amber")} {...O} />
+      <path d={tier(36, 52, 14, 24)} fill={L("red")} {...O} />
+      {/* The raffia mane, falling from the crown of the mask over the shoulders. */}
+      <path d="M36 16 C 38 6, 62 6, 64 16 L72 44 L66 41 L62 46 L57 41 L50 45 L43 41 L38 46 L34 41 L28 44 Z" fill={L("amber")} {...O} />
+      {Array.from({ length: 13 }, (_, i) => {
+        const t = i / 12
+        const x = 36 + t * 28
+        const sway = (t - 0.5) * 16
+        return <path key={i} d={`M${x} ${12 + Math.abs(t - 0.5) * 14} C ${x + sway * 0.3} 26, ${x + sway * 0.8} 34, ${x + sway} ${44 - Math.abs(t - 0.5) * 4}`} stroke={i % 3 === 1 ? "#fef3c7" : solid("amber")} strokeWidth="3" fill="none" strokeLinecap="round" />
+      })}
+      <ellipse cx="50" cy="22" rx="9.5" ry="12" fill={R("earth")} {...O} />
+      <ellipse cx="46" cy="20" rx="2.6" ry="1.8" fill="#fef3c7" />
+      <ellipse cx="54" cy="20" rx="2.6" ry="1.8" fill="#fef3c7" />
+      <circle cx="46" cy="20" r="1" fill="#0f172a" />
+      <circle cx="54" cy="20" r="1" fill="#0f172a" />
+      <path d="M46 28 H54" stroke="#fef3c7" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M14 56 Q 10 62 14 68 M86 56 Q 90 62 86 68" stroke={solid("amber")} strokeWidth="2.4" fill="none" strokeLinecap="round" opacity="0.8" />
+    </>
+  )
+}
 
 /** An Oldowan chopper: a cobble with one edge knapped sharp, on a plinth in a spotlight. */
 const oldowanChopper = ({ L }: Paint) => (
@@ -951,6 +1011,7 @@ const DRAW: Record<GiftIllustrationKind, (paint: Paint) => JSX.Element> = {
   "kissi-figure": kissiFigure,
   "fontomfrom-drum": fontomfromDrum,
   "timbuktu-manuscripts": timbuktuManuscripts,
+  masquerade,
 }
 
 /** The drawing for one catalogue gift, its gradients prefixed with `id` so many can share a page. */
