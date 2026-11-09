@@ -918,27 +918,44 @@ const kissiFigure = ({ L, R }: Paint) => (
   </>
 )
 
-/** The fontomfrom: a tall royal drum, pegged and carved, a kente band round it, two sticks. */
-const fontomfromDrum = ({ L, R }: Paint) => (
-  <>
-    <circle cx="50" cy="56" r="42" fill={R("amber")} opacity="0.2" />
-    <path d="M16 6 C 28 12, 36 20, 40 30 M84 6 C 72 12, 64 20, 60 30" stroke={solid("wood")} strokeWidth="4" fill="none" strokeLinecap="round" />
-    <path d="M28 30 C 23 50, 23 74, 30 92 L70 92 C 77 74, 77 50, 72 30 Z" fill={L("wood")} {...O} />
-    <path d="M26 44 C 42 47, 58 47, 74 44 M26 80 C 42 83, 58 83, 74 80" stroke="#fef3c7" strokeWidth="1.6" fill="none" opacity="0.8" />
-    {[[36, 72], [50, 74], [64, 72]].map(([x, y]) => (
-      <path key={x} d={`M${x} ${y - 4} L${x + 4} ${y} L${x} ${y + 4} L${x - 4} ${y} Z`} stroke="#fef3c7" strokeWidth="1.4" fill="none" opacity="0.8" />
-    ))}
-    <path d="M24.5 56 C 41 59, 59 59, 75.5 56 L75.5 64 C 59 67, 41 67, 24.5 64 Z" fill={L("red")} {...O} strokeWidth="1" />
-    {[30, 40, 50, 60, 70].map((x) => (
-      <rect key={x} x={x - 2} y="57.5" width="4" height="7" fill={x % 20 === 10 ? solid("gold") : solid("green")} />
-    ))}
-    {[30, 37, 44, 50, 56, 63, 70].map((x) => (
-      <path key={x} d={`M${x} 32 L${x + (x < 50 ? -1.5 : 1.5)} 40`} stroke={solid("wood")} strokeWidth="3" strokeLinecap="round" />
-    ))}
-    <ellipse cx="50" cy="30" rx="22" ry="6" fill={L("cream")} {...O} />
-    <ellipse cx="40" cy="28.5" rx="6" ry="1.6" {...SHINE} />
-  </>
-)
+/**
+ * The fontomfrom, played as a pair: two tall polished drums, the pale upper section set with
+ * dark wedges under pegged ears, a twisted rope band, a round carved medallion on each.
+ */
+const fontomfromDrum = ({ L, R }: Paint) => {
+  const drum = (cx: number) => (
+    <g key={cx}>
+      {/* The body, swelling below the rope and narrowing to the foot. */}
+      <path d={`M${cx - 19} 18 C ${cx - 23} 40, ${cx - 22} 66, ${cx - 14} 92 L${cx + 14} 92 C ${cx + 22} 66, ${cx + 23} 40, ${cx + 19} 18 Z`} fill={L("earth")} {...O} />
+      <path d={`M${cx - 15} 50 C ${cx - 16} 66, ${cx - 13} 80, ${cx - 9} 90 M${cx + 15} 50 C ${cx + 16} 66, ${cx + 13} 80, ${cx + 9} 90`} stroke="#c2703d" strokeWidth="1" fill="none" opacity="0.5" />
+      {/* The pale upper section and its dark wedges. */}
+      <path d={`M${cx - 19} 18 L${cx + 19} 18 L${cx + 20.5} 36 L${cx - 20.5} 36 Z`} fill={L("pine")} {...O} strokeWidth="1" />
+      {[-12, 0, 12].map((dx) => (
+        <path key={dx} d={`M${cx + dx - 3} 21 L${cx + dx + 3} 21 L${cx + dx + 1.2} 35 L${cx + dx - 1.2} 35 Z`} fill="#2b140a" opacity="0.85" />
+      ))}
+      {/* The pegged ears at the rim. */}
+      <path d={`M${cx - 18} 20 L${cx - 22} 13.5 L${cx - 16} 15 Z M${cx + 18} 20 L${cx + 22} 13.5 L${cx + 16} 15 Z`} fill={L("pine")} {...O} strokeWidth="1" />
+      {/* The twisted rope band. */}
+      <path d={`M${cx - 20.5} 36 L${cx + 20.5} 36 L${cx + 21} 46 L${cx - 21} 46 Z`} fill="#2b140a" opacity="0.9" />
+      <path d={`M${cx - 20} 39 H${cx + 20} M${cx - 20.5} 42.5 H${cx + 20.5}`} stroke="#b08968" strokeWidth="1.2" strokeDasharray="2 1.4" />
+      {/* The carved medallion: a ring, and the paired loops inside it. */}
+      <circle cx={cx} cy="64" r="12.5" fill={R("wood")} stroke="#2b140a" strokeWidth="2.4" />
+      {[[-4, -4], [4, -4], [-4, 4], [4, 4]].map(([dx, dy]) => (
+        <circle key={`${dx}${dy}`} cx={cx + dx} cy={64 + dy} r="3.4" fill="none" stroke="#2b140a" strokeWidth="1.8" />
+      ))}
+      {/* The skin. */}
+      <ellipse cx={cx} cy="17" rx="19" ry="4.5" fill={L("pine")} {...O} />
+      <ellipse cx={cx - 8} cy="56" rx="1.8" ry="7" transform={`rotate(8 ${cx - 8} 56)`} {...SHINE} opacity="0.3" />
+    </g>
+  )
+  return (
+    <>
+      <ellipse cx="50" cy="93" rx="46" ry="4" fill="#2b140a" opacity="0.2" />
+      {drum(26)}
+      {drum(74)}
+    </>
+  )
+}
 
 /** The Timbuktu manuscripts: an open leather-bound book, its pages in close script. */
 const timbuktuManuscripts = ({ L, R }: Paint) => {
