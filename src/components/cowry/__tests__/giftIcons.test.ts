@@ -18,6 +18,26 @@ describe("treasure icons", () => {
     expect(keyOf({ label: "Golden Crown" })).toBe("crown")
   })
 
+  it("gives the Mbira, the Oldowan chopper, the Healing Horizon and the Breath of Morning their own drawings", () => {
+    expect(keyOf({ label: "Mbira Instrument" })).toBe("mbira")
+    expect(keyOf({ label: "The Mbira" })).toBe("mbira")
+    expect(keyOf({ label: "Thumb Piano" })).toBe("mbira") // not the thumbs-up
+    expect(keyOf({ label: "Oldowan Stone Chopper" })).toBe("oldowan-chopper")
+    expect(keyOf({ id: "Oldowan-Stone-Chopper", label: "" })).toBe("oldowan-chopper")
+    expect(keyOf({ label: "The Healing Horizon" })).toBe("healing-horizon")
+    expect(keyOf({ label: "The Breath of Morning" })).toBe("breath-of-morning")
+  })
+
+  it("gives each filmed Treasure the drawing that matches its film", () => {
+    expect(keyOf({ label: "Nubian Royal Jewellery" })).toBe("nubian-jewellery") // not the crown
+    expect(keyOf({ label: "The Mossi Horsemen" })).toBe("mossi-horseman")
+    expect(keyOf({ label: "Swahili Brass Incense Burner" })).toBe("swahili-incense-burner")
+    expect(keyOf({ label: "Kissi Stone Figure" })).toBe("kissi-figure")
+    expect(keyOf({ label: "The Fontomfrom Royal Drum" })).toBe("fontomfrom-drum") // not the crown or drum
+    expect(keyOf({ label: "Timbuktu Manuscripts From Mali" })).toBe("timbuktu-manuscripts")
+    expect(keyOf({ label: "Kissing Hearts" })).not.toBe("kissi-figure")
+  })
+
   it("reads the id when the name says nothing", () => {
     expect(keyOf({ id: "water_drop", label: "Refresh" })).toBe("drop")
   })

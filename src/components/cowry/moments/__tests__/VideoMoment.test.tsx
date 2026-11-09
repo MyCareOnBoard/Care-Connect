@@ -154,6 +154,16 @@ describe("which Special and Premium treasures are filmed", () => {
     ["Ancient Majesty: Igbo-Ukwu", "Ancient-Majesty-Igbo-Ukwu"],
     ["Igbo Ukwu", "Ancient-Majesty-Igbo-Ukwu"],
     ["Mbira Instrument", "Mbira-Instrument"],
+    ["Nubian Royal Jewellery", "Nubian-Royal-Jewellery"],
+    ["Nubian Royal Jewelry", "Nubian-Royal-Jewellery"],
+    ["The Mossi Horsemen", "The-Mossi-Horsemen"],
+    ["Mossi Horseman", "The-Mossi-Horsemen"],
+    ["Swahili Brass Incense Burner", "Swahili-Brass-Incense-Burner"],
+    ["Kissi Stone Figure", "Kissi-Stone-Figure"],
+    ["The Fontomfrom Royal Drum", "The-Fontomfrom-Royal-Drum"],
+    ["Fontonfrom Drum", "The-Fontomfrom-Royal-Drum"],
+    ["Timbuktu Manuscripts From Mali", "Timbuktu-Manuscripts-From-Mali"],
+    ["The Timbuktu Manuscripts", "Timbuktu-Manuscripts-From-Mali"],
     ["The Timeless Treasure", "Timeless-Treasure"],
   ])("plays %s its own film", (label, file) => {
     expect(treasureVideoFor({ label })).toMatch(new RegExp(`/videos/${file}[.]mp4$`))
@@ -176,5 +186,8 @@ describe("which Special and Premium treasures are filmed", () => {
     expect(treasureVideoFor({ label: "Eternal Flame" })).toBeNull()
     expect(treasureVideoFor({ label: "Queen Bee" })).toBeNull()
     expect(treasureVideoFor({ label: "Knock Knock" })).toBeNull()
+    // Close in spelling, not the same word.
+    expect(treasureVideoFor({ label: "Kissing Hearts" })).toBeNull()
+    expect(treasureVideoFor({ label: "The Talking Drum" })).toBeNull()
   })
 })

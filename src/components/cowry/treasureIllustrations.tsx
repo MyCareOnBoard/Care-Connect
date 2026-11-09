@@ -34,19 +34,30 @@ const PALETTE = {
   stone: ["#f8fafc", "#94a3b8", "#334155"],
   dark: ["#94a3b8", "#334155", "#0f172a"],
   night: ["#a5b4fc", "#3730a3", "#1e1b4b"],
+  // For the catalogue gifts (giftIllustrations.tsx): bronze castings, coral, deeper skin,
+  // emerald, the magenta of a gele, red-brown earth, knapped flint, brass and soapstone.
+  bronze: ["#f3c6a0", "#b87333", "#5a2e12"],
+  coral: ["#ffd5cc", "#ff6f61", "#9b2c1f"],
+  umber: ["#d6a27a", "#8a5232", "#3d1f0e"],
+  emerald: ["#a7f3d0", "#059669", "#064e3b"],
+  magenta: ["#f5d0fe", "#c026d3", "#701a75"],
+  earth: ["#c2703d", "#7a3b17", "#2b140a"],
+  flint: ["#ece3d4", "#9c8a73", "#4a3f33"],
+  brass: ["#fff1c1", "#d4a537", "#6b4a12"],
+  soapstone: ["#dfe5d6", "#7d8b74", "#2f3a2c"],
 } as const
 
-type Colour = keyof typeof PALETTE
+export type Colour = keyof typeof PALETTE
 
 /**
  * A flat colour for strokes. A gradient sized to its shape has nothing to spread across on a
  * perfectly straight line (its box has no width or no height), and the line vanishes — so
  * lines are drawn in each colour's body tone instead.
  */
-const solid = (c: Colour) => PALETTE[c][1]
+export const solid = (c: Colour) => PALETTE[c][1]
 
 /** A linear (top-left lit) and a radial (sphere-lit) gradient for every colour. */
-function palette(id: string) {
+export function palette(id: string) {
   return (
     <defs>
       {(Object.entries(PALETTE) as Array<[Colour, readonly string[]]>).map(([name, [light, body, shadow]]) => (
@@ -67,16 +78,16 @@ function palette(id: string) {
   )
 }
 
-type Paint = { L: (c: Colour) => string; R: (c: Colour) => string }
+export type Paint = { L: (c: Colour) => string; R: (c: Colour) => string }
 
 /** The outline every piece shares: firm enough to hold its shape at 26 pixels. */
-const O = { stroke: "rgba(40,22,10,0.45)", strokeWidth: 1.6, strokeLinejoin: "round" as const }
-const SHINE = { fill: "#ffffff", opacity: 0.55 }
+export const O = { stroke: "rgba(40,22,10,0.45)", strokeWidth: 1.6, strokeLinejoin: "round" as const }
+export const SHINE = { fill: "#ffffff", opacity: 0.55 }
 
-const star = (x: number, y: number, r: number) =>
+export const star = (x: number, y: number, r: number) =>
   `M${x} ${y - r} L${x + r * 0.28} ${y - r * 0.28} L${x + r} ${y} L${x + r * 0.28} ${y + r * 0.28} L${x} ${y + r} L${x - r * 0.28} ${y + r * 0.28} L${x - r} ${y} L${x - r * 0.28} ${y - r * 0.28} Z`
 
-const heart = (x: number, y: number, s: number) =>
+export const heart = (x: number, y: number, s: number) =>
   `M${x} ${y + 9 * s} C ${x - 12 * s} ${y + 1 * s}, ${x - 10 * s} ${y - 9 * s}, ${x - 4 * s} ${y - 9 * s} C ${x - 1 * s} ${y - 9 * s}, ${x} ${y - 6 * s}, ${x} ${y - 5 * s} C ${x} ${y - 6 * s}, ${x + 1 * s} ${y - 9 * s}, ${x + 4 * s} ${y - 9 * s} C ${x + 10 * s} ${y - 9 * s}, ${x + 12 * s} ${y + 1 * s}, ${x} ${y + 9 * s} Z`
 
 /* ── Wellness & Emotion ─────────────────────────────────────────────────────── */
