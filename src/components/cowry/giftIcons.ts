@@ -204,6 +204,8 @@ export const GIFT_ICON_RULES: GiftIconRule[] = [
   { key: "kissi-figure", match: ["kissi"], icon: "art", art: "kissi-figure", color: "#7d8b74" },
   { key: "fontomfrom-drum", match: ["fontomfrom*", "fontonfrom*"], icon: "art", art: "fontomfrom-drum", color: "#b45309" },
   { key: "timbuktu-manuscripts", match: ["timbuktu*", "tombouctou"], icon: "art", art: "timbuktu-manuscripts", color: "#a16207" },
+  // Up here, so "Masquerade Dance" is the masquerade, not the Victory Dance.
+  { key: "masquerade", match: ["masquerade*"], icon: "art", art: "masquerade", color: "#dc2626" },
 
   /* ── The catalogue, by name ────────────────────────────────────────────────
      First, so an exact gift name always wins over the general word rules further down

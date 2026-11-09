@@ -22,7 +22,7 @@ export const GIFT_ILLUSTRATION_KINDS = [
   // Treasures without a scene of their own
   "mbira", "oldowan-chopper", "healing-horizon", "breath-of-morning",
   "nubian-jewellery", "mossi-horseman", "swahili-incense-burner", "kissi-figure", "fontomfrom-drum",
-  "timbuktu-manuscripts",
+  "timbuktu-manuscripts", "masquerade",
 ] as const
 
 export type GiftIllustrationKind = (typeof GIFT_ILLUSTRATION_KINDS)[number]
