@@ -304,6 +304,31 @@ describe("confirming a mobile money number", () => {
   })
 })
 
+describe("adding a bank account", () => {
+  it("finds the bank by search and sends its code", async () => {
+    vi.mocked(listPayoutBanks).mockResolvedValue([
+      { code: "044", name: "Access Bank" },
+      { code: "058", name: "Guaranty Trust Bank" },
+      { code: "057", name: "Zenith Bank" },
+    ])
+    vi.mocked(addPayoutAccount).mockResolvedValue({ ok: false, reason: "account_already_saved" })
+    const user = userEvent.setup()
+    render(<PayoutAccountPicker selectedId={null} onSelect={vi.fn()} />)
+
+    await user.click(await screen.findByRole("button", { name: /add/i }))
+    await waitFor(() => expect(screen.getByLabelText(/^bank$/i)).toHaveTextContent(/choose your bank/i))
+    await user.click(screen.getByLabelText(/^bank$/i))
+    await user.type(screen.getByRole("searchbox", { name: /search banks/i }), "gtb")
+    await user.click(screen.getByRole("option", { name: "Guaranty Trust Bank" }))
+    await user.type(screen.getByLabelText(/account number/i), "0123456789")
+    await user.click(screen.getByRole("button", { name: /check and save/i }))
+
+    await waitFor(() =>
+      expect(addPayoutAccount).toHaveBeenCalledWith({ rail: "ng_bank", accountNumber: "0123456789", bankCode: "058" }),
+    )
+  })
+})
+
 describe("showing a saved wallet", () => {
   it("cannot be chosen while it is still waiting to be confirmed", async () => {
     vi.mocked(listPayoutAccounts).mockResolvedValue([account()])

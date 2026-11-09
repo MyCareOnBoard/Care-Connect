@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils"
 import { getAuthErrorMessage } from "@/utils/auth"
 import { EmptyState } from "@/components/ui/empty-state"
 import { NetworkLogo } from "@/components/cowry/NetworkLogo"
+import { BankPicker, type PayoutBank } from "@/components/cowry/BankPicker"
 import {
   clearRecaptchaVerifier,
   startPhoneLink,
@@ -155,7 +156,7 @@ export function PayoutAccountPicker({ selectedId = null, onSelect: onSelectProp,
 
   const [rail, setRail] = useState<"ng_bank" | "mobile_money">("ng_bank")
 
-  const [banks, setBanks] = useState<{ code: string; name: string }[]>([])
+  const [banks, setBanks] = useState<PayoutBank[]>([])
   const [bankCode, setBankCode] = useState("")
   const [accountNumber, setAccountNumber] = useState("")
   /** What the bank said when a save was refused — shown so a typo is findable. */
@@ -609,18 +610,7 @@ export function PayoutAccountPicker({ selectedId = null, onSelect: onSelectProp,
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="payout-bank">Bank</Label>
-                  <Select value={bankCode} onValueChange={setBankCode}>
-                    <SelectTrigger id="payout-bank" className="mt-2">
-                      <SelectValue placeholder={banks.length ? "Choose your bank" : "Loading banks…"} />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-72">
-                      {banks.map((bank) => (
-                        <SelectItem key={bank.code} value={bank.code}>
-                          {bank.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <BankPicker id="payout-bank" className="mt-2" banks={banks} value={bankCode} onChange={setBankCode} />
                 </div>
 
                 <div>
